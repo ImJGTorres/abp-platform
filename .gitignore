@@ -1,0 +1,49 @@
+# ========================
+# BACKEND — Python / Django
+# ========================
+backend/venv/
+backend/.venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/**/*.pyc
+backend/**/*.pyo
+backend/*.egg-info/
+backend/.env
+backend/staticfiles/
+backend/mediafiles/
+backend/db.sqlite3
+
+# ========================
+# FRONTEND — Node / React
+# ========================
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.local
+frontend/.env.production
+
+# ========================
+# IDEs y editores
+# ========================
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ========================
+# Testing
+# ========================
+backend/.coverage
+backend/htmlcov/
+backend/.pytest_cache/
+frontend/coverage/
+frontend/cypress/videos/
+frontend/cypress/screenshots/
+
+# ========================
+# Logs
+# ========================
+*.log
+logs/
