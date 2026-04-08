@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'apps.usuarios',
     'apps.roles',
+    'apps.bitacora',
 ]
 
 MIDDLEWARE = [
@@ -97,6 +98,7 @@ else:
             'NAME': BASE_DIR / 'db.sqlite3',
         }
     }
+
 
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
