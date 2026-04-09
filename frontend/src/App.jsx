@@ -1,11 +1,11 @@
 //versión temporal para pruebas
 
-import RegistroUsuario from './components/RegistroUsuario'
+import ConfiguracionParametros from './components/ConfiguracionParametros'
 
 export default function App() {
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
-      <RegistroUsuario />
+    <div className="min-h-screen bg-gray-50 p-6">
+      <ConfiguracionParametros />
     </div>
   )
 }
