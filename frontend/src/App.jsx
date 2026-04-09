@@ -1,11 +1,5 @@
-//versión temporal para pruebas
-
-import RegistroUsuario from './components/RegistroUsuario'
+import AppRouter from './router/index.jsx'
 
 export default function App() {
-  return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
-      <RegistroUsuario />
-    </div>
-  )
+  return <AppRouter />
 }
