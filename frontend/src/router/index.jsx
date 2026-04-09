@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import ConfiguracionParametros from '../components/ConfiguracionParametros'
 
 const PrivateRoute = ({ children }) => {
   const token = localStorage.getItem('access_token')
@@ -24,6 +25,14 @@ export default function AppRouter() {
           element={
             <PrivateRoute>
               <AdminPage />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/admin/configuracion"
+          element={
+            <PrivateRoute>
+              <ConfiguracionParametros />
             </PrivateRoute>
           }
         />
