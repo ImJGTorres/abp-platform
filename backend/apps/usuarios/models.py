@@ -1,4 +1,5 @@
 from django.db import models
+from apps.roles.models import Rol
 
 class Usuario(models.Model):
 
@@ -30,3 +31,14 @@ class Usuario(models.Model):
 
     def __str__(self):
         return f'{self.nombre} {self.apellido} ({self.correo})'
+
+class UsuarioRol(models.Model):
+    usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE, related_name='roles')
+    rol     = models.ForeignKey(Rol, on_delete=models.CASCADE, related_name='usuarios')
+
+    class Meta:
+        db_table = 'usuario_rol'
+        unique_together = ('usuario', 'rol')
+
+    def __str__(self):
+        return f'{self.usuario.correo} → {self.rol.nombre}'
