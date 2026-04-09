@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'apps.usuarios',
     'apps.roles',
     'apps.bitacora',
+    'apps.configuracion',
 ]
 
 REST_FRAMEWORK = {
