@@ -1,0 +1,86 @@
+[
+  {
+    "model": "configuracion.parametrosistema",
+    "pk": 1,
+    "fields": {
+      "clave": "nombre_institucion",
+      "valor": "Universidad Francisco de Paula Santander",
+      "descripcion": "Nombre oficial de la institución",
+      "categoria": "institucional",
+      "tipo_dato": "string",
+      "usuario_modifico": null
+    }
+  },
+  {
+    "model": "configuracion.parametrosistema",
+    "pk": 2,
+    "fields": {
+      "clave": "nombre_programa",
+      "valor": "Ingeniería de Sistemas",
+      "descripcion": "Nombre del programa académico",
+      "categoria": "institucional",
+      "tipo_dato": "string",
+      "usuario_modifico": null
+    }
+  },
+  {
+    "model": "configuracion.parametrosistema",
+    "pk": 3,
+    "fields": {
+      "clave": "correo_soporte",
+      "valor": "soporte@ufps.edu.co",
+      "descripcion": "Correo de soporte del sistema",
+      "categoria": "institucional",
+      "tipo_dato": "string",
+      "usuario_modifico": null
+    }
+  },
+  {
+    "model": "configuracion.parametrosistema",
+    "pk": 4,
+    "fields": {
+      "clave": "max_estudiantes_por_equipo",
+      "valor": "5",
+      "descripcion": "Máximo de estudiantes por equipo",
+      "categoria": "general",
+      "tipo_dato": "integer",
+      "usuario_modifico": null
+    }
+  },
+  {
+    "model": "configuracion.parametrosistema",
+    "pk": 5,
+    "fields": {
+      "clave": "formatos_archivo_permitidos",
+      "valor": "pdf,docx,xlsx,png,jpg",
+      "descripcion": "Extensiones permitidas para entregables, separadas por coma",
+      "categoria": "archivos",
+      "tipo_dato": "string",
+      "usuario_modifico": null
+    }
+  },
+  {
+    "model": "configuracion.parametrosistema",
+    "pk": 6,
+    "fields": {
+      "clave": "duracion_sesion_minutos",
+      "valor": "60",
+      "descripcion": "Minutos de inactividad antes de cerrar sesión",
+      "categoria": "sesiones",
+      "tipo_dato": "integer",
+      "usuario_modifico": null
+    }
+  },
+  {
+    "model": "configuracion.parametrosistema",
+    "pk": 7,
+    "fields": {
+      "clave": "logo_url",
+      "valor": "",
+      "descripcion": "URL del logo institucional, vacío usa el logo por defecto",
+      "categoria": "institucional",
+      "tipo_dato": "string",
+      "usuario_modifico": null
+    }
+  }
+]

@@ -39,10 +39,25 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'rest_framework_simplejwt', 
     'apps.usuarios',
     'apps.roles',
     'apps.bitacora',
+    'apps.configuracion',
 ]
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
+}
+
+from datetime import timedelta
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME':  timedelta(hours=1),   # token dura 1 hora
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),    # refresh dura 7 días
+}
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',

@@ -1,0 +1,62 @@
+[
+  {
+    "model": "configuracion.parametro",
+    "pk": 1,
+    "fields": {
+      "clave": "nombre_institucion",
+      "valor": "Universidad Francisco de Paula Santander",
+      "tipo_dato": "string",
+      "descripcion": "Nombre oficial de la institución",
+      "fecha_actualizacion": "2026-04-08T00:00:00Z",
+      "usuario_modifico": null
+    }
+  },
+  {
+    "model": "configuracion.parametro",
+    "pk": 2,
+    "fields": {
+      "clave": "max_estudiantes_equipo",
+      "valor": "5",
+      "tipo_dato": "integer",
+      "descripcion": "Máximo de estudiantes por equipo",
+      "fecha_actualizacion": "2026-04-08T00:00:00Z",
+      "usuario_modifico": null
+    }
+  },
+  {
+    "model": "configuracion.parametro",
+    "pk": 3,
+    "fields": {
+      "clave": "correo_soporte",
+      "valor": "soporte@ufps.edu.co",
+      "tipo_dato": "string",
+      "descripcion": "Correo de soporte técnico",
+      "fecha_actualizacion": "2026-04-08T00:00:00Z",
+      "usuario_modifico": null
+    }
+  },
+  {
+    "model": "configuracion.parametro",
+    "pk": 4,
+    "fields": {
+      "clave": "formatos_archivo_permitidos",
+      "valor": "pdf,docx,jpg,png",
+      "tipo_dato": "string",
+      "descripcion": "Formatos de archivo permitidos para entregables",
+      "fecha_actualizacion": "2026-04-08T00:00:00Z",
+      "usuario_modifico": null
+    }
+  },
+  {
+    "model": "configuracion.parametro",
+    "pk": 5,
+    "fields": {
+      "clave": "duracion_sesion_minutos",
+      "valor": "60",
+      "tipo_dato": "integer",
+      "descripcion": "Duración de sesión en minutos",
+      "fecha_actualizacion": "2026-04-08T00:00:00Z",
+      "usuario_modifico": null
+    }
+  }
+]
