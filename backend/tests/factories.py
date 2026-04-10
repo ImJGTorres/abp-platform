@@ -18,3 +18,6 @@ class AdminFactory(UsuarioFactory):
     correo   = factory.Sequence(lambda n: f"admin{n}@ufps.edu.co")
     tipo_rol = Usuario.TipoRol.ADMINISTRADOR
 
+class UsuarioInactivoFactory(UsuarioFactory):
+    estado = Usuario.Estado.INACTIVO
+
