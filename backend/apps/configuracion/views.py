@@ -41,5 +41,4 @@ class ConfiguracionView(APIView):
             modulo='configuracion',
             descripcion='Consulta de parámetros del sistema',
         )
-
         return Response(dict(agrupados))
