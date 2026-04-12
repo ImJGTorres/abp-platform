@@ -155,10 +155,35 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# =============================================================================
+# CONFIGURACIÓN DEL CACHÉ DE DJANGO
+# =============================================================================
+
+# Sistema de caché para almacenar datos temporales en memoria.
+# Se utiliza principalmente para cachear los parámetros del sistema
+# y evitar consultas repetidas a la base de datos.
+
 CACHES = {
     'default': {
+        # BACKEND: Usa memoria local para almacenar datos en caché.
+        # LocMemCache es un caché en memoria del proceso de Python.
+        # Adecuado para desarrollo local y entornos con un solo worker.
+        # NOTA: En producción con múltiples workers, cada proceso tendría su
+        # propio caché independiente (no compartido). Para producción se
+        # recomienda Redis, Memcached, o Base de datos.
         'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        
+        # LOCATION: Nombre único para identificar este caché.
+        # Útil cuando hay múltiples cachés o procesos.
         'LOCATION': 'parametros-sistema-cache',
+        
+        # TIMEOUT: Tiempo en segundos antes de que expire el caché.
+        # 900 segundos = 15 minutos.
+        # Pasado este tiempo, la próxima consultairá a la base de datos
+        # y regenerará el caché con los datos actualizados.
+        # Este tiempo balancea:
+        # - Rendimiento: Evita consultas repetitivas a la BD
+        # - Frescura: Los datos no quedan obsoletos por mucho tiempo
         'TIMEOUT': 900,
     }
 }
