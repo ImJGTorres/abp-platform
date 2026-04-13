@@ -39,7 +39,11 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    # SimpleJWT: Librería para autenticación JWT (BE-01)
+    # Provee views ready-to-use para login, refresh y logout
     'rest_framework_simplejwt',
+    # Token blacklist: Necesario para logout efectivo (BE-05)
+    # Permite agregar tokens a lista negra al hacer logout
     'rest_framework_simplejwt.token_blacklist',
     'apps.usuarios',
     'apps.roles',
@@ -47,18 +51,39 @@ INSTALLED_APPS = [
     'apps.configuracion',
 ]
 
+# Configuración de Django REST Framework (BE-01)
+# JWT como método de autenticación por defecto
+# Todas las vistas que requieran autenticación usarán tokens JWT
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
 }
 
+# Import timedelta para configurar tiempos de expiración (BE-01)
 from datetime import timedelta
 
+# Configuración de SimpleJWT (BE-01, BE-05)
+# Define tiempos de vida y comportamientos de los tokens JWT
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME':  timedelta(hours=1),   # token dura 1 hora
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),    # refresh dura 7 días
+    # ACCESS_TOKEN_LIFETIME: Tiempo de vida del token de acceso (BE-01)
+    # Usado para todas las solicitudes autenticadas
+    # Valor: 1 hora
+    'ACCESS_TOKEN_LIFETIME':  timedelta(hours=1),
+    
+    # REFRESH_TOKEN_LIFETIME: Tiempo de vida del token de refresh (BE-01)
+    # Usado para obtener nuevos access tokens sin login
+    # Valor: 7 días
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    
+    # ROTATE_REFRESH_TOKENS: Rotación automática de refresh tokens (BE-05)
+    # Cuando se usa un refresh token, automáticamente se genera uno nuevo
+    # Incrementa seguridad evitando reuse de tokens
     'ROTATE_REFRESH_TOKENS': True,
+    
+    # BLACKLIST_AFTER_ROTATION: Agregar refresh token usado a blacklist (BE-05)
+    # Evita que refresh tokens roteados puedan usarse nuevamente
+    # Funciona junto con ROTATE_REFRESH_TOKENS
     'BLACKLIST_AFTER_ROTATION': True,
 }
 
