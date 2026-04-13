@@ -9,7 +9,7 @@ class EsAdministrador(BasePermission):
     message = 'Se requiere rol de administrador.'
 
     def has_permission(self, request, view):
-        usuario = getattr(request, 'usuario', None)
+        usuario = getattr(request, 'usuario', None) or getattr(request, 'user', None)
         return (
             usuario is not None
             and getattr(usuario, 'tipo_rol', None) == 'administrador'

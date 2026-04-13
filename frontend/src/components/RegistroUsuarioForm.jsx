@@ -1,15 +1,5 @@
-
 import { useState } from "react";
-import { useRegistroForm } from "../hooks/useRegistro";
-
-
-const ROLES = [
-    { value: "estudiante", label: "Estudiante" },
-    { value: "docente", label: "Docente" },
-    { value: "administrador", label: "Administrador" },
-    { value: "director", label: "Director" },
-];
-
+import { useRegistroForm, ROLES } from "../hooks/useRegistroForm";
 
 export default function RegistroUsuarioForm() {
     const {
@@ -28,11 +18,9 @@ export default function RegistroUsuarioForm() {
 
     return (
         <div className="max-w-lg mx-auto bg-white rounded-xl border border-gray-200 p-8 shadow-sm">
-
-            {/* Encabezado */}
             <h2 className="text-lg font-semibold text-gray-900 mb-1">Registrar usuario</h2>
 
-            {/* ── Confirmación de éxito — ST-12 ──────────────────────────────────── */}
+            {/* Confirmación de éxito  */}
             {exitoso && (
                 <div role="status"
                     className="mb-5 flex items-start gap-3 rounded-lg bg-green-50
@@ -51,15 +39,14 @@ export default function RegistroUsuarioForm() {
                             Puedes registrar otro usuario o cerrar este formulario.
                         </p>
                     </div>
-                    <button
-                        onClick={resetear}
-                        className="text-green-600 hover:text-green-800 transition-colors text-xs font-medium whitespace-nowrap"
-                    >
+                    <button onClick={resetear}
+                        className="text-green-600 hover:text-green-800 text-xs font-medium whitespace-nowrap">
                         + Nuevo
                     </button>
                 </div>
             )}
 
+            {/*  Error general */}
             {errorGeneral && (
                 <div role="alert"
                     className="mb-5 flex items-center gap-2 rounded-lg bg-red-50
@@ -73,60 +60,36 @@ export default function RegistroUsuarioForm() {
                 </div>
             )}
 
-            {/* ── Formulario ─────────────────────────────────────────────────────── */}
+            {/*Formulario */}
             <form onSubmit={handleSubmit} noValidate className="space-y-4">
 
-                {/* Nombre + Apellido */}
                 <div className="grid grid-cols-2 gap-3">
-                    <Field
-                        label="Nombre" name="nombre" placeholder="Ana"
-                        value={form.nombre} onChange={handleChange}
-                        error={erroresCampo.nombre}
-                    />
-                    <Field
-                        label="Apellido" name="apellido" placeholder="López"
-                        value={form.apellido} onChange={handleChange}
-                        error={erroresCampo.apellido}
-                    />
+                    <Field label="Nombre" name="nombre" placeholder="Ana"
+                        value={form.nombre} onChange={handleChange} error={erroresCampo.nombre} />
+                    <Field label="Apellido" name="apellido" placeholder="López"
+                        value={form.apellido} onChange={handleChange} error={erroresCampo.apellido} />
                 </div>
 
-                {/* Correo */}
-                <Field
-                    label="Correo electrónico" name="correo" type="email"
+                <Field label="Correo electrónico" name="correo" type="email"
                     placeholder="ana@ufps.edu.co"
-                    value={form.correo} onChange={handleChange}
-                    error={erroresCampo.correo}
-                />
+                    value={form.correo} onChange={handleChange} error={erroresCampo.correo} />
 
-                {/* Contraseña */}
-                <Field
-                    label="Contraseña" name="contrasena"
+                <Field label="Contraseña" name="contrasena"
                     type={verContrasena ? "text" : "password"}
                     placeholder="Mínimo 8 caracteres"
-                    value={form.contrasena} onChange={handleChange}
-                    error={erroresCampo.contrasena}
+                    value={form.contrasena} onChange={handleChange} error={erroresCampo.contrasena}
                     rightElement={
-                        <ToggleVerContrasena
-                            ver={verContrasena}
-                            toggle={() => setVerContrasena((v) => !v)}
-                        />
-                    }
-                />
+                        <ToggleOjo ver={verContrasena} toggle={() => setVerContrasena((v) => !v)} />
+                    } />
 
-                {/* Confirmar contraseña */}
-                <Field
-                    label="Confirmar contraseña" name="confirmarContrasena"
+                <Field label="Confirmar contraseña" name="confirmarContrasena"
                     type={verConfirmar ? "text" : "password"}
                     placeholder="Repite la contraseña"
                     value={form.confirmarContrasena} onChange={handleChange}
                     error={erroresCampo.confirmarContrasena}
                     rightElement={
-                        <ToggleVerContrasena
-                            ver={verConfirmar}
-                            toggle={() => setVerConfirmar((v) => !v)}
-                        />
-                    }
-                />
+                        <ToggleOjo ver={verConfirmar} toggle={() => setVerConfirmar((v) => !v)} />
+                    } />
 
                 {/* Selector de rol */}
                 <div>
@@ -137,9 +100,8 @@ export default function RegistroUsuarioForm() {
                         name="tipo_rol"
                         value={form.tipo_rol}
                         onChange={handleChange}
-                        className={`w-full h-9 rounded-md border px-3 text-sm bg-white
-                        text-gray-900 transition-shadow
-                        focus:outline-none focus:ring-2 focus:ring-indigo-500
+                        className={`w-full h-9 rounded-md border px-3 text-sm bg-white text-gray-900
+                        focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-shadow
                         ${erroresCampo.tipo_rol
                                 ? "border-red-400 bg-red-50 focus:ring-red-400"
                                 : "border-gray-300"}`}
@@ -149,16 +111,13 @@ export default function RegistroUsuarioForm() {
                             <option key={r.value} value={r.value}>{r.label}</option>
                         ))}
                     </select>
-                    {erroresCampo.tipo_rol && (
-                        <ErrorMsg mensaje={erroresCampo.tipo_rol} />
-                    )}
+                    {erroresCampo.tipo_rol && <ErrorMsg mensaje={erroresCampo.tipo_rol} />}
                 </div>
 
-                {/* Botón submit */}
                 <button
                     type="submit"
                     disabled={loading}
-                    className="w-full mt-2 h-9 rounded-md bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 active:scale-[0.98]
+                    className="w-full mt-2 h-9 rounded-md bg-red-600 text-white text-sm font-medium hover:bg-red-700 active:scale-[0.98]
                     disabled:opacity-60 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
                 >
                     {loading && (
@@ -176,11 +135,8 @@ export default function RegistroUsuarioForm() {
     );
 }
 
-// ─── Subcomponentes ───────────────────────────────────────────────────────────
 
-/** Input reutilizable con label, error inline y soporte para elemento derecho */
-function Field({ label, name, type = "text", placeholder,
-    value, onChange, error, rightElement }) {
+function Field({ label, name, type = "text", placeholder, value, onChange, error, rightElement }) {
     return (
         <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -188,13 +144,10 @@ function Field({ label, name, type = "text", placeholder,
             </label>
             <div className="relative">
                 <input
-                    type={type}
-                    name={name}
-                    value={value}
-                    onChange={onChange}
+                    type={type} name={name} value={value} onChange={onChange}
                     placeholder={placeholder}
                     className={`w-full h-9 rounded-md border px-3 text-sm text-gray-900 placeholder-gray-400 transition-shadow
-                    focus:outline-none focus:ring-2 focus:ring-indigo-500
+                    focus:outline-none focus:ring-2 focus:ring-red-500
                     ${rightElement ? "pr-9" : ""}
                     ${error
                             ? "border-red-400 bg-red-50 focus:ring-red-400"
@@ -206,13 +159,11 @@ function Field({ label, name, type = "text", placeholder,
                     </div>
                 )}
             </div>
-            {/* Error inline — ST-11 */}
             {error && <ErrorMsg mensaje={error} />}
         </div>
     );
 }
 
-/** Mensaje de error inline con ícono */
 function ErrorMsg({ mensaje }) {
     return (
         <p role="alert" className="mt-1 text-xs text-red-600 flex items-center gap-1">
@@ -225,28 +176,21 @@ function ErrorMsg({ mensaje }) {
     );
 }
 
-/** Botón ojo para mostrar/ocultar contraseña */
-function ToggleVerContrasena({ ver, toggle }) {
+function ToggleOjo({ ver, toggle }) {
     return (
-        <button
-            type="button"
-            onClick={toggle}
-            tabIndex={-1}
+        <button type="button" onClick={toggle} tabIndex={-1}
             aria-label={ver ? "Ocultar contraseña" : "Mostrar contraseña"}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-        >
+            className="text-gray-400 hover:text-gray-600 transition-colors">
             {ver ? (
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" strokeWidth="2"
-                    strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8 a18.45 18.45 0 015.06-5.94" />
-                    <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8 a18.5 18.5 0 01-2.16 3.19" />
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94" />
+                    <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19" />
                     <line x1="1" y1="1" x2="23" y2="23" />
                 </svg>
             ) : (
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" strokeWidth="2"
-                    strokeLinecap="round" strokeLinejoin="round">
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
                     <circle cx="12" cy="12" r="3" />
                 </svg>
