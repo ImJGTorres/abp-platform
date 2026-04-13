@@ -1,6 +1,8 @@
 from django.contrib.auth.hashers import check_password
 from rest_framework import generics, status
-from rest_framework.permissions import AllowAny, IsAdminUser
+from rest_framework.permissions import AllowAny
+
+from apps.usuarios.permissions import EsAdministrador
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -76,7 +78,7 @@ class LoginView(APIView):
 class UsuarioCreateView(generics.CreateAPIView):
     queryset         = Usuario.objects.all()
     serializer_class = UsuarioSerializer
-    permission_classes = [IsAdminUser] 
+    permission_classes = [EsAdministrador]
 
     def perform_create(self, serializer):
         usuario_creado = serializer.save()      # 1. guarda el usuario en BD
