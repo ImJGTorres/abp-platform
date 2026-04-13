@@ -1,75 +1,76 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import PrivateRoute from './PrivateRoute'
+import LoginForm from '../components/LoginForm'
+import RegistroUsuarioForm from '../components/RegistroUsuarioForm'
 import ConfiguracionParametros from '../components/ConfiguracionParametros'
 
-const PrivateRoute = ({ children }) => {
-  const token = localStorage.getItem('access_token')
-  return token ? children : <Navigate to="/login" replace />
+// Paneles
+function PanelAdmin() {
+  return (
+    <div className="min-h-screen bg-gray-50 p-10">
+      <h1 className="text-2xl font-semibold text-gray-800 mb-6">
+        Panel Administrador
+      </h1>
+
+      <a href="/admin/registro" className="bg-indigo-600 text-white px-4 py-2 rounded">
+        Registrar usuario
+      </a>
+    </div>
+  )
 }
 
-// Placeholders — reemplazar con páginas reales
-const LoginPage = () => <div>Login</div>
-const AdminPage = () => <div>Admin</div>
-const DocentePage = () => <div>Docente</div>
-const EstudiantePage = () => <div>Estudiante</div>
-const DirectorPage = () => <div>Director</div>
-const PerfilPage = () => <div>Perfil</div>
+function PanelDocente() { return <div className="p-10">Docente</div> }
+function PanelDirector() { return <div className="p-10">Director</div> }
+function PanelEstudiante() { return <div className="p-10">Estudiante</div> }
+function PanelLider() { return <div className="p-10">Líder</div> }
+
+function PaginaRegistro() {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <RegistroUsuarioForm />
+    </div>
+  )
+}
 
 export default function AppRouter() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/login" element={<LoginPage />} />
 
-        <Route
-          path="/admin"
-          element={
-            <PrivateRoute>
-              <AdminPage />
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/admin/configuracion"
-          element={
-            <PrivateRoute>
-              <ConfiguracionParametros />
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/docente"
-          element={
-            <PrivateRoute>
-              <DocentePage />
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/estudiante"
-          element={
-            <PrivateRoute>
-              <EstudiantePage />
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/director"
-          element={
-            <PrivateRoute>
-              <DirectorPage />
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/perfil"
-          element={
-            <PrivateRoute>
-              <PerfilPage />
-            </PrivateRoute>
-          }
-        />
+        {/* PUBLICA */}
+        <Route path="/login" element={<LoginForm />} />
 
+        {/* ADMIN */}
+        <Route element={<PrivateRoute allowedRoles={['administrador']} />}>
+          <Route path="/admin" element={<PanelAdmin />} />
+          <Route path="/admin/registro" element={<PaginaRegistro />} />
+          <Route path="/admin/configuracion" element={<ConfiguracionParametros />} />
+        </Route>
+
+        {/* DOCENTE */}
+        <Route element={<PrivateRoute allowedRoles={['docente']} />}>
+          <Route path="/docente" element={<PanelDocente />} />
+        </Route>
+
+        {/* DIRECTOR */}
+        <Route element={<PrivateRoute allowedRoles={['director']} />}>
+          <Route path="/director" element={<PanelDirector />} />
+        </Route>
+
+        {/* ESTUDIANTE */}
+        <Route element={<PrivateRoute allowedRoles={['estudiante']} />}>
+          <Route path="/estudiante" element={<PanelEstudiante />} />
+        </Route>
+
+        {/* LIDER */}
+        <Route element={<PrivateRoute allowedRoles={['lider_equipo']} />}>
+          <Route path="/lider" element={<PanelLider />} />
+        </Route>
+
+        {/* DEFAULT */}
+        <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
+
       </Routes>
     </BrowserRouter>
   )
