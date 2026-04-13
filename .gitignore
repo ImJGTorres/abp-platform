@@ -47,3 +47,7 @@ frontend/cypress/screenshots/
 # ========================
 *.log
 logs/
+
+# ia
+.kilo
+.claude
