@@ -15,7 +15,8 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import include, path
+from django.urls import include, path, re_path
+from django.views.generic import TemplateView
 from rest_framework_simplejwt.views import TokenRefreshView
 
 from apps.usuarios.views import LoginView
@@ -26,4 +27,7 @@ urlpatterns = [
     path('api/auth/login/',   LoginView.as_view(),        name='token_obtain'),  # ← login (HU-002 BE-02)
     path('api/auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'), # ← refresh (HU-002 ST-01)
     path('api/configuracion/', include('apps.configuracion.urls')), # ← configuración (HU-035)
+
+    # React SPA catch-all — must be LAST
+    re_path(r'^(?!api/|admin/|static/).*$', TemplateView.as_view(template_name='index.html')),
 ]
