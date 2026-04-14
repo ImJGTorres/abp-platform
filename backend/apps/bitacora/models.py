@@ -24,7 +24,6 @@ class BitacoraSistema(models.Model):
         LOGOUT         = 'LOGOUT',        'Cierre de sesión'
         ACCESS_DENIED  = 'ACCESS_DENIED', 'Acceso denegado'
         ACCESS         = 'ACCESS',        'Consulta'
-        
 
     id_usuario     = models.ForeignKey(
         'usuarios.Usuario',
