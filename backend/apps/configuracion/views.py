@@ -213,6 +213,8 @@ class ConfiguracionView(APIView):
                 )
 
         # Paso 4: Actualizar el valor del parámetro
+        # Capturar el valor anterior ANTES de modificar (para bitácora)
+        valor_anterior = parametro.valor
         # Convertir a string para almacenar en el campo TextField
         parametro.valor = str(nuevo_valor)
         
@@ -230,19 +232,20 @@ class ConfiguracionView(APIView):
             # Esto es crítico para que los cambios se reflejen inmediatamente
             invalidar_cache_parametros()
             
+            # Registrar en bitácora solo si el valor realmente cambió
+            if valor_anterior != parametro.valor:
+                registrar_evento(
+                    request,
+                    accion=BitacoraSistema.Accion.UPDATE,
+                    modulo='configuracion',
+                    descripcion=f"Parámetro '{parametro.clave}' actualizado: '{valor_anterior}' → '{parametro.valor}'"
+                )
+            
         except ValidationError as e:
             # Error de validación (tipo de dato incorrecto, formato inválido, etc.)
             return Response(e.message_dict, status=status.HTTP_400_BAD_REQUEST)
 
         # Paso 6: Serializar y retornar el parámetro actualizado
         serializer = ParametroSistemaSerializer(parametro)
-        
-        # Registrar la actualización en la bitácora del sistema
-        registrar_evento(
-            request,
-            accion=BitacoraSistema.Accion.UPDATE,
-            modulo='configuracion',
-            descripcion=f'Actualización de parámetro "{clave}"',
-        )
         
         return Response(serializer.data)
