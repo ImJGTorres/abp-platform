@@ -47,13 +47,13 @@ export default function LoginForm() {
             }
 
             if (err?.status === 401) {
-                // Mensaje genérico: no especifica qué campo falló (seguridad)
-                setError('Credenciales inválidas, por favor intente de nuevo.')
-                return
-            }
+                const msg = err?.data?.detail?.toLowerCase()
 
-            if (err?.status === 403) {
-                setError('Tu cuenta está inactiva. Contacta al administrador.')
+                if (msg?.includes('inactivo')) {
+                    setError('Tu cuenta está inactiva. Contacta al administrador.')
+                } else {
+                    setError('Credenciales inválidas, por favor intente de nuevo.')
+                }
                 return
             }
 

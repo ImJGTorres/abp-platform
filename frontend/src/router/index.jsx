@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, Link, } from 'react-router-dom'
 import PrivateRoute from './PrivateRoute'
 import LoginForm from '../components/LoginForm'
 import RegistroUsuarioForm from '../components/RegistroUsuarioForm'
@@ -12,9 +12,18 @@ function PanelAdmin() {
         Panel Administrador
       </h1>
 
-      <a href="/admin/registro" className="bg-indigo-600 text-white px-4 py-2 rounded">
+      <Link
+        to="/admin/registro"
+        className="bg-red-600 text-white px-4 py-2 rounded"
+      >
         Registrar usuario
-      </a>
+      </Link>
+      <Link
+        to="/admin/configuracion"
+        className="bg-red-600 text-white px-4 py-2 rounded"
+      >
+        Configurar parámetros
+      </Link>
     </div>
   )
 }
