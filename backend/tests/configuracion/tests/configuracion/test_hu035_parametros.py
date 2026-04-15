@@ -73,10 +73,10 @@ def test_obtener_parametros_como_admin(admin_autenticado, parametro_base):
 # -------------------------------------------------------
 # CP-02: PATCH con valor válido → 200
 # -------------------------------------------------------
-@pytest.mark.skip(reason="El endpoint actual es solo GET, no soporta PATCH")
 @pytest.mark.django_db
 def test_editar_parametro_valor_valido(admin_autenticado, parametro_base):
-    url = reverse("configuracion")
+    """Verifica que se puede editar un parámetro con valor válido"""
+    url = reverse("configuracion_clave", kwargs={"clave": "nombre_institucion"})
     datos = {"valor": "UFPS"}
     respuesta = admin_autenticado.patch(url, datos, format="json")
     assert respuesta.status_code == status.HTTP_200_OK
@@ -85,10 +85,10 @@ def test_editar_parametro_valor_valido(admin_autenticado, parametro_base):
 # -------------------------------------------------------
 # CP-03: PATCH con tipo incorrecto → 400
 # -------------------------------------------------------
-@pytest.mark.skip(reason="El endpoint actual es solo GET, no soporta PATCH")
 @pytest.mark.django_db
 def test_editar_parametro_tipo_incorrecto(admin_autenticado, parametro_base):
-    url = reverse("configuracion")
+    """Verifica que se rechaza un valor de tipo incorrecto para parámetro integer"""
+    url = reverse("configuracion_clave", kwargs={"clave": "max_estudiantes_equipo"})
     datos = {"valor": "abc"}
     respuesta = admin_autenticado.patch(url, datos, format="json")
     assert respuesta.status_code == status.HTTP_400_BAD_REQUEST
@@ -112,17 +112,20 @@ def test_obtener_parametros_como_estudiante(estudiante_autenticado, parametro_ba
     assert respuesta.status_code == status.HTTP_403_FORBIDDEN
 
 # -------------------------------------------------------
-# CP-06: Bitácora — BLOQUEADO hasta HU-037 y PATCH
+# CP-06: Bitácora — Verifica cambio registrado en bitácora
 # -------------------------------------------------------
-@pytest.mark.skip(reason="El endpoint actual es solo GET, no soporta PATCH, y BITÁCORA depende de HU-037")
 @pytest.mark.django_db
 def test_cambio_parametro_registra_en_bitacora(admin_autenticado, parametro_base):
+    """Verifica que al editar un parámetro se registra en la bitácora"""
     from apps.bitacora.models import BitacoraSistema
-    url = reverse("configuracion")
+    url = reverse("configuracion_clave", kwargs={"clave": "nombre_institucion"})
     datos = {"valor": "UFPS Test"}
     respuesta = admin_autenticado.patch(url, datos, format="json")
     assert respuesta.status_code == status.HTTP_200_OK
-    assert BitacoraSistema.objects.exists()
+    assert BitacoraSistema.objects.filter(
+        accion=BitacoraSistema.Accion.UPDATE,
+        modulo='configuracion'
+    ).exists()
 
 # -------------------------------------------------------
 # EXTRA — Prueba del modelo directamente (sin endpoints)
