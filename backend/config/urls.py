@@ -16,14 +16,30 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import include, path
-from rest_framework_simplejwt.views import TokenRefreshView
+# SimpleJWT views importadas para endpoints de refresh y logout (BE-04, BE-05)
+# TokenRefreshView: Permite obtener nuevo access token usando refresh token
+# TokenBlacklistView: Agrega el refresh token a blacklist (logout efectivo)
+from rest_framework_simplejwt.views import TokenRefreshView, TokenBlacklistView
 
 from apps.usuarios.views import LoginView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/usuarios/', include('apps.usuarios.urls')),
-    path('api/auth/login/',   LoginView.as_view(),        name='token_obtain'),  # ← login (HU-002 BE-02)
-    path('api/auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'), # ← refresh (HU-002 ST-01)
+    # Endpoint de login (BE-02): POST /api/auth/login/
+    # Recibe correo y contraseña, retorna access + refresh tokens
+    # Customizado para usar modelo Usuario personalizado
+    path('api/auth/login/',   LoginView.as_view(),        name='token_obtain'),
+    
+    # Endpoint de refresh token (BE-04): POST /api/auth/refresh/
+    # Recibe refresh token, retorna nuevo access token
+    # Configuración en settings.py SIMPLE_JWT (ACCESS_TOKEN_LIFETIME)
+    path('api/auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    
+    # Endpoint de logout (BE-05): POST /api/auth/logout/
+    # Recibe refresh token y lo agrega a blacklist
+    # Evita que el token pueda usarse nuevamente
+    # Requiere: REST_FRAMEWORK_SIMPLEJWT.token_blacklist en INSTALLED_APPS
+    path('api/auth/logout/',  TokenBlacklistView.as_view(), name='token_blacklist'),
     path('api/configuracion/', include('apps.configuracion.urls')), # ← configuración (HU-035)
 ]
