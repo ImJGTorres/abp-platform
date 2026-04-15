@@ -8,6 +8,7 @@
       "descripcion": "Nombre oficial de la institución",
       "categoria": "institucional",
       "tipo_dato": "string",
+      "fecha_actualizacion": "2026-04-14T00:00:00Z",
       "usuario_modifico": null
     }
   },
@@ -20,6 +21,7 @@
       "descripcion": "Nombre del programa académico",
       "categoria": "institucional",
       "tipo_dato": "string",
+      "fecha_actualizacion": "2026-04-14T00:00:00Z",
       "usuario_modifico": null
     }
   },
@@ -32,6 +34,7 @@
       "descripcion": "Correo de soporte del sistema",
       "categoria": "institucional",
       "tipo_dato": "string",
+      "fecha_actualizacion": "2026-04-14T00:00:00Z",
       "usuario_modifico": null
     }
   },
@@ -44,6 +47,7 @@
       "descripcion": "Máximo de estudiantes por equipo",
       "categoria": "general",
       "tipo_dato": "integer",
+      "fecha_actualizacion": "2026-04-14T00:00:00Z",
       "usuario_modifico": null
     }
   },
@@ -56,6 +60,7 @@
       "descripcion": "Extensiones permitidas para entregables, separadas por coma",
       "categoria": "archivos",
       "tipo_dato": "string",
+      "fecha_actualizacion": "2026-04-14T00:00:00Z",
       "usuario_modifico": null
     }
   },
@@ -68,6 +73,7 @@
       "descripcion": "Minutos de inactividad antes de cerrar sesión",
       "categoria": "sesiones",
       "tipo_dato": "integer",
+      "fecha_actualizacion": "2026-04-14T00:00:00Z",
       "usuario_modifico": null
     }
   },
@@ -80,6 +86,7 @@
       "descripcion": "URL del logo institucional, vacío usa el logo por defecto",
       "categoria": "institucional",
       "tipo_dato": "string",
+      "fecha_actualizacion": "2026-04-14T00:00:00Z",
       "usuario_modifico": null
     }
   }
