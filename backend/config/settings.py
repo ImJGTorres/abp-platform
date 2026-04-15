@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     'apps.roles',
     'apps.bitacora',
     'apps.configuracion',
+    'apps.cursos',
 ]
 
 REST_FRAMEWORK = {
