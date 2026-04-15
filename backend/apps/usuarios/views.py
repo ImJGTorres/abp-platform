@@ -1,12 +1,8 @@
 from django.contrib.auth.hashers import check_password
 from rest_framework import generics, status
-<<<<<<< HEAD
 from rest_framework.permissions import AllowAny
 
 from apps.usuarios.permissions import EsAdministrador
-=======
-from rest_framework.permissions import AllowAny, IsAdminUser
->>>>>>> develop
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -17,7 +13,6 @@ from apps.usuarios.models import Usuario
 from apps.usuarios.serializers import UsuarioSerializer
 
 
-<<<<<<< HEAD
 # LoginView: View personalizada para autenticación JWT (BE-02, BE-03)
 # Maneja el inicio de sesión retornando tokens JWT
 # Permite acceso sin token (AllowAny) ya que es el proceso de login
@@ -39,39 +34,23 @@ class LoginView(APIView):
         contrasena = request.data.get('contrasena', '')
 
         # Valida que ambos campos existan
-=======
-class LoginView(APIView):
-    permission_classes = [AllowAny]
-
-    def post(self, request):
-        correo    = request.data.get('correo', '').strip()
-        contrasena = request.data.get('contrasena', '')
-
->>>>>>> develop
         if not correo or not contrasena:
             return Response(
                 {'detail': 'correo y contrasena son requeridos.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-<<<<<<< HEAD
         # Busca usuario en la base de datos por correo
         # Modelo personalizado: apps.usuarios.models.Usuario
-=======
->>>>>>> develop
         try:
             usuario = Usuario.objects.get(correo=correo)
         except Usuario.DoesNotExist:
             usuario = None
 
-<<<<<<< HEAD
         # Verifica contraseña usando bcrypt (Django hasher)
         # check_password: función segura que compara hash almacenado
         if usuario is None or not check_password(contrasena, usuario.contrasena_hash):
             # Registra intento fallido en bitácora para auditoría
-=======
-        if usuario is None or not check_password(contrasena, usuario.contrasena_hash):
->>>>>>> develop
             registrar_evento(
                 request=request,
                 accion=BitacoraSistema.Accion.ACCESS_DENIED,
@@ -83,11 +62,8 @@ class LoginView(APIView):
                 status=status.HTTP_401_UNAUTHORIZED,
             )
 
-<<<<<<< HEAD
         # Verifica estado del usuario (BE-02)
         # Solo usuarios activos pueden iniciar sesión
-=======
->>>>>>> develop
         if usuario.estado != Usuario.Estado.ACTIVO:
             registrar_evento(
                 request=request,
@@ -100,7 +76,6 @@ class LoginView(APIView):
                 status=status.HTTP_401_UNAUTHORIZED,
             )
 
-<<<<<<< HEAD
         # Genera tokens JWT (BE-03)
         # RefreshToken: Clase de SimpleJWT que crea par access+refresh
         refresh = RefreshToken()
@@ -117,31 +92,16 @@ class LoginView(APIView):
         # Asigna usuario al request para uso en permisos/logging
         request.usuario = usuario
         # Registra login exitoso en bitácora
-=======
-        refresh = RefreshToken()
-        refresh['user_id']   = usuario.id
-        refresh['nombre']    = usuario.nombre
-        refresh['correo']    = usuario.correo
-        refresh['tipo_rol']  = usuario.tipo_rol
-
-        request.usuario = usuario
->>>>>>> develop
         registrar_evento(
             request=request,
             accion=BitacoraSistema.Accion.LOGIN,
             modulo='autenticacion',
-<<<<<<< HEAD
             descripcion=f'Login efectivo: {correo}',
         )
 
         # Retorna tokens al cliente
         # access: Token corto (1 hora) para solicitudes API
         # refresh: Token largo (7 días) para obtener nuevos access
-=======
-            descripcion=f'Login exitoso: {correo}',
-        )
-
->>>>>>> develop
         return Response({
             'access':  str(refresh.access_token),
             'refresh': str(refresh),
@@ -151,11 +111,7 @@ class LoginView(APIView):
 class UsuarioCreateView(generics.CreateAPIView):
     queryset         = Usuario.objects.all()
     serializer_class = UsuarioSerializer
-<<<<<<< HEAD
     permission_classes = [EsAdministrador]
-=======
-    permission_classes = [IsAdminUser]
->>>>>>> develop
 
     def perform_create(self, serializer):
         usuario_creado = serializer.save()      # 1. guarda el usuario en BD

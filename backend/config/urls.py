@@ -44,4 +44,5 @@ urlpatterns = [
     path('api/auth/logout/',  TokenBlacklistView.as_view(), name='token_blacklist'),
     
     path('api/configuracion/', include('apps.configuracion.urls')),
+    path('api/roles/', include('apps.roles.urls')),
 ]
