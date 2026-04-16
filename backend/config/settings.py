@@ -53,12 +53,16 @@ INSTALLED_APPS = [
     'apps.cursos',
 ]
 
+# Configuración de Django REST Framework (BE-01)
+# JWT como método de autenticación por defecto
+# Todas las vistas que requieran autenticación usarán tokens JWT
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
 }
 
+# Import timedelta para configurar tiempos de expiración (BE-01)
 from datetime import timedelta
 
 # Configuración de SimpleJWT (BE-01, BE-05)
@@ -141,6 +145,10 @@ else:
         }
     }
 
+
+# Custom user model (BE-01)
+# Usa el modelo Usuario personalizado en lugar del User por defecto
+AUTH_USER_MODEL = 'usuarios.Usuario'
 
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators

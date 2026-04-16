@@ -30,6 +30,7 @@ class UsuarioProfileView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+
 # LoginView: View personalizada para autenticación JWT (BE-02, BE-03)
 # Maneja el inicio de sesión retornando tokens JWT
 # Permite acceso sin token (AllowAny) ya que es el proceso de login
