@@ -3,6 +3,7 @@ import PrivateRoute from './PrivateRoute'
 import LoginForm from '../components/LoginForm'
 import RegistroUsuarioForm from '../components/RegistroUsuarioForm'
 import ConfiguracionParametros from '../components/ConfiguracionParametros'
+import GestionPeriodos from '../components/GestionPeriodos'
 
 // Paneles
 function PanelAdmin() {
@@ -18,12 +19,18 @@ function PanelAdmin() {
       >
         Registrar usuario
       </Link>
-      <Link
-        to="/admin/configuracion"
-        className="bg-red-600 text-white px-4 py-2 rounded"
-      >
-        Configurar parámetros
-      </Link>
+<Link
+          to="/admin/configuracion"
+          className="bg-red-600 text-white px-4 py-2 rounded"
+        >
+          Configurar parámetros
+        </Link>
+        <Link
+          to="/admin/periodos"
+          className="bg-red-600 text-white px-4 py-2 rounded"
+        >
+          Gestión de Periodos
+        </Link>
     </div>
   )
 }
@@ -54,6 +61,7 @@ export default function AppRouter() {
           <Route path="/admin" element={<PanelAdmin />} />
           <Route path="/admin/registro" element={<PaginaRegistro />} />
           <Route path="/admin/configuracion" element={<ConfiguracionParametros />} />
+          <Route path="/admin/periodos" element={<GestionPeriodos />} />
         </Route>
 
         {/* DOCENTE */}
