@@ -142,6 +142,10 @@ else:
     }
 
 
+# Custom user model (BE-01)
+# Usa el modelo Usuario personalizado en lugar del User por defecto
+AUTH_USER_MODEL = 'usuarios.Usuario'
+
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
 
