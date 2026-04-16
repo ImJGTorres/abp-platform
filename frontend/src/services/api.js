@@ -1,5 +1,6 @@
 const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
-// Sesión / Tokens
+
+// Sesión / tokens
 
 export const session = {
   getAccess: () => localStorage.getItem('access_token'),
@@ -14,15 +15,12 @@ export const session = {
     localStorage.setItem('user', JSON.stringify(user))
   },
   clear() {
-    ;['access_token', 'refresh_token', 'user'].forEach(k =>
-      localStorage.removeItem(k)
-    )
+    ;['access_token', 'refresh_token', 'user'].forEach(k => localStorage.removeItem(k))
   },
   isAuthenticated: () => !!localStorage.getItem('access_token'),
 }
 
-
-// Parsear respuesta JSON, manejando casos de error y respuestas vacías
+// ─── Parsear respuesta — protege contra HTML en errores 500 ──────────────────
 
 async function parseJSON(response) {
   const text = await response.text()
@@ -34,7 +32,10 @@ async function parseJSON(response) {
   }
 }
 
-// Refresh de token
+// ─── Refresh de token ─────────────────────────────────────────────────────────
+// POST /api/auth/refresh/ — TokenRefreshView (SimpleJWT nativo)
+// Con ROTATE_REFRESH_TOKENS: True y BLACKLIST_AFTER_ROTATION: True en settings,
+// cada refresh devuelve un nuevo refresh token y el anterior queda en blacklist.
 
 async function tryRefresh() {
   const refresh = session.getRefresh()
@@ -47,18 +48,26 @@ async function tryRefresh() {
       body: JSON.stringify({ refresh }),
     })
 
-    if (!res.ok) return false
+    if (!res.ok) {
+      session.clear()
+      return false
+    }
 
     const data = await parseJSON(res)
+    // Con ROTATE_REFRESH_TOKENS, el backend devuelve también un nuevo refresh
     localStorage.setItem('access_token', data.access)
-
+    if (data.refresh) {
+      localStorage.setItem('refresh_token', data.refresh)
+    }
     return true
+
   } catch {
+    session.clear()
     return false
   }
 }
 
-// Cliente HTTP base
+//  Cliente HTTP base
 
 async function request(path, options = {}) {
   const headers = {
@@ -70,33 +79,24 @@ async function request(path, options = {}) {
   if (token) headers['Authorization'] = `Bearer ${token}`
 
   let response
-
   try {
-    response = await fetch(`${BASE_URL}${path}`, {
-      ...options,
-      headers,
-    })
+    response = await fetch(`${BASE_URL}${path}`, { ...options, headers })
   } catch {
     throw { type: 'network', message: 'Sin conexión con el servidor' }
   }
 
-  //Intentar refresh automático
+  // Token expirado → intentar refresh automático una vez
   if (response.status === 401) {
     const refreshed = await tryRefresh()
-
     if (refreshed) {
       headers['Authorization'] = `Bearer ${session.getAccess()}`
-
       try {
-        response = await fetch(`${BASE_URL}${path}`, {
-          ...options,
-          headers,
-        })
+        response = await fetch(`${BASE_URL}${path}`, { ...options, headers })
       } catch {
         throw { type: 'network', message: 'Sin conexión con el servidor' }
       }
     } else {
-      session.clear()
+      // tryRefresh() ya llamó session.clear()
       window.location.href = '/login'
       throw { type: 'auth', message: 'Sesión expirada' }
     }
@@ -105,51 +105,60 @@ async function request(path, options = {}) {
   return response
 }
 
-// Auth API
-export const authApi = {
-  async login(correo, contrasena) {
-    let response
+// ─── Auth y usuarios
 
-    try {
-      response = await request('/api/auth/login/', {
-        method: 'POST',
-        body: JSON.stringify({ correo, contrasena }),
-      })
-    } catch {
-      throw { type: 'network', message: 'Sin conexión con el servidor' }
-    }
+export const authApi = {
+  /**
+   * POST /api/auth/login/  → LoginView
+   *
+   * Request:
+   *   correo     string — requerido
+   *   contrasena string — requerido
+   *
+   * Response 200:
+   *   { access, refresh }
+   *
+   * Claims en el JWT (definidos en LoginView):
+   *   user_id   → usuario.id
+   *   nombre    → usuario.nombre
+   *   correo    → usuario.correo
+   *   tipo_rol  → usuario.tipo_rol
+   *
+   * Errores:
+   *   400 → { detail: 'correo y contrasena son requeridos.' }
+   *   401 → { detail: 'Credenciales inválidas.' }
+   *   401 → { detail: 'Usuario inactivo.' }  ← inactivo también es 401, no 403
+   */
+  async login(correo, contrasena) {
+    const response = await request('/api/auth/login/', {
+      method: 'POST',
+      body: JSON.stringify({ correo, contrasena }),
+    })
 
     const data = await parseJSON(response)
+    if (!response.ok) throw { status: response.status, data }
 
-    if (!response.ok) {
-      throw { status: response.status, data }
-    }
-
-    // Decodificar JWT
-    const decodeJWT = (token) => {
+    const payload = (() => {
       try {
-        const base64 = token
+        const base64 = data.access
           .split('.')[1]
           .replace(/-/g, '+')
           .replace(/_/g, '/')
-
         return JSON.parse(atob(base64))
       } catch {
         return null
       }
-    }
+    })()
 
-    const payload = decodeJWT(data.access)
-
+    // Mapeo exacto de los claims definidos en LoginView
     const user = {
-      id: payload?.user_id,
-      nombre: payload?.nombre,
-      correo: payload?.correo,
-      tipo_rol: payload?.tipo_rol,
+      id: payload?.user_id,   // refresh['user_id'] = usuario.id
+      nombre: payload?.nombre,    // refresh['nombre']
+      correo: payload?.correo,    // refresh['correo']
+      tipo_rol: payload?.tipo_rol,  // refresh['tipo_rol']
     }
 
     session.save(data.access, data.refresh, user)
-
     return user
   },
 
@@ -163,7 +172,7 @@ export const authApi = {
           body: JSON.stringify({ refresh }),
         })
       } catch {
-        // silencioso
+        // Aunque falle el logout (ej. sin conexión), igual limpiamos sesión localmente
       }
     }
 
@@ -171,32 +180,44 @@ export const authApi = {
   },
 }
 
-// Usuarios API
+// ─── Usuarios ─────────────────────────────────────────────────────────────────
 
 export const usuariosApi = {
+  /**
+   * POST /api/usuarios/  → UsuarioCreateView
+   *
+   * Permiso requerido: EsAdministrador
+   *   → verifica request.user.tipo_rol == 'administrador'
+   *   → resuelto por UsuarioJWTAuthentication (modelo propio)
+   *
+   * Request (UsuarioSerializer):
+   *   nombre     string, min 2 chars  — requerido
+   *   apellido   string, min 2 chars  — requerido
+   *   correo     email, único         — requerido
+   *   contrasena string, min 8 chars  — requerido (write_only, se hashea en servidor)
+   *   tipo_rol   enum TipoRol         — requerido
+   *
+   * Omitidos: estado (default='activo'), telefono, foto_perfil (opcionales)
+   *
+   * Response 201: usuario creado (sin contrasena)
+   * Response 400: { campo: ["mensaje"] }   ← errores DRF por campo
+   * Response 403: { detail: "..." }        ← no es administrador
+   *
+   * Lanza: { type: 'network' } | { status, data }
+   */
   async crear({ nombre, apellido, correo, contrasena, tipo_rol }) {
     const response = await request('/api/usuarios/', {
       method: 'POST',
-      body: JSON.stringify({
-        nombre,
-        apellido,
-        correo,
-        contrasena,
-        tipo_rol,
-      }),
+      body: JSON.stringify({ nombre, apellido, correo, contrasena, tipo_rol }),
     })
 
     const data = await parseJSON(response)
-
-    if (!response.ok) {
-      throw { status: response.status, data }
-    }
-
+    if (!response.ok) throw { status: response.status, data }
     return data
   },
 }
 
-//Helpers
+// Helpers
 export function rutaPorRol(tipo_rol) {
   const rutas = {
     administrador: '/admin',
@@ -205,6 +226,5 @@ export function rutaPorRol(tipo_rol) {
     lider_equipo: '/lider',
     estudiante: '/estudiante',
   }
-
   return rutas[tipo_rol] ?? '/login'
 }
