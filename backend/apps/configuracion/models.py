@@ -115,7 +115,7 @@ class ParametroSistema(models.Model):
     # SET_NULL: Si se elimina el usuario, el campo queda como NULL
     # Permite auditoría de quién cambió cada parámetro
     usuario_modifico = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
+        'usuarios.Usuario',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
