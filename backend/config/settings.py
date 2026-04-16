@@ -86,6 +86,7 @@ SIMPLE_JWT = {
 }
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -203,14 +204,14 @@ CACHES = {
         # propio caché independiente (no compartido). Para producción se
         # recomienda Redis, Memcached, o Base de datos.
         'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        
+
         # LOCATION: Nombre único para identificar este caché.
         # Útil cuando hay múltiples cachés o procesos.
         'LOCATION': 'parametros-sistema-cache',
-        
+
         # TIMEOUT: Tiempo en segundos antes de que expire el caché.
         # 900 segundos = 15 minutos.
-        # Pasado este tiempo, la próxima consultairá a la base de datos
+        # Pasado este tiempo, la próxima consulta irá a la base de datos
         # y regenerará el caché con los datos actualizados.
         # Este tiempo balancea:
         # - Rendimiento: Evita consultas repetitivas a la BD
@@ -218,3 +219,6 @@ CACHES = {
         'TIMEOUT': 900,
     }
 }
+
+# CORS: Permitir todos los orígenes (necesario para pruebas E2E con Cypress)
+CORS_ALLOW_ALL_ORIGINS = True
