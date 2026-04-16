@@ -5,14 +5,22 @@ from collections import defaultdict
 from django.core.exceptions import ValidationError
 # ValidationError: Excepción de Django para errores de validación en modelos
 
-from rest_framework import status
+from django.db import transaction, models
+# transaction: Proporciona atomic() para transacciones de base de datos
+# models: Módulo de Django para consultas avanzadas (Count)
+
+from rest_framework import status, viewsets
 # status: Constantes de códigos HTTP (HTTP_200_OK, HTTP_404_NOT_FOUND, etc.)
+# viewsets: Clase base para crear ViewSets en DRF
 
 from rest_framework.response import Response
 # Response: Objeto de Django REST Framework para retornar respuestas JSON
 
 from rest_framework.views import APIView
 # APIView: Clase base de DRF para crear vistas basadas en clases
+
+from rest_framework.permissions import IsAdminUser
+# IsAdminUser: Permiso de DRF que requiere is_staff=True
 
 from apps.bitacora.models import BitacoraSistema
 # BitacoraSistema: Modelo para registrar eventos del sistema (auditoría)
@@ -26,14 +34,17 @@ from .cache import get_parametros_cacheados, set_parametros_cacheados, invalidar
 # - set_parametros_cacheados(): Guarda datos en caché
 # - invalidar_cache_parametros(): Elimina el caché después de una actualización
 
-from .models import ParametroSistema
+from .models import ParametroSistema, PeriodoAcademico
 # ParametroSistema: Modelo de parámetros de configuración
+# PeriodoAcademico: Modelo de períodos académicos
 
-from .permissions import EsAdministrador
+from .permissions import EsAdministrador, IsAdminOrDocente
 # EsAdministrador: Permiso personalizado que requiere rol de administrador
+# IsAdminOrDocente: Permiso que permite acceso a admin o docente
 
-from .serializers import ParametroSistemaSerializer
+from .serializers import ParametroSistemaSerializer, PeriodoAcademicoSerializer
 # ParametroSistemaSerializer: Serializador para convertir modelos a JSON
+# PeriodoAcademicoSerializer: Serializador para períodos académicos
 
 
 class ConfiguracionView(APIView):
@@ -249,3 +260,55 @@ class ConfiguracionView(APIView):
         serializer = ParametroSistemaSerializer(parametro)
         
         return Response(serializer.data)
+
+
+class PeriodoAcademicoViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet para gestionar períodos académicos.
+    
+    Proporciona los endpoints:
+    - GET /api/periodos/ - Lista todos los períodos ordenados por fecha_inicio descendente
+    - POST /api/periodos/ - Crea un nuevo período académico
+    
+    El endpoint GET permite acceso a administradores y docentes (IsAdminOrDocente).
+    El endpoint POST solo permite acceso a administradores (IsAdminUser).
+    
+    Cada período incluye el conteo de cursos asociados en el campo total_cursos.
+    """
+    
+    serializer_class = PeriodoAcademicoSerializer
+    
+    def get_queryset(self):
+        queryset = PeriodoAcademico.objects.annotate(
+            total_cursos=models.Count('curso')
+        ).order_by('-fecha_inicio')
+        return queryset
+    
+    def get_permissions(self):
+        if self.action == 'create':
+            return [IsAdminUser()]
+        return [IsAdminOrDocente()]
+    
+    def perform_create(self, serializer):
+        serializer.save(usuario_creo=self.request.user)
+    
+    def create(self, request, *args, **kwargs):
+        estado = request.data.get('estado')
+        
+        if estado == PeriodoAcademico.Estado.ACTIVO:
+            with transaction.atomic():
+                PeriodoAcademico.objects.filter(
+                    estado=PeriodoAcademico.Estado.ACTIVO
+                ).update(estado=PeriodoAcademico.Estado.INACTIVO)
+                
+                serializer = self.get_serializer(data=request.data)
+                serializer.is_valid(raise_exception=True)
+                self.perform_create(serializer)
+                headers = self.get_success_headers(serializer.data)
+                return Response(
+                    serializer.data,
+                    status=status.HTTP_201_CREATED,
+                    headers=headers
+                )
+        else:
+            return super().create(request, *args, **kwargs)

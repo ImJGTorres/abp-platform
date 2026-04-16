@@ -25,3 +25,21 @@ class EsAdministrador(BasePermission):
             usuario is not None
             and getattr(usuario, 'tipo_rol', None) == 'administrador'
         )
+
+
+class IsAdminOrDocente(BasePermission):
+    """
+    Permiso personalizado que permite acceso a usuarios administradores o docentes.
+    
+    Se usa en endpoints GET de períodos académicos donde tanto administradores
+    como docentes pueden ver la lista de períodos.
+    """
+    
+    message = 'Se requiere rol de administrador o docente.'
+
+    def has_permission(self, request, view):
+        usuario = getattr(request, 'usuario', None) or getattr(request, 'user', None)
+        if usuario is None:
+            return False
+        tipo_rol = getattr(usuario, 'tipo_rol', None)
+        return tipo_rol in ('administrador', 'docente')

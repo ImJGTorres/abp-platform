@@ -41,5 +41,5 @@ urlpatterns = [
     # Evita que el token pueda usarse nuevamente
     # Requiere: REST_FRAMEWORK_SIMPLEJWT.token_blacklist en INSTALLED_APPS
     path('api/auth/logout/',  TokenBlacklistView.as_view(), name='token_blacklist'),
-    path('api/configuracion/', include('apps.configuracion.urls')), # ← configuración (HU-035)
+    path('api/', include('apps.configuracion.urls')), # ← configuración (HU-035)
 ]
