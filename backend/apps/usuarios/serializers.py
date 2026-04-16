@@ -61,3 +61,23 @@ class UsuarioSerializer(serializers.ModelSerializer):
         contrasena = validated_data.pop('contrasena')
         validated_data['contrasena_hash'] = make_password(contrasena)
         return super().create(validated_data)
+
+
+class UsuarioUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Usuario
+        fields = ['nombre', 'apellido', 'telefono', 'foto_perfil']
+        extra_kwargs = {
+            'telefono': {'required': False},
+            'foto_perfil': {'required': False},
+        }
+
+    def validate_nombre(self, value):
+        if value and len(value) < 2:
+            raise serializers.ValidationError("El nombre debe tener al menos 2 caracteres.")
+        return value
+
+    def validate_apellido(self, value):
+        if value and len(value) < 2:
+            raise serializers.ValidationError("El apellido debe tener al menos 2 caracteres.")
+        return value

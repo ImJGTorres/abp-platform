@@ -215,6 +215,64 @@ export const usuariosApi = {
     if (!response.ok) throw { status: response.status, data }
     return data
   },
+
+  async getPerfil() {
+    const response = await request('/api/usuarios/perfil/')
+
+    const data = await parseJSON(response)
+
+    if (!response.ok) {
+      throw { status: response.status, data }
+    }
+
+    return data
+  },
+
+  async actualizarPerfil(data) {
+    const response = await request('/api/usuarios/perfil/', {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+
+    const result = await parseJSON(response)
+
+    if (!response.ok) {
+      throw { status: response.status, data: result }
+    }
+
+    return result
+  },
+}
+
+// Configuración API
+
+export const configuracionApi = {
+  async getParametros() {
+    const response = await request('/api/configuracion/')
+
+    const data = await parseJSON(response)
+
+    if (!response.ok) {
+      throw { status: response.status, data }
+    }
+
+    return data
+  },
+
+  async actualizarParametro(clave, valor) {
+    const response = await request(`/api/configuracion/${clave}/`, {
+      method: 'PATCH',
+      body: JSON.stringify({ valor }),
+    })
+
+    const data = await parseJSON(response)
+
+    if (!response.ok) {
+      throw { status: response.status, data }
+    }
+
+    return data
+  },
 }
 
 // Helpers

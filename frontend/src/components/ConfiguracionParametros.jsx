@@ -1,23 +1,6 @@
-import { useState } from "react";
-
-// ─── Datos iniciales ────────────────────────────────────────────────────────
-const initialParams = {
-  institucional: {
-    nombre_institucion: "Universidad Francisco de Paula Santander",
-    correo_soporte: "soporte@ufps.edu.co",
-    logo_url: "https://ufps.edu.co/assets/logo.png",
-  },
-  academicos: {
-    max_estudiantes_equipo: 5,
-    semanas_sprint: 2,
-    nota_minima_aprobacion: 60,
-  },
-  seguridad: {
-    bitacora_activa: true,
-    proyectos_publicos: false,
-    modo_mantenimiento: false,
-  },
-};
+import { useState, useEffect } from "react";
+import { Fragment } from "react";
+import { configuracionApi } from "../services/api";
 
 // ─── Subcomponentes ──────────────────────────────────────────────────────────
 
@@ -216,8 +199,74 @@ function SectionCard({ icon, iconBg, title, children, onSave }) {
 
 // ─── Componente principal ────────────────────────────────────────────────────
 export default function ConfiguracionParametros() {
-  const [params, setParams] = useState(initialParams);
+  const [params, setParams] = useState({
+    institucional: {
+      nombre_institucion: "",
+      correo_soporte: "",
+      logo_url: "",
+    },
+    academicos: {
+      max_estudiantes_equipo: 0,
+      semanas_sprint: 0,
+      nota_minima_aprobacion: 0,
+    },
+    seguridad: {
+      bitacora_activa: false,
+      proyectos_publicos: false,
+      modo_mantenimiento: false,
+    },
+  });
   const [toast, setToast] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    cargarParametros();
+  }, []);
+
+  async function cargarParametros() {
+    try {
+      setLoading(true);
+      setError("");
+      const data = await configuracionApi.getParametros();
+      
+      const mapped = {
+        institucional: {},
+        academicos: {},
+        seguridad: {},
+      };
+
+      if (data.institucional) {
+        data.institucional.forEach((p) => {
+          if (p.clave === "nombre_institucion") mapped.institucional.nombre_institucion = p.valor_casteado;
+          if (p.clave === "correo_soporte") mapped.institucional.correo_soporte = p.valor_casteado;
+          if (p.clave === "logo_url") mapped.institucional.logo_url = p.valor_casteado;
+        });
+      }
+
+      if (data.general) {
+        data.general.forEach((p) => {
+          if (p.clave === "max_estudiantes_por_equipo") mapped.academicos.max_estudiantes_equipo = p.valor_casteado;
+          if (p.clave === "semanas_sprint") mapped.academicos.semanas_sprint = p.valor_casteado;
+          if (p.clave === "nota_minima_aprobacion") mapped.academicos.nota_minima_aprobacion = p.valor_casteado;
+        });
+      }
+
+      if (data.seguridad) {
+        data.seguridad.forEach((p) => {
+          if (p.clave === "bitacora_activa") mapped.seguridad.bitacora_activa = p.valor_casteado;
+          if (p.clave === "proyectos_publicos") mapped.seguridad.proyectos_publicos = p.valor_casteado;
+          if (p.clave === "modo_mantenimiento") mapped.seguridad.modo_mantenimiento = p.valor_casteado;
+        });
+      }
+
+      setParams(mapped);
+    } catch (err) {
+      setError(err.message || "Error al cargar parámetros");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   function updateParam(section, key, value) {
     setParams((prev) => ({
@@ -227,10 +276,57 @@ export default function ConfiguracionParametros() {
   }
 
   function handleSave(section) {
-    // Aquí iría la llamada PATCH /api/configuracion/:clave/
-    console.log(`Guardando sección ${section}:`, params[section]);
-    setToast("Cambios guardados satisfactoriamente");
-    setTimeout(() => setToast(""), 4000);
+    const sectionMap = {
+      institucional: {
+        nombre_institucion: "nombre_institucion",
+        correo_soporte: "correo_soporte",
+        logo_url: "logo_url",
+      },
+      academicos: {
+        max_estudiantes_equipo: "max_estudiantes_por_equipo",
+        semanas_sprint: "semanas_sprint",
+        nota_minima_aprobacion: "nota_minima_aprobacion",
+      },
+      seguridad: {
+        bitacora_activa: "bitacora_activa",
+        proyectos_publicos: "proyectos_publicos",
+        modo_mantenimiento: "modo_mantenimiento",
+      },
+    };
+
+    const claves = sectionMap[section];
+    const valores = params[section];
+
+    Promise.all(
+      Object.entries(valores).map(([key, value]) => {
+        const claveBackend = claves[key];
+        return configuracionApi.actualizarParametro(claveBackend, value);
+      })
+    )
+      .then(() => {
+        setToast("Cambios guardados satisfactoriamente");
+        setTimeout(() => setToast(""), 4000);
+      })
+      .catch((err) => {
+        setToast(err.message || "Error al guardar");
+        setTimeout(() => setToast(""), 4000);
+      });
+  }
+
+  if (loading) {
+    return (
+      <div style={{ padding: "32px 40px", textAlign: "center", color: "#6b7280" }}>
+        Cargando...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ padding: "32px 40px", textAlign: "center", color: "#dc2626" }}>
+        {error}
+      </div>
+    );
   }
 
   return (

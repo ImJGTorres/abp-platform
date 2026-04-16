@@ -1,6 +1,6 @@
 from django.contrib.auth.hashers import check_password
 from rest_framework import generics, status
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 
 from apps.usuarios.permissions import EsAdministrador
 from rest_framework.response import Response
@@ -10,7 +10,24 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from apps.bitacora.models import BitacoraSistema
 from apps.bitacora.utils import registrar_evento
 from apps.usuarios.models import Usuario
-from apps.usuarios.serializers import UsuarioSerializer
+from apps.usuarios.serializers import UsuarioSerializer, UsuarioUpdateSerializer
+
+
+class UsuarioProfileView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        usuario = request.user
+        serializer = UsuarioSerializer(usuario)
+        return Response(serializer.data)
+
+    def patch(self, request):
+        usuario = request.user
+        serializer = UsuarioUpdateSerializer(usuario, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(UsuarioSerializer(usuario).data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 # LoginView: View personalizada para autenticación JWT (BE-02, BE-03)
