@@ -5,6 +5,7 @@ from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from apps.usuarios.permissions import EsAdministrador
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_simplejwt.views import TokenBlacklistView
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.bitacora.models import BitacoraSistema
@@ -139,3 +140,17 @@ class UsuarioCreateView(generics.CreateAPIView):
             modulo='usuarios',
             descripcion=f'Usuario creado: ID={usuario_creado.id}, correo={usuario_creado.correo}',
         )
+
+
+class LogoutView(TokenBlacklistView):
+    """Vista personalizada para cerrar sesión y registrar el evento en bitácora."""
+    def post(self, request, *args, **kwargs):
+        user = request.user
+        if user and user.is_authenticated:
+            registrar_evento(
+                request=request,
+                accion=BitacoraSistema.Accion.LOGOUT,
+                modulo='autenticacion',
+                descripcion=f'Logout efectivo: {user.correo}',
+            )
+        return super().post(request, *args, **kwargs)
