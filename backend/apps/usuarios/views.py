@@ -23,7 +23,9 @@ class UsuarioProfileView(APIView):
 
     def patch(self, request):
         usuario = request.user
-        serializer = UsuarioUpdateSerializer(usuario, data=request.data, partial=True)
+        serializer = UsuarioUpdateSerializer(
+            usuario, data=request.data, partial=True, context={'request': request}
+        )
         if serializer.is_valid():
             serializer.save()
             return Response(UsuarioSerializer(usuario).data)
@@ -126,6 +128,51 @@ class LoginView(APIView):
             'access':  str(refresh.access_token),
             'refresh': str(refresh),
         }, status=status.HTTP_200_OK)
+
+
+class UsuarioUpdateView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def _get_usuario_o_error(self, request, pk):
+        es_admin = request.user.tipo_rol == Usuario.TipoRol.ADMINISTRADOR
+        if not es_admin and request.user.pk != pk:
+            return None, Response(
+                {'detail': 'No tienes permiso para acceder a este perfil.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        try:
+            return Usuario.objects.get(pk=pk), None
+        except Usuario.DoesNotExist:
+            return None, Response({'detail': 'Usuario no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+    def get(self, request, pk):
+        usuario, error = self._get_usuario_o_error(request, pk)
+        if error:
+            return error
+        return Response(UsuarioSerializer(usuario).data)
+
+    def patch(self, request, pk):
+        usuario, error = self._get_usuario_o_error(request, pk)
+        if error:
+            return error
+        serializer = UsuarioUpdateSerializer(
+            usuario, data=request.data, partial=True, context={'request': request}
+        )
+        if serializer.is_valid():
+            campos_modificados = list(serializer.validated_data.keys())
+            serializer.save()
+            registrar_evento(
+                request=request,
+                accion=BitacoraSistema.Accion.UPDATE,
+                modulo='usuarios',
+                descripcion=(
+                    f'Perfil actualizado: ID={usuario.id}, correo={usuario.correo}. '
+                    f'Campos modificados: {", ".join(campos_modificados)}. '
+                    f'Editado por: {request.user.correo}'
+                ),
+            )
+            return Response(UsuarioSerializer(usuario).data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class UsuarioCreateView(generics.CreateAPIView):
