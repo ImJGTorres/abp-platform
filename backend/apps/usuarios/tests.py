@@ -4,6 +4,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from apps.bitacora.models import BitacoraSistema
 from apps.usuarios.models import Usuario
 from apps.usuarios.serializers import UsuarioUpdateSerializer
 
@@ -176,3 +177,187 @@ class UsuarioProfileViewTests(APITestCase):
     def test_patch_sin_autenticacion_retorna_401(self):
         resp = self.client.patch(self.URL, {'nombre': 'Hacker'})
         self.assertEqual(resp.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+# BE 02-3: Endpoint PATCH /api/usuarios/:id/
+class UsuarioUpdateViewTests(APITestCase):
+
+    def setUp(self):
+        self.usuario = crear_usuario('pedro@test.com', nombre='Pedro', apellido='Gómez')
+        self.otro = crear_usuario('laura@test.com', nombre='Laura', apellido='Ruiz')
+        self.admin = crear_usuario(
+            'admin3@test.com', nombre='Admin', apellido='Root',
+            rol=Usuario.TipoRol.ADMINISTRADOR,
+        )
+
+    def _url(self, pk):
+        return f'/api/usuarios/{pk}/'
+
+    def _auth(self, user):
+        refresh = RefreshToken()
+        refresh['user_id'] = user.id
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {str(refresh.access_token)}')
+
+    def test_usuario_edita_su_propio_perfil_retorna_200(self):
+        self._auth(self.usuario)
+        resp = self.client.patch(self._url(self.usuario.pk), {'nombre': 'Pedrito'})
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp.data['nombre'], 'Pedrito')
+
+    def test_usuario_no_puede_editar_otro_perfil_retorna_403(self):
+        self._auth(self.usuario)
+        resp = self.client.patch(self._url(self.otro.pk), {'nombre': 'Intruso'})
+        self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_admin_puede_editar_cualquier_usuario_retorna_200(self):
+        self._auth(self.admin)
+        resp = self.client.patch(self._url(self.otro.pk), {'nombre': 'NuevoNombre'})
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp.data['nombre'], 'NuevoNombre')
+
+    def test_admin_puede_cambiar_correo_retorna_200(self):
+        self._auth(self.admin)
+        resp = self.client.patch(self._url(self.usuario.pk), {'correo': 'nuevo@test.com'})
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp.data['correo'], 'nuevo@test.com')
+
+    def test_usuario_no_puede_cambiar_correo_retorna_400(self):
+        self._auth(self.usuario)
+        resp = self.client.patch(self._url(self.usuario.pk), {'correo': 'hack@test.com'})
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('correo', resp.data)
+
+    def test_usuario_inexistente_retorna_404(self):
+        self._auth(self.admin)
+        resp = self.client.patch(self._url(99999), {'nombre': 'Nadie'})
+        self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_sin_autenticacion_retorna_401(self):
+        resp = self.client.patch(self._url(self.usuario.pk), {'nombre': 'Hacker'})
+        self.assertEqual(resp.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+# BE 04: Endpoint GET /api/usuarios/:id/
+class UsuarioGetViewTests(APITestCase):
+
+    def setUp(self):
+        self.usuario = crear_usuario('sofia@test.com', nombre='Sofía', apellido='Mora')
+        self.otro = crear_usuario('luis@test.com', nombre='Luis', apellido='Cruz')
+        self.admin = crear_usuario(
+            'admin4@test.com', nombre='Admin', apellido='Root',
+            rol=Usuario.TipoRol.ADMINISTRADOR,
+        )
+
+    def _url(self, pk):
+        return f'/api/usuarios/{pk}/'
+
+    def _auth(self, user):
+        refresh = RefreshToken()
+        refresh['user_id'] = user.id
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {str(refresh.access_token)}')
+
+    def test_usuario_obtiene_su_propio_perfil_retorna_200(self):
+        self._auth(self.usuario)
+        resp = self.client.get(self._url(self.usuario.pk))
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp.data['correo'], 'sofia@test.com')
+        self.assertIn('nombre', resp.data)
+        self.assertIn('apellido', resp.data)
+
+    def test_usuario_no_puede_ver_otro_perfil_retorna_403(self):
+        self._auth(self.usuario)
+        resp = self.client.get(self._url(self.otro.pk))
+        self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_admin_puede_ver_cualquier_perfil_retorna_200(self):
+        self._auth(self.admin)
+        resp = self.client.get(self._url(self.usuario.pk))
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp.data['correo'], 'sofia@test.com')
+
+    def test_usuario_inexistente_retorna_404(self):
+        self._auth(self.admin)
+        resp = self.client.get(self._url(99999))
+        self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_sin_autenticacion_retorna_401(self):
+        resp = self.client.get(self._url(self.usuario.pk))
+        self.assertEqual(resp.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_respuesta_incluye_campos_esperados(self):
+        self._auth(self.usuario)
+        resp = self.client.get(self._url(self.usuario.pk))
+        for campo in ['id', 'nombre', 'apellido', 'correo', 'tipo_rol', 'telefono', 'foto_perfil']:
+            self.assertIn(campo, resp.data)
+
+
+# BE 05: Registrar actualización de perfil en bitácora
+class BitacoraActualizacionTests(APITestCase):
+
+    def setUp(self):
+        self.usuario = crear_usuario('elena@test.com', nombre='Elena', apellido='Vega')
+        self.admin = crear_usuario(
+            'admin5@test.com', nombre='Admin', apellido='Root',
+            rol=Usuario.TipoRol.ADMINISTRADOR,
+        )
+
+    def _url(self, pk):
+        return f'/api/usuarios/{pk}/'
+
+    def _auth(self, user):
+        refresh = RefreshToken()
+        refresh['user_id'] = user.id
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {str(refresh.access_token)}')
+
+    def test_patch_exitoso_registra_en_bitacora(self):
+        self._auth(self.usuario)
+        self.client.patch(self._url(self.usuario.pk), {'nombre': 'Elenita'})
+        entrada = BitacoraSistema.objects.filter(
+            accion=BitacoraSistema.Accion.UPDATE,
+            modulo='usuarios',
+        ).last()
+        self.assertIsNotNone(entrada)
+        self.assertIn('nombre', entrada.descripcion)
+
+    def test_bitacora_incluye_campos_modificados(self):
+        self._auth(self.usuario)
+        self.client.patch(self._url(self.usuario.pk), {'nombre': 'Nu', 'apellido': 'Vega2'})
+        # nombre debe fallar (< 2 chars), solo apellido válido
+        self._auth(self.usuario)
+        self.client.patch(self._url(self.usuario.pk), {'apellido': 'Vega2', 'telefono': '3001112233'})
+        entrada = BitacoraSistema.objects.filter(
+            accion=BitacoraSistema.Accion.UPDATE,
+            modulo='usuarios',
+        ).last()
+        self.assertIn('apellido', entrada.descripcion)
+        self.assertIn('telefono', entrada.descripcion)
+
+    def test_bitacora_incluye_quien_edito(self):
+        self._auth(self.admin)
+        self.client.patch(self._url(self.usuario.pk), {'nombre': 'Modificado'})
+        entrada = BitacoraSistema.objects.filter(
+            accion=BitacoraSistema.Accion.UPDATE,
+            modulo='usuarios',
+        ).last()
+        self.assertIn('admin5@test.com', entrada.descripcion)
+
+    def test_bitacora_registra_usuario_correcto_como_actor(self):
+        self._auth(self.usuario)
+        self.client.patch(self._url(self.usuario.pk), {'telefono': '3009876543'})
+        entrada = BitacoraSistema.objects.filter(
+            accion=BitacoraSistema.Accion.UPDATE,
+            modulo='usuarios',
+        ).last()
+        self.assertEqual(entrada.id_usuario, self.usuario)
+        self.assertEqual(entrada.nombre_usuario, 'Elena Vega')
+
+    def test_patch_invalido_no_registra_en_bitacora(self):
+        self._auth(self.usuario)
+        conteo_antes = BitacoraSistema.objects.filter(
+            accion=BitacoraSistema.Accion.UPDATE, modulo='usuarios'
+        ).count()
+        self.client.patch(self._url(self.usuario.pk), {'nombre': 'X'})  # inválido
+        conteo_despues = BitacoraSistema.objects.filter(
+            accion=BitacoraSistema.Accion.UPDATE, modulo='usuarios'
+        ).count()
+        self.assertEqual(conteo_antes, conteo_despues)

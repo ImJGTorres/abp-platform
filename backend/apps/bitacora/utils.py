@@ -27,8 +27,9 @@ def registrar_evento(request, accion, modulo, descripcion=None):
 
     if request is not None:
         ip_origen = _get_ip(request)
-        user = getattr(request, 'usuario', None)
-        if user is not None:
+        # Soporta tanto request.usuario (login manual) como request.user (JWT)
+        user = getattr(request, 'usuario', None) or getattr(request, 'user', None)
+        if user is not None and getattr(user, 'is_authenticated', False):
             usuario = user
             nombre_usuario = f'{user.nombre} {user.apellido}'
 
