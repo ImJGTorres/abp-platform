@@ -18,7 +18,7 @@ from django.contrib import admin
 from django.urls import include, path
 # SimpleJWT views importadas para endpoints de refresh y logout (BE-04, BE-05)
 # TokenRefreshView: Permite obtener nuevo access token usando refresh token
-from rest_framework_simplejwt.views import TokenRefreshView
+from rest_framework_simplejwt.views import TokenRefreshView, TokenBlacklistView
 
 from apps.usuarios.views import LoginView
 from apps.roles.views import PermisosAgrupadosView
