@@ -32,7 +32,7 @@ async function parseJSON(response) {
   }
 }
 
-// ─── Refresh de token ─────────────────────────────────────────────────────────
+// Refresh de token
 // POST /api/auth/refresh/ — TokenRefreshView (SimpleJWT nativo)
 // Con ROTATE_REFRESH_TOKENS: True y BLACKLIST_AFTER_ROTATION: True en settings,
 // cada refresh devuelve un nuevo refresh token y el anterior queda en blacklist.
@@ -105,30 +105,11 @@ async function request(path, options = {}) {
   return response
 }
 
-// ─── Auth y usuarios
+// Auth y usuarios
+//   POST /api/auth/login/   → LoginView  (SimpleJWT personalizado) — obtiene access y refresh tokens
+//   POST /api/auth/logout/  → LogoutView (SimpleJWT personalizado) — hace blacklist del refresh token
 
 export const authApi = {
-  /**
-   * POST /api/auth/login/  → LoginView
-   *
-   * Request:
-   *   correo     string — requerido
-   *   contrasena string — requerido
-   *
-   * Response 200:
-   *   { access, refresh }
-   *
-   * Claims en el JWT (definidos en LoginView):
-   *   user_id   → usuario.id
-   *   nombre    → usuario.nombre
-   *   correo    → usuario.correo
-   *   tipo_rol  → usuario.tipo_rol
-   *
-   * Errores:
-   *   400 → { detail: 'correo y contrasena son requeridos.' }
-   *   401 → { detail: 'Credenciales inválidas.' }
-   *   401 → { detail: 'Usuario inactivo.' }  ← inactivo también es 401, no 403
-   */
   async login(correo, contrasena) {
     const response = await request('/api/auth/login/', {
       method: 'POST',
@@ -150,7 +131,6 @@ export const authApi = {
       }
     })()
 
-    // Mapeo exacto de los claims definidos en LoginView
     const user = {
       id: payload?.user_id,   // refresh['user_id'] = usuario.id
       nombre: payload?.nombre,    // refresh['nombre']
@@ -180,31 +160,12 @@ export const authApi = {
   },
 }
 
-// ─── Usuarios ─────────────────────────────────────────────────────────────────
+// Usuarios
+//   POST   /api/usuarios/             → UsuarioCreateView  — crea un usuario
+//   GET    /api/usuarios/perfil/      → UsuarioPerfilView  — obtiene el perfil del usuario autenticado
+//   PATCH  /api/usuarios/perfil/      → UsuarioPerfilView  — actualización parcial del perfil
 
 export const usuariosApi = {
-  /**
-   * POST /api/usuarios/  → UsuarioCreateView
-   *
-   * Permiso requerido: EsAdministrador
-   *   → verifica request.user.tipo_rol == 'administrador'
-   *   → resuelto por UsuarioJWTAuthentication (modelo propio)
-   *
-   * Request (UsuarioSerializer):
-   *   nombre     string, min 2 chars  — requerido
-   *   apellido   string, min 2 chars  — requerido
-   *   correo     email, único         — requerido
-   *   contrasena string, min 8 chars  — requerido (write_only, se hashea en servidor)
-   *   tipo_rol   enum TipoRol         — requerido
-   *
-   * Omitidos: estado (default='activo'), telefono, foto_perfil (opcionales)
-   *
-   * Response 201: usuario creado (sin contrasena)
-   * Response 400: { campo: ["mensaje"] }   ← errores DRF por campo
-   * Response 403: { detail: "..." }        ← no es administrador
-   *
-   * Lanza: { type: 'network' } | { status, data }
-   */
   async crear({ nombre, apellido, correo, contrasena, tipo_rol }) {
     const response = await request('/api/usuarios/', {
       method: 'POST',
@@ -245,6 +206,9 @@ export const usuariosApi = {
 }
 
 // Configuración API
+// Endpoints (apps/configuracion/urls.py incluido en /api/configuracion/):
+//   GET  /api/configuracion/         → ConfiguracionListView  — lista todos los parámetros
+//   PATCH /api/configuracion/:clave/ → ConfiguracionDetailView — actualización parcial de un parámetro
 
 export const configuracionApi = {
   async getParametros() {
@@ -271,6 +235,93 @@ export const configuracionApi = {
       throw { status: response.status, data }
     }
 
+    return data
+  },
+}
+// Roles
+//
+// Endpoints (apps/roles/urls.py incluido en /api/roles/):
+//   GET    /api/roles/             → RolListCreateView  — lista todos los roles
+//   POST   /api/roles/             → RolListCreateView  — crea un rol
+//   GET    /api/roles/:id/         → RolDetailView      — detalle con permisos anidados
+//   PATCH  /api/roles/:id/         → RolDetailView      — actualización parcial
+//   DELETE /api/roles/:id/         → RolDetailView      — elimina un rol
+//   GET    /api/roles/permisos/    → PermisoListCreateView — lista todos los permisos
+
+export const rolesApi = {
+  /**
+   * GET /api/roles/
+   * Response 200: [{ id, nombre, descripcion, estado, total_usuarios }]
+   */
+  async listar() {
+    const response = await request('/api/roles/')
+    const data = await parseJSON(response)
+    if (!response.ok) throw { status: response.status, data }
+    return data
+  },
+
+  /**
+   * GET /api/roles/:id/
+   * Response 200: { id, nombre, descripcion, estado, fecha_creacion, permisos: [{id, codigo, modulo, descripcion}] }
+   */
+  async obtener(id) {
+    const response = await request(`/api/roles/${id}/`)
+    const data = await parseJSON(response)
+    if (!response.ok) throw { status: response.status, data }
+    return data
+  },
+
+  /**
+   * POST /api/roles/
+   * Request:  { nombre, descripcion }
+   * Response 201: { id, nombre, descripcion, estado, fecha_creacion, permisos: [] }
+   */
+  async crear({ nombre, descripcion }) {
+    const response = await request('/api/roles/', {
+      method: 'POST',
+      body: JSON.stringify({ nombre, descripcion }),
+    })
+    const data = await parseJSON(response)
+    if (!response.ok) throw { status: response.status, data }
+    return data
+  },
+
+  /**
+   * PATCH /api/roles/:id/
+   * Request:  { nombre?, descripcion?, estado?, permiso_ids?: [id, id, ...] }
+   *   — permiso_ids reemplaza TODOS los permisos del rol (RolSerializer.update)
+   * Response 200: { id, nombre, descripcion, estado, fecha_creacion, permisos: [...] }
+   */
+  async editar(id, campos) {
+    const response = await request(`/api/roles/${id}/`, {
+      method: 'PATCH',
+      body: JSON.stringify(campos),
+    })
+    const data = await parseJSON(response)
+    if (!response.ok) throw { status: response.status, data }
+    return data
+  },
+
+  /**
+   * DELETE /api/roles/:id/
+   * Response 204: sin cuerpo
+   */
+  async eliminar(id) {
+    const response = await request(`/api/roles/${id}/`, { method: 'DELETE' })
+    if (!response.ok) {
+      const data = await parseJSON(response)
+      throw { status: response.status, data }
+    }
+  },
+
+  /**
+   * GET /api/roles/permisos/
+   * Response 200: [{ id, codigo, modulo, descripcion }]
+   */
+  async listarPermisos() {
+    const response = await request('/api/roles/permisos/')
+    const data = await parseJSON(response)
+    if (!response.ok) throw { status: response.status, data }
     return data
   },
 }
