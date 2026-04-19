@@ -52,6 +52,7 @@ urlpatterns = [
     path('api/permisos/', PermisosAgrupadosView.as_view(), name='permisos-agrupados'),
     path('api/bitacora/', include('apps.bitacora.urls')),  # Endpoint para consultar bitácora del sistema
 
-    # SPA: Servir index.html para cualquier ruta no API (login, admin, etc.)
-    re_path(r'^.*$', TemplateView.as_view(template_name='index.html'), name='frontend'),
+    # SPA: Servir index.html para cualquier ruta que no sea API ni static
+    # Excluye /api/ y /static/ usando lookahead negativo en regex
+    re_path(r'^(?!api/|static/|admin/).*$', TemplateView.as_view(template_name='index.html'), name='frontend'),
 ]
