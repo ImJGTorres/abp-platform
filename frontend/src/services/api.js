@@ -1,11 +1,5 @@
-<<<<<<< HEAD
 const BASE_URL = ''
 // Sesión / Tokens
-=======
-const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
-
-// Sesión / tokens
->>>>>>> develop
 
 export const session = {
   getAccess: () => localStorage.getItem('access_token'),
