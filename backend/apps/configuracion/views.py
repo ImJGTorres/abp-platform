@@ -35,14 +35,9 @@ from .cache import get_parametros_cacheados, set_parametros_cacheados, invalidar
 # - invalidar_cache_parametros(): Elimina el caché después de una actualización
 
 from .models import ParametroSistema, PeriodoAcademico
-# ParametroSistema: Modelo de parámetros de configuración
-# PeriodoAcademico: Modelo de períodos académicos
-
 from .permissions import EsAdministrador, IsAdminOrDocente
-# EsAdministrador: Permiso personalizado que requiere rol de administrador
-# IsAdminOrDocente: Permiso que permite acceso a admin o docente
-
 from .serializers import ParametroSistemaSerializer, PeriodoAcademicoSerializer
+from apps.cursos.models import Curso
 # ParametroSistemaSerializer: Serializador para convertir modelos a JSON
 # PeriodoAcademicoSerializer: Serializador para períodos académicos
 
@@ -269,9 +264,12 @@ class PeriodoAcademicoViewSet(viewsets.ModelViewSet):
     Proporciona los endpoints:
     - GET /api/periodos/ - Lista todos los períodos ordenados por fecha_inicio descendente
     - POST /api/periodos/ - Crea un nuevo período académico
+    - PUT /api/periodos/<id>/ - Actualiza un período académico (solo admin)
+    - PATCH /api/periodos/<id>/ - Actualiza parcialmente un período académico (solo admin)
+    - DELETE /api/periodos/<id>/ - Elimina un período académico (solo admin)
     
     El endpoint GET permite acceso a administradores y docentes (IsAdminOrDocente).
-    El endpoint POST solo permite acceso a administradores (IsAdminUser).
+    Los endpoints POST, PUT, PATCH y DELETE solo permiten acceso a administradores (IsAdminUser).
     
     Cada período incluye el conteo de cursos asociados en el campo total_cursos.
     """
@@ -285,18 +283,48 @@ class PeriodoAcademicoViewSet(viewsets.ModelViewSet):
         return queryset
     
     def get_permissions(self):
-        if self.action == 'create':
+        # Los permisos para update, partial_update y destroy requieren ser administrador (is_staff)
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
             return [IsAdminUser()]
         return [IsAdminOrDocente()]
     
     def perform_create(self, serializer):
         serializer.save(usuario_creo=self.request.user)
     
+    # Método auxiliar para verificar si hay proyectos activos en los cursos del período
+    # Se usa para validar si se pueden modificar las fechas (retorna True si hay proyectos en_curso)
+    def _has_active_projects(self, periodo):
+        from django.apps import apps
+        try:
+            # Intenta obtener el modelo Proyecto de la app proyectos
+            # Si la app no existe, retorna False (no hay restricción)
+            Proyecto = apps.get_model('proyectos', 'Proyecto')
+            cursos = Curso.objects.filter(id_periodo_academico=periodo)
+            for curso in cursos:
+                if hasattr(curso, 'proyecto') and curso.proyecto.estado == 'en_curso':
+                    return True
+        except ImportError:
+            pass
+        return False
+    
+    # Método auxiliar para contar proyectos activos en los cursos del período
+    # Retorna el conteo de proyectos con estado 'en_curso' para mostrar en el error 409
+    def _get_active_projects_count(self, periodo):
+        from django.apps import apps
+        try:
+            Proyecto = apps.get_model('proyectos', 'Proyecto')
+            return Proyecto.objects.filter(curso__id_periodo_academico=periodo, estado='en_curso').count()
+        except ImportError:
+            return 0
+    
     def create(self, request, *args, **kwargs):
+        # Si el estado del nuevo período es 'activo', se deben inactivar los demás períodos activos
+        # Esto se hace en una transacción atómica para garantir consistencia
         estado = request.data.get('estado')
         
         if estado == PeriodoAcademico.Estado.ACTIVO:
             with transaction.atomic():
+                # Actualiza todos los períodos activos a inactivo antes de crear el nuevo
                 PeriodoAcademico.objects.filter(
                     estado=PeriodoAcademico.Estado.ACTIVO
                 ).update(estado=PeriodoAcademico.Estado.INACTIVO)
@@ -304,6 +332,19 @@ class PeriodoAcademicoViewSet(viewsets.ModelViewSet):
                 serializer = self.get_serializer(data=request.data)
                 serializer.is_valid(raise_exception=True)
                 self.perform_create(serializer)
+                
+                # Registro en bitácora de la creación del período académico
+                # Si falla el registro, no se interrumpe la operación principal (try/except)
+                try:
+                    registrar_evento(
+                        request,
+                        accion=BitacoraSistema.Accion.CREATE,
+                        modulo='periodos_academicos',
+                        descripcion=f"Período académico creado: {serializer.instance.nombre}"
+                    )
+                except Exception:
+                    pass
+                
                 headers = self.get_success_headers(serializer.data)
                 return Response(
                     serializer.data,
@@ -312,3 +353,145 @@ class PeriodoAcademicoViewSet(viewsets.ModelViewSet):
                 )
         else:
             return super().create(request, *args, **kwargs)
+    
+# Endpoint PUT/PATCH para actualizar un período académico
+    # - PUT: actualización completa (reemplazo total)
+    # - PATCH: actualización parcial
+    #URL: /api/periodos/<id>/
+    def update(self, request, *args, **kwargs):
+        # Se capturan los valores antes del update para registrar en bitácora
+        # Esto permite auditoría de los cambios realizados
+        instance = self.get_object()
+        valores_anteriores = {
+            'nombre': instance.nombre,
+            'fecha_inicio': str(instance.fecha_inicio),
+            'fecha_fin': str(instance.fecha_fin),
+            'estado': instance.estado,
+        }
+        
+        # partial=True indica que es un PATCH (actualización parcial), False es PUT
+        partial = kwargs.pop('partial', False)
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        
+        # Se extraen los nuevos valores validados para verificar reglas de negocio
+        nuevo_estado = serializer.validated_data.get('estado')
+        nueva_fecha_inicio = serializer.validated_data.get('fecha_inicio')
+        nueva_fecha_fin = serializer.validated_data.get('fecha_fin')
+        
+        # force_update permite modificar fechas aunque haya proyectos activos
+        # Es un flag de emergencia para casos donde se necesite forzar el cambio
+        force_update = request.data.get('force_update', False)
+        
+        # Verificar si las fechas fueron modificadas
+        fecha_cambio = (nueva_fecha_inicio and nueva_fecha_inicio != instance.fecha_inicio) or \
+                       (nueva_fecha_fin and nueva_fecha_fin != instance.fecha_fin)
+        
+        # Si las fechas cambian y hay proyectos activos, retorna 409 Conflict
+        # Excepto si force_update=true (permite forzar el cambio)
+        if fecha_cambio and not force_update:
+            proyectos_activos = self._get_active_projects_count(instance)
+            if proyectos_activos > 0:
+                return Response(
+                    {'error': 'No se pueden modificar las fechas', 'proyectos_activos': proyectos_activos},
+                    status=status.HTTP_409_CONFLICT
+                )
+        
+        # Si el nuevo estado es 'activo' y el actual no lo era,
+        # se deben inactivar los demás períodos activos (solo puede haber uno activo)
+        if nuevo_estado == PeriodoAcademico.Estado.ACTIVO and instance.estado != PeriodoAcademico.Estado.ACTIVO:
+            with transaction.atomic():
+                # Excluye el período actual para no self-actualizarse
+                PeriodoAcademico.objects.filter(
+                    estado=PeriodoAcademico.Estado.ACTIVO
+                ).exclude(pk=instance.pk).update(estado=PeriodoAcademico.Estado.INACTIVO)
+                
+                self.perform_update(serializer)
+                
+                # Registro en bitácora de la actualización del período
+                valores_nuevos = {
+                    'nombre': serializer.instance.nombre,
+                    'fecha_inicio': str(serializer.instance.fecha_inicio),
+                    'fecha_fin': str(serializer.instance.fecha_fin),
+                    'estado': serializer.instance.estado,
+                }
+                
+                try:
+                    registrar_evento(
+                        request,
+                        accion=BitacoraSistema.Accion.UPDATE,
+                        modulo='periodos_academicos',
+                        descripcion=f"Período académico actualizado: {serializer.instance.nombre}"
+                    )
+                except Exception:
+                    pass
+                
+                return Response(serializer.data)
+        else:
+            # Actualización normal (sin cambio de estado a activo)
+            self.perform_update(serializer)
+            
+            # Registro en bitácora de la actualización del período
+            valores_nuevos = {
+                'nombre': serializer.instance.nombre,
+                'fecha_inicio': str(serializer.instance.fecha_inicio),
+                'fecha_fin': str(serializer.instance.fecha_fin),
+                'estado': serializer.instance.estado,
+            }
+            
+            try:
+                registrar_evento(
+                    request,
+                    accion=BitacoraSistema.Accion.UPDATE,
+                    modulo='periodos_academicos',
+                    descripcion=f"Período académico actualizado: {serializer.instance.nombre}"
+                )
+            except Exception:
+                pass
+            
+            return Response(serializer.data)
+    
+    # Endpoint PATCH para actualización parcial
+    # Delegado al método update con partial=True
+    def partial_update(self, request, *args, **kwargs):
+        kwargs['partial'] = True
+        return self.update(request, *args, **kwargs)
+    
+    # Endpoint DELETE para eliminar un período académico
+    #URL: /api/periodos/<id>/
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        
+        # Verificar si hay cursos asociados al período
+        # Si hay cursos, no se puede eliminar (retorna 409 Conflict)
+        cursos_count = Curso.objects.filter(id_periodo_academico=instance).count()
+        
+        if cursos_count > 0:
+            return Response(
+                {'error': 'No se puede eliminar el periodo', 'cursos_afectados': cursos_count},
+                status=status.HTTP_409_CONFLICT
+            )
+        
+        # Se capturan los valores antes de eliminar para registrar en bitácora
+        valores_anteriores = {
+            'nombre': instance.nombre,
+            'fecha_inicio': str(instance.fecha_inicio),
+            'fecha_fin': str(instance.fecha_fin),
+            'estado': instance.estado,
+        }
+        
+        # Eliminar el período académico
+        self.perform_destroy(instance)
+        
+        # Registro en bitácora de la eliminación del período
+        try:
+            registrar_evento(
+                request,
+                accion=BitacoraSistema.Accion.DELETE,
+                modulo='periodos_academicos',
+                descripcion=f"Período académico eliminado: {valores_anteriores['nombre']}"
+            )
+        except Exception:
+            pass
+        
+        return Response(status=status.HTTP_204_NO_CONTENT)
