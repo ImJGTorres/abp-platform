@@ -29,11 +29,11 @@ urlpatterns = [
     # Ruta principal: GET /api/configuracion/
     # Retorna todos los parámetros agrupados por categoría
     # Requiere rol de administrador
-    path('configuracion/', ConfiguracionView.as_view(), name='configuracion'),
+    path('', ConfiguracionView.as_view(), name='configuracion'),
 
     # Ruta con parámetro: PATCH /api/configuracion/<clave>/
     # Permite actualizar un parámetro específico por su clave
     # Ejemplo: PATCH /api/configuracion/max_estudiantes_por_equipo/
     # Requiere rol de administrador
-    path('configuracion/<str:clave>/', ConfiguracionView.as_view(), name='configuracion_clave'),
+    path('<str:clave>/', ConfiguracionView.as_view(), name='configuracion_clave'),
 ]
