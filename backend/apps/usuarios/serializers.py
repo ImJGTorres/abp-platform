@@ -1,6 +1,5 @@
 from rest_framework import serializers
 from apps.usuarios.models import Usuario
-from django.contrib.auth.hashers import make_password 
 
 class UsuarioSerializer(serializers.ModelSerializer):
 
@@ -56,8 +55,17 @@ class UsuarioSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Ya existe un usuario con este correo.")
         return value
     
-    # ← NUEVO: al crear el usuario, hashea la contraseña antes de guardar (ST-06)
+    # Crea el usuario hasheando la contraseña de forma segura (ST-06).
+    # Antes se usaba make_password() y se guardaba en 'contrasena_hash' manualmente.
+    # Ahora se usa set_password() que es el método oficial de AbstractBaseUser:
+    # internamente también llama a make_password(), pero además marca al objeto
+    # como "contraseña establecida", lo que permite usar check_password() en el login.
     def create(self, validated_data):
+        # Extrae 'contrasena' del dict — no es un campo del modelo, solo se usa aquí
         contrasena = validated_data.pop('contrasena')
-        validated_data['contrasena_hash'] = make_password(contrasena)
-        return super().create(validated_data)
+        # Construye la instancia con el resto de los campos (nombre, correo, etc.)
+        usuario = Usuario(**validated_data)
+        # Hashea la contraseña y la almacena en el campo 'password' de AbstractBaseUser
+        usuario.set_password(contrasena)
+        usuario.save()
+        return usuario

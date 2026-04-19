@@ -22,6 +22,7 @@ from django.urls import include, path
 from rest_framework_simplejwt.views import TokenRefreshView, TokenBlacklistView
 
 from apps.usuarios.views import LoginView
+from apps.roles.views import PermisosAgrupadosView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -44,5 +45,10 @@ urlpatterns = [
     path('api/auth/logout/',  TokenBlacklistView.as_view(), name='token_blacklist'),
     
     path('api/configuracion/', include('apps.configuracion.urls')),
+    # Se conectan con las urls de cada modelo.
+    # ejemplo: /api/roles/permisos/ 
     path('api/roles/', include('apps.roles.urls')),
+
+    # BE-07: Permisos agrupados por módulo (para formulario de asignación)
+    path('api/permisos/', PermisosAgrupadosView.as_view(), name='permisos-agrupados'),
 ]

@@ -1,4 +1,3 @@
-from django.contrib.auth.hashers import check_password
 from rest_framework import generics, status
 from rest_framework.permissions import AllowAny
 
@@ -47,9 +46,11 @@ class LoginView(APIView):
         except Usuario.DoesNotExist:
             usuario = None
 
-        # Verifica contraseña usando bcrypt (Django hasher)
-        # check_password: función segura que compara hash almacenado
-        if usuario is None or not check_password(contrasena, usuario.contrasena_hash):
+        # check_password() es el método de AbstractBaseUser que compara la contraseña
+        # recibida (en texto plano) contra el hash guardado en el campo 'password'.
+        # Antes se llamaba a la función suelta check_password(contrasena, usuario.contrasena_hash).
+        # Ahora el propio objeto sabe dónde está su hash, por eso se llama sobre la instancia.
+        if usuario is None or not usuario.check_password(contrasena):
             # Registra intento fallido en bitácora para auditoría
             registrar_evento(
                 request=request,
