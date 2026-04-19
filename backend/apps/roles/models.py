@@ -24,7 +24,6 @@ class Permiso(models.Model):
     class Meta:
         db_table = 'permiso'
 
-
 class RolPermiso(models.Model):
     rol = models.ForeignKey(Rol, on_delete=models.CASCADE)
     permiso = models.ForeignKey(Permiso, on_delete=models.CASCADE)

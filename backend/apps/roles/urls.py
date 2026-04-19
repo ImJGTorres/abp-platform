@@ -5,7 +5,6 @@ from .views import (
     PermisoListCreateView,
     RolDetailView,
     RolListCreateView,
-    RolListView,
     RolPermisoDetailView,
     RolPermisoListCreateView,
 )
@@ -13,7 +12,6 @@ from .views import (
 urlpatterns = [
     # Roles
     path('', RolListCreateView.as_view(), name='rol-list-create'),
-    path('list/', RolListView.as_view(), name='rol-list'),
     path('<int:pk>/', RolDetailView.as_view(), name='rol-detail'),
 
     # Permisos
