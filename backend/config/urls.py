@@ -18,10 +18,9 @@ from django.contrib import admin
 from django.urls import include, path
 # SimpleJWT views importadas para endpoints de refresh y logout (BE-04, BE-05)
 # TokenRefreshView: Permite obtener nuevo access token usando refresh token
-# TokenBlacklistView: Agrega el refresh token a blacklist (logout efectivo)
-from rest_framework_simplejwt.views import TokenRefreshView, TokenBlacklistView
+from rest_framework_simplejwt.views import TokenRefreshView
 
-from apps.usuarios.views import LoginView
+from apps.usuarios.views import LoginView, LogoutView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -40,7 +39,8 @@ urlpatterns = [
     # Recibe refresh token y lo agrega a blacklist
     # Evita que el token pueda usarse nuevamente
     # Requiere: REST_FRAMEWORK_SIMPLEJWT.token_blacklist en INSTALLED_APPS
-    path('api/auth/logout/',  TokenBlacklistView.as_view(), name='token_blacklist'),
+    path('api/auth/logout/',  LogoutView.as_view(), name='token_blacklist'),
     path('api/', include('apps.configuracion.urls')),     # ← configuración + periodos (HU-035/036)
     path('api/roles/', include('apps.roles.urls')),        # ← roles y permisos (HU-003)
+    path('api/bitacora/', include('apps.bitacora.urls')),  # Endpoint para consultar bitácora del sistema
 ]
