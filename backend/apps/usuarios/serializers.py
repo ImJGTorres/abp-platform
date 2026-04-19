@@ -69,3 +69,59 @@ class UsuarioSerializer(serializers.ModelSerializer):
         usuario.set_password(contrasena)
         usuario.save()
         return usuario
+
+
+class UsuarioUpdateSerializer(serializers.ModelSerializer):
+    """
+    Serializer para actualización de perfil (PATCH).
+    - Campos libres para cualquier usuario autenticado: nombre, apellido, telefono, foto_perfil.
+    - Campos restringidos a administrador: correo, tipo_rol.
+    La vista es responsable de pasar el contexto con el request para aplicar las restricciones.
+    """
+
+    class Meta:
+        model = Usuario
+        fields = ['nombre', 'apellido', 'correo', 'tipo_rol', 'telefono', 'foto_perfil']
+
+    CAMPOS_ADMIN = {'correo', 'tipo_rol'}
+
+    def validate(self, attrs):
+        request = self.context.get('request')
+        es_admin = (
+            request is not None
+            and request.user.is_authenticated
+            and request.user.tipo_rol == Usuario.TipoRol.ADMINISTRADOR
+        )
+        campos_restringidos = set(attrs.keys()) & self.CAMPOS_ADMIN
+        if campos_restringidos and not es_admin:
+            raise serializers.ValidationError(
+                {campo: "Solo un administrador puede modificar este campo."
+                 for campo in campos_restringidos}
+            )
+        return attrs
+
+    def validate_nombre(self, value):
+        if len(value) < 2:
+            raise serializers.ValidationError("El nombre debe tener al menos 2 caracteres.")
+        return value
+
+    def validate_apellido(self, value):
+        if len(value) < 2:
+            raise serializers.ValidationError("El apellido debe tener al menos 2 caracteres.")
+        return value
+
+    def validate_tipo_rol(self, value):
+        roles_validos = [r[0] for r in Usuario.TipoRol.choices]
+        if value not in roles_validos:
+            raise serializers.ValidationError(
+                f"Rol inválido. Opciones válidas: {roles_validos}"
+            )
+        return value
+
+    def validate_correo(self, value):
+        qs = Usuario.objects.filter(correo=value)
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError("Ya existe un usuario con este correo.")
+        return value

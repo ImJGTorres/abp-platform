@@ -23,7 +23,9 @@ class UsuarioProfileView(APIView):
 
     def patch(self, request):
         usuario = request.user
-        serializer = UsuarioUpdateSerializer(usuario, data=request.data, partial=True)
+        serializer = UsuarioUpdateSerializer(
+            usuario, data=request.data, partial=True, context={'request': request}
+        )
         if serializer.is_valid():
             serializer.save()
             return Response(UsuarioSerializer(usuario).data)
