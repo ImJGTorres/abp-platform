@@ -1,7 +1,18 @@
+# backend/tests/bitacora/test_hu037_auditoria.py
+#
+# HU-037 — Bitácora de auditoría del sistema
+# Subtarea: SCRUM-165 — PR 01 Pruebas unitarias del backend
+#
+# Estado: ENDPOINT API NO IMPLEMENTADO (/api/bitacora/ no existe)
+# ─────────────────────────────────────────────────────────────────
+# El endpoint GET /api/bitacora/ no está implementado en views.py
+# Solo está implementado el modelo BitacoraSistema y utils.registrar_evento()
+# ─────────────────────────────────────────────────────────────────
+
 import pytest
-from django.urls import reverse
 from rest_framework.test import APIClient
 from rest_framework import status
+
 
 # -------------------------------------------------------
 # FIXTURES
@@ -9,6 +20,7 @@ from rest_framework import status
 @pytest.fixture
 def cliente():
     return APIClient()
+
 
 @pytest.fixture
 def admin_autenticado(cliente, db):
@@ -24,6 +36,7 @@ def admin_autenticado(cliente, db):
     )
     cliente.force_authenticate(user=usuario)
     return cliente
+
 
 @pytest.fixture
 def docente_autenticado(db):
@@ -41,6 +54,7 @@ def docente_autenticado(db):
     cliente.force_authenticate(user=usuario)
     return cliente
 
+
 @pytest.fixture
 def estudiante_autenticado(db):
     from apps.usuarios.models import Usuario
@@ -56,6 +70,7 @@ def estudiante_autenticado(db):
     )
     cliente.force_authenticate(user=usuario)
     return cliente
+
 
 @pytest.fixture
 def evento_base(db):
@@ -73,8 +88,9 @@ def evento_base(db):
         descripcion='Test de acceso'
     )
 
+
 # -------------------------------------------------------
-# CP-01: Acción de usuario queda registrada automáticamente
+# Tests del Modelo - BitácoraSistema
 # -------------------------------------------------------
 @pytest.mark.django_db
 def test_registrar_evento_crea_registro(evento_base):
@@ -85,99 +101,83 @@ def test_registrar_evento_crea_registro(evento_base):
     assert evento.accion == 'ACCESS'
     assert evento.modulo == 'configuracion'
 
-# -------------------------------------------------------
-# CP-02: GET /api/bitacora/ retorna lista de eventos
-# -------------------------------------------------------
-@pytest.mark.skip(reason="Bloqueado: Endpoint GET /api/bitacora/ no implementado")
-@pytest.mark.django_db
-def test_listar_eventos_como_admin(admin_autenticado, evento_base):
-    url = reverse("bitacora-list")
-    respuesta = admin_autenticado.get(url)
-    assert respuesta.status_code == status.HTTP_200_OK
-    assert len(respuesta.data) > 0
 
-# -------------------------------------------------------
-# CP-03: GET /api/bitacora/ como docente retorna 403
-# -------------------------------------------------------
-@pytest.mark.skip(reason="Bloqueado: Endpoint no implementado")
-@pytest.mark.django_db
-def test_listar_eventos_como_docente(docente_autenticado):
-    url = reverse("bitacora-list")
-    respuesta = docente_autenticado.get(url)
-    assert respuesta.status_code == status.HTTP_403_FORBIDDEN
-
-# -------------------------------------------------------
-# CP-04: GET /api/bitacora/ como estudiante retorna 403
-# -------------------------------------------------------
-@pytest.mark.skip(reason="Bloqueado: Endpoint no implementado")
-@pytest.mark.django_db
-def test_listar_eventos_como_estudiante(estudiante_autenticado):
-    url = reverse("bitacora-list")
-    respuesta = estudiante_autenticado.get(url)
-    assert respuesta.status_code == status.HTTP_403_FORBIDDEN
-
-# -------------------------------------------------------
-# CP-05: Registro existente no puede ser modificado (append-only)
-# -------------------------------------------------------
 @pytest.mark.django_db
 def test_bitacora_rechaza_update(evento_base):
-    """Verifica que el modelo rechaza UPDATE"""
+    """Verifica que el modelo rechaza UPDATE (append-only)"""
     from apps.bitacora.models import BitacoraSistema
-    from django.db import DatabaseError
     evento = BitacoraSistema.objects.first()
-    with pytest.raises((TypeError, DatabaseError)):
+    with pytest.raises(TypeError, match=".*no se permite modificar.*"):
         evento.descripcion = "Intento de cambio"
         evento.save()
 
-# -------------------------------------------------------
-# CP-06: Registro existente no puede ser eliminado (append-only)
-# -------------------------------------------------------
+
 @pytest.mark.django_db
 def test_bitacora_rechaza_delete(evento_base):
-    """Verifica que el modelo rechaza DELETE"""
+    """Verifica que el modelo rechaza DELETE (append-only)"""
     from apps.bitacora.models import BitacoraSistema
     evento = BitacoraSistema.objects.first()
-    with pytest.raises(TypeError):
+    with pytest.raises(TypeError, match=".*no se permite DELETE.*"):
         evento.delete()
 
+
 # -------------------------------------------------------
-# CP-07: Filtrar eventos por usuario
+# Tests de API - REQUIEREN ENDPOINT /api/bitacora/
+# Bloqueado: Endpoint NO implementado (views.py vacío)
 # -------------------------------------------------------
-@pytest.mark.skip(reason="Bloqueado: Endpoint no implementado")
+@pytest.mark.skip(reason="Bloqueado: Endpoint GET /api/bitacora/ no implementado (views.py vacío)")
+@pytest.mark.django_db
+def test_listar_eventos_como_admin(admin_autenticado, evento_base):
+    """GET /api/bitacora/ retorna lista de eventos"""
+    respuesta = admin_autenticado.get("/api/bitacora/")
+    assert respuesta.status_code == status.HTTP_200_OK
+
+
+@pytest.mark.skip(reason="Bloqueado: Endpoint GET /api/bitacora/ no implementado")
+@pytest.mark.django_db
+def test_listar_eventos_como_docente(docente_autenticado):
+    """GET /api/bitacora/ como docente retorna 403"""
+    respuesta = docente_autenticado.get("/api/bitacora/")
+    assert respuesta.status_code == status.HTTP_403_FORBIDDEN
+
+
+@pytest.mark.skip(reason="Bloqueado: Endpoint GET /api/bitacora/ no implementado")
+@pytest.mark.django_db
+def test_listar_eventos_como_estudiante(estudiante_autenticado):
+    """GET /api/bitacora/ como estudiante retorna 403"""
+    respuesta = estudiante_autenticado.get("/api/bitacora/")
+    assert respuesta.status_code == status.HTTP_403_FORBIDDEN
+
+
+@pytest.mark.skip(reason="Bloqueado: Endpoint GET /api/bitacora/ no implementado")
 @pytest.mark.django_db
 def test_filtrar_eventos_por_usuario(admin_autenticado, evento_base):
-    url = reverse("bitacora-list") + "?usuario=admin@test.com"
-    respuesta = admin_autenticado.get(url)
+    """Filtrar eventos por usuario"""
+    respuesta = admin_autenticado.get("/api/bitacora/?usuario=admin@test.com")
     assert respuesta.status_code == status.HTTP_200_OK
 
-# -------------------------------------------------------
-# CP-08: Filtrar eventos por módulo
-# -------------------------------------------------------
-@pytest.mark.skip(reason="Bloqueado: Endpoint no implementado")
+
+@pytest.mark.skip(reason="Bloqueado: Endpoint GET /api/bitacora/ no implementado")
 @pytest.mark.django_db
 def test_filtrar_eventos_por_modulo(admin_autenticado, evento_base):
-    url = reverse("bitacora-list") + "?modulo=configuracion"
-    respuesta = admin_autenticado.get(url)
+    """Filtrar eventos por módulo"""
+    respuesta = admin_autenticado.get("/api/bitacora/?modulo=configuracion")
     assert respuesta.status_code == status.HTTP_200_OK
 
-# -------------------------------------------------------
-# CP-09: Filtrar eventos por rango de fechas
-# -------------------------------------------------------
-@pytest.mark.skip(reason="Bloqueado: Endpoint no implementado")
+
+@pytest.mark.skip(reason="Bloqueado: Endpoint GET /api/bitacora/ no implementado")
 @pytest.mark.django_db
 def test_filtrar_eventos_por_fecha(admin_autenticado, evento_base):
-    url = reverse("bitacora-list") + "?fecha_inicio=2026-01-01&fecha_fin=2026-12-31"
-    respuesta = admin_autenticado.get(url)
+    """Filtrar eventos por rango de fechas"""
+    respuesta = admin_autenticado.get("/api/bitacora/?fecha_inicio=2026-01-01&fecha_fin=2026-12-31")
     assert respuesta.status_code == status.HTTP_200_OK
 
-# -------------------------------------------------------
-# CP-10: Cada registro contiene campos mínimos requeridos
-# -------------------------------------------------------
-@pytest.mark.skip(reason="Bloqueado: Endpoint no implementado")
+
+@pytest.mark.skip(reason="Bloqueado: Endpoint GET /api/bitacora/ no implementado")
 @pytest.mark.django_db
 def test_registro_contiene_campos_minimos(admin_autenticado, evento_base):
-    url = reverse("bitacora-list")
-    respuesta = admin_autenticado.get(url)
+    """Cada registro contiene campos mínimos requeridos"""
+    respuesta = admin_autenticado.get("/api/bitacora/")
     assert respuesta.status_code == status.HTTP_200_OK
     registro = respuesta.data[0]
     assert 'nombre_usuario' in registro

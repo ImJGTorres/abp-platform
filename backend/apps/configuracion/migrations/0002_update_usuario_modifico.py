@@ -7,9 +7,9 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('configuracion', '0001_initial'),
-        ('usuarios', '0002_usuariorol'),
-    ]
+    ('configuracion', '0002_periodoacademico'),
+    ('usuarios', '0002_usuariorol'),
+]
 
     operations = [
         migrations.AlterField(

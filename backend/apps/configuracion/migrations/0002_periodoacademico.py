@@ -26,7 +26,7 @@ class Migration(migrations.Migration):
             ],
             options={
                 'db_table': 'periodo_academico',
-                'constraints': [models.CheckConstraint(condition=models.Q(('fecha_fin__gt', models.F('fecha_inicio'))), name='fecha_fin_posterior_fecha_inicio')],
+                'constraints': [models.CheckConstraint(check=models.Q(('fecha_fin__gt', models.F('fecha_inicio'))), name='fecha_fin_posterior_fecha_inicio')],
             },
         ),
     ]
