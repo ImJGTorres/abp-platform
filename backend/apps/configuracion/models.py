@@ -10,6 +10,50 @@ from django.core.exceptions import ValidationError
 from django.db import models
 
 
+class PeriodoAcademico(models.Model):
+    """
+    Modelo que representa un período académico del sistema.
+    Cada período tiene fecha de inicio, fecha fin y un estado.
+    """
+
+    class Estado(models.TextChoices):
+        ACTIVO   = 'activo',   'Activo'
+        INACTIVO = 'inactivo', 'Inactivo'
+        CERRADO  = 'cerrado',  'Cerrado'
+
+    nombre = models.CharField(max_length=50, unique=True)
+    fecha_inicio = models.DateField()
+    fecha_fin = models.DateField()
+    estado = models.CharField(
+        max_length=20,
+        choices=Estado.choices,
+        default=Estado.ACTIVO,
+    )
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    usuario_creo = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+    )
+
+    class Meta:
+        db_table = 'periodo_academico'
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(fecha_fin__gt=models.F('fecha_inicio')),
+                name='fecha_fin_posterior_fecha_inicio',
+            )
+        ]
+
+    def clean(self):
+        if self.fecha_fin and self.fecha_inicio and self.fecha_fin <= self.fecha_inicio:
+            raise ValidationError(
+                {'fecha_fin': 'La fecha de fin debe ser posterior a la fecha de inicio.'}
+            )
+
+    def __str__(self):
+        return self.nombre
+
+
 class ParametroSistema(models.Model):
     """
     Modelo que representa un parámetro de configuración del sistema.
@@ -71,7 +115,7 @@ class ParametroSistema(models.Model):
     # SET_NULL: Si se elimina el usuario, el campo queda como NULL
     # Permite auditoría de quién cambió cada parámetro
     usuario_modifico = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
+        'usuarios.Usuario',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,

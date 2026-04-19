@@ -1,8 +1,62 @@
+import re
+
 from rest_framework import serializers
 # serializers: Módulo de Django REST Framework para convertir modelos a JSON y viceversa
 
-from .models import ParametroSistema
+from .models import ParametroSistema, PeriodoAcademico
 # ParametroSistema: Modelo de parámetros de configuración del sistema
+# PeriodoAcademico: Modelo de períodos académicos
+
+
+class PeriodoAcademicoSerializer(serializers.ModelSerializer):
+    """
+    Serializador para el modelo PeriodoAcademico.
+    
+    Convierte objetos PeriodoAcademico a formato JSON para la API REST.
+    El campo 'usuario_creo' se asigna automáticamente desde request.user.
+    El campo 'total_cursos' es un campo calculado con el conteo de cursos asociados.
+    """
+
+    total_cursos = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = PeriodoAcademico
+        fields = [
+            'id',
+            'nombre',
+            'fecha_inicio',
+            'fecha_fin',
+            'estado',
+            'fecha_creacion',
+            'usuario_creo',
+            'total_cursos',
+        ]
+        read_only_fields = ['fecha_creacion', 'usuario_creo', 'total_cursos']
+
+    def validate(self, attrs):
+        fecha_inicio = attrs.get('fecha_inicio')
+        fecha_fin = attrs.get('fecha_fin')
+
+        if fecha_inicio and fecha_fin and fecha_fin <= fecha_inicio:
+            raise serializers.ValidationError(
+                {'fecha_fin': 'La fecha de fin debe ser posterior a la fecha de inicio.'}
+            )
+
+        return attrs
+
+    def validate_nombre(self, value):
+        patron = re.compile(r'^\d{4}-[1-2]$')
+        if not patron.match(value):
+            raise serializers.ValidationError(
+                {'nombre': 'El formato debe ser YYYY-N (ej: 2026-1 o 2026-2).'}
+            )
+        return value
+
+    def create(self, validated_data):
+        request = self.context.get('request')
+        if request and request.user:
+            validated_data['usuario_creo'] = request.user
+        return super().create(validated_data)
 
 
 class ParametroSistemaSerializer(serializers.ModelSerializer):

@@ -42,30 +42,61 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'corsheaders',
     'rest_framework',
-    'rest_framework_simplejwt', 
+    # SimpleJWT: Librería para autenticación JWT (BE-01)
+    # Provee views ready-to-use para login, refresh y logout
+    'rest_framework_simplejwt',
+    # Token blacklist: Necesario para logout efectivo (BE-05)
+    # Permite agregar tokens a lista negra al hacer logout
+    'rest_framework_simplejwt.token_blacklist',
     'apps.usuarios',
     'apps.roles',
     'apps.bitacora',
     'apps.configuracion',
+    'apps.cursos',
 ]
 
+# Configuración de Django REST Framework (BE-01)
+# JWT como método de autenticación por defecto
+# Todas las vistas que requieran autenticación usarán tokens JWT
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
 }
 
+# Import timedelta para configurar tiempos de expiración (BE-01)
 from datetime import timedelta
 
+# Configuración de SimpleJWT (BE-01, BE-05)
+# Define tiempos de vida y comportamientos de los tokens JWT
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME':  timedelta(hours=1),   # token dura 1 hora
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),    # refresh dura 7 días
+    # ACCESS_TOKEN_LIFETIME: Tiempo de vida del token de acceso (BE-01)
+    # Usado para todas las solicitudes autenticadas
+    # Valor: 1 hora
+    'ACCESS_TOKEN_LIFETIME':  timedelta(hours=1),
+    
+    # REFRESH_TOKEN_LIFETIME: Tiempo de vida del token de refresh (BE-01)
+    # Usado para obtener nuevos access tokens sin login
+    # Valor: 7 días
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    
+    # ROTATE_REFRESH_TOKENS: Rotación automática de refresh tokens (BE-05)
+    # Cuando se usa un refresh token, automáticamente se genera uno nuevo
+    # Incrementa seguridad evitando reuse de tokens
+    'ROTATE_REFRESH_TOKENS': True,
+    
+    # BLACKLIST_AFTER_ROTATION: Agregar refresh token usado a blacklist (BE-05)
+    # Evita que refresh tokens roteados puedan usarse nuevamente
+    # Funciona junto con ROTATE_REFRESH_TOKENS
+    'BLACKLIST_AFTER_ROTATION': True,
 }
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -112,6 +143,10 @@ DATABASES = {
     }
 }
 
+# Custom user model (BE-01)
+# Usa el modelo Usuario personalizado en lugar del User por defecto
+AUTH_USER_MODEL = 'usuarios.Usuario'
+
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
 
@@ -153,6 +188,11 @@ if os.path.exists(os.path.join(BASE_DIR, 'static')):
     STATICFILES_DIRS.append(os.path.join(BASE_DIR, 'static'))
 
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# CORS
+CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', default='http://localhost:5173').split(',')
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
@@ -182,14 +222,14 @@ CACHES = {
         # propio caché independiente (no compartido). Para producción se
         # recomienda Redis, Memcached, o Base de datos.
         'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        
+
         # LOCATION: Nombre único para identificar este caché.
         # Útil cuando hay múltiples cachés o procesos.
         'LOCATION': 'parametros-sistema-cache',
-        
+
         # TIMEOUT: Tiempo en segundos antes de que expire el caché.
         # 900 segundos = 15 minutos.
-        # Pasado este tiempo, la próxima consultairá a la base de datos
+        # Pasado este tiempo, la próxima consulta irá a la base de datos
         # y regenerará el caché con los datos actualizados.
         # Este tiempo balancea:
         # - Rendimiento: Evita consultas repetitivas a la BD
@@ -197,3 +237,6 @@ CACHES = {
         'TIMEOUT': 900,
     }
 }
+
+# CORS: Permitir todos los orígenes (necesario para pruebas E2E con Cypress)
+CORS_ALLOW_ALL_ORIGINS = True

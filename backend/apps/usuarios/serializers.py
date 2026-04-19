@@ -1,6 +1,5 @@
 from rest_framework import serializers
 from apps.usuarios.models import Usuario
-from django.contrib.auth.hashers import make_password 
 
 class UsuarioSerializer(serializers.ModelSerializer):
 
@@ -56,8 +55,73 @@ class UsuarioSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Ya existe un usuario con este correo.")
         return value
     
-    # ← NUEVO: al crear el usuario, hashea la contraseña antes de guardar (ST-06)
+    # Crea el usuario hasheando la contraseña de forma segura (ST-06).
+    # Antes se usaba make_password() y se guardaba en 'contrasena_hash' manualmente.
+    # Ahora se usa set_password() que es el método oficial de AbstractBaseUser:
+    # internamente también llama a make_password(), pero además marca al objeto
+    # como "contraseña establecida", lo que permite usar check_password() en el login.
     def create(self, validated_data):
+        # Extrae 'contrasena' del dict — no es un campo del modelo, solo se usa aquí
         contrasena = validated_data.pop('contrasena')
-        validated_data['contrasena_hash'] = make_password(contrasena)
-        return super().create(validated_data)
+        # Construye la instancia con el resto de los campos (nombre, correo, etc.)
+        usuario = Usuario(**validated_data)
+        # Hashea la contraseña y la almacena en el campo 'password' de AbstractBaseUser
+        usuario.set_password(contrasena)
+        usuario.save()
+        return usuario
+
+
+class UsuarioUpdateSerializer(serializers.ModelSerializer):
+    """
+    Serializer para actualización de perfil (PATCH).
+    - Campos libres para cualquier usuario autenticado: nombre, apellido, telefono, foto_perfil.
+    - Campos restringidos a administrador: correo, tipo_rol.
+    La vista es responsable de pasar el contexto con el request para aplicar las restricciones.
+    """
+
+    class Meta:
+        model = Usuario
+        fields = ['nombre', 'apellido', 'correo', 'tipo_rol', 'telefono', 'foto_perfil']
+
+    CAMPOS_ADMIN = {'correo', 'tipo_rol'}
+
+    def validate(self, attrs):
+        request = self.context.get('request')
+        es_admin = (
+            request is not None
+            and request.user.is_authenticated
+            and request.user.tipo_rol == Usuario.TipoRol.ADMINISTRADOR
+        )
+        campos_restringidos = set(attrs.keys()) & self.CAMPOS_ADMIN
+        if campos_restringidos and not es_admin:
+            raise serializers.ValidationError(
+                {campo: "Solo un administrador puede modificar este campo."
+                 for campo in campos_restringidos}
+            )
+        return attrs
+
+    def validate_nombre(self, value):
+        if len(value) < 2:
+            raise serializers.ValidationError("El nombre debe tener al menos 2 caracteres.")
+        return value
+
+    def validate_apellido(self, value):
+        if len(value) < 2:
+            raise serializers.ValidationError("El apellido debe tener al menos 2 caracteres.")
+        return value
+
+    def validate_tipo_rol(self, value):
+        roles_validos = [r[0] for r in Usuario.TipoRol.choices]
+        if value not in roles_validos:
+            raise serializers.ValidationError(
+                f"Rol inválido. Opciones válidas: {roles_validos}"
+            )
+        return value
+
+    def validate_correo(self, value):
+        qs = Usuario.objects.filter(correo=value)
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError("Ya existe un usuario con este correo.")
+        return value

@@ -1,5 +1,11 @@
+<<<<<<< HEAD
 const BASE_URL = ''
 // Sesión / Tokens
+=======
+const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
+
+// Sesión / tokens
+>>>>>>> develop
 
 export const session = {
   getAccess: () => localStorage.getItem('access_token'),
@@ -14,15 +20,12 @@ export const session = {
     localStorage.setItem('user', JSON.stringify(user))
   },
   clear() {
-    ;['access_token', 'refresh_token', 'user'].forEach(k =>
-      localStorage.removeItem(k)
-    )
+    ;['access_token', 'refresh_token', 'user'].forEach(k => localStorage.removeItem(k))
   },
   isAuthenticated: () => !!localStorage.getItem('access_token'),
 }
 
-
-// Parsear respuesta JSON, manejando casos de error y respuestas vacías
+// ─── Parsear respuesta — protege contra HTML en errores 500 ──────────────────
 
 async function parseJSON(response) {
   const text = await response.text()
@@ -35,6 +38,9 @@ async function parseJSON(response) {
 }
 
 // Refresh de token
+// POST /api/auth/refresh/ — TokenRefreshView (SimpleJWT nativo)
+// Con ROTATE_REFRESH_TOKENS: True y BLACKLIST_AFTER_ROTATION: True en settings,
+// cada refresh devuelve un nuevo refresh token y el anterior queda en blacklist.
 
 async function tryRefresh() {
   const refresh = session.getRefresh()
@@ -47,18 +53,26 @@ async function tryRefresh() {
       body: JSON.stringify({ refresh }),
     })
 
-    if (!res.ok) return false
+    if (!res.ok) {
+      session.clear()
+      return false
+    }
 
     const data = await parseJSON(res)
+    // Con ROTATE_REFRESH_TOKENS, el backend devuelve también un nuevo refresh
     localStorage.setItem('access_token', data.access)
-
+    if (data.refresh) {
+      localStorage.setItem('refresh_token', data.refresh)
+    }
     return true
+
   } catch {
+    session.clear()
     return false
   }
 }
 
-// Cliente HTTP base
+//  Cliente HTTP base
 
 async function request(path, options = {}) {
   const headers = {
@@ -70,33 +84,24 @@ async function request(path, options = {}) {
   if (token) headers['Authorization'] = `Bearer ${token}`
 
   let response
-
   try {
-    response = await fetch(`${BASE_URL}${path}`, {
-      ...options,
-      headers,
-    })
+    response = await fetch(`${BASE_URL}${path}`, { ...options, headers })
   } catch {
     throw { type: 'network', message: 'Sin conexión con el servidor' }
   }
 
-  //Intentar refresh automático
+  // Token expirado → intentar refresh automático una vez
   if (response.status === 401) {
     const refreshed = await tryRefresh()
-
     if (refreshed) {
       headers['Authorization'] = `Bearer ${session.getAccess()}`
-
       try {
-        response = await fetch(`${BASE_URL}${path}`, {
-          ...options,
-          headers,
-        })
+        response = await fetch(`${BASE_URL}${path}`, { ...options, headers })
       } catch {
         throw { type: 'network', message: 'Sin conexión con el servidor' }
       }
     } else {
-      session.clear()
+      // tryRefresh() ya llamó session.clear()
       window.location.href = '/login'
       throw { type: 'auth', message: 'Sesión expirada' }
     }
@@ -105,51 +110,40 @@ async function request(path, options = {}) {
   return response
 }
 
-// Auth API
+// Auth y usuarios
+//   POST /api/auth/login/   → LoginView  (SimpleJWT personalizado) — obtiene access y refresh tokens
+//   POST /api/auth/logout/  → LogoutView (SimpleJWT personalizado) — hace blacklist del refresh token
+
 export const authApi = {
   async login(correo, contrasena) {
-    let response
-
-    try {
-      response = await request('/api/auth/login/', {
-        method: 'POST',
-        body: JSON.stringify({ correo, contrasena }),
-      })
-    } catch {
-      throw { type: 'network', message: 'Sin conexión con el servidor' }
-    }
+    const response = await request('/api/auth/login/', {
+      method: 'POST',
+      body: JSON.stringify({ correo, contrasena }),
+    })
 
     const data = await parseJSON(response)
+    if (!response.ok) throw { status: response.status, data }
 
-    if (!response.ok) {
-      throw { status: response.status, data }
-    }
-
-    // Decodificar JWT
-    const decodeJWT = (token) => {
+    const payload = (() => {
       try {
-        const base64 = token
+        const base64 = data.access
           .split('.')[1]
           .replace(/-/g, '+')
           .replace(/_/g, '/')
-
         return JSON.parse(atob(base64))
       } catch {
         return null
       }
-    }
-
-    const payload = decodeJWT(data.access)
+    })()
 
     const user = {
-      id: payload?.user_id,
-      nombre: payload?.nombre,
-      correo: payload?.correo,
-      tipo_rol: payload?.tipo_rol,
+      id: payload?.user_id,   // refresh['user_id'] = usuario.id
+      nombre: payload?.nombre,    // refresh['nombre']
+      correo: payload?.correo,    // refresh['correo']
+      tipo_rol: payload?.tipo_rol,  // refresh['tipo_rol']
     }
 
     session.save(data.access, data.refresh, user)
-
     return user
   },
 
@@ -163,7 +157,7 @@ export const authApi = {
           body: JSON.stringify({ refresh }),
         })
       } catch {
-        // silencioso
+        // Aunque falle el logout (ej. sin conexión), igual limpiamos sesión localmente
       }
     }
 
@@ -171,19 +165,73 @@ export const authApi = {
   },
 }
 
-// Usuarios API
+// Usuarios
+//   POST   /api/usuarios/             → UsuarioCreateView  — crea un usuario
+//   GET    /api/usuarios/perfil/      → UsuarioPerfilView  — obtiene el perfil del usuario autenticado
+//   PATCH  /api/usuarios/perfil/      → UsuarioPerfilView  — actualización parcial del perfil
 
 export const usuariosApi = {
   async crear({ nombre, apellido, correo, contrasena, tipo_rol }) {
     const response = await request('/api/usuarios/', {
       method: 'POST',
-      body: JSON.stringify({
-        nombre,
-        apellido,
-        correo,
-        contrasena,
-        tipo_rol,
-      }),
+      body: JSON.stringify({ nombre, apellido, correo, contrasena, tipo_rol }),
+    })
+
+    const data = await parseJSON(response)
+    if (!response.ok) throw { status: response.status, data }
+    return data
+  },
+
+  async getPerfil() {
+    const response = await request('/api/usuarios/perfil/')
+
+    const data = await parseJSON(response)
+
+    if (!response.ok) {
+      throw { status: response.status, data }
+    }
+
+    return data
+  },
+
+  async actualizarPerfil(data) {
+    const response = await request('/api/usuarios/perfil/', {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+
+    const result = await parseJSON(response)
+
+    if (!response.ok) {
+      throw { status: response.status, data: result }
+    }
+
+    return result
+  },
+}
+
+// Configuración API
+// Endpoints (apps/configuracion/urls.py incluido en /api/configuracion/):
+//   GET  /api/configuracion/         → ConfiguracionListView  — lista todos los parámetros
+//   PATCH /api/configuracion/:clave/ → ConfiguracionDetailView — actualización parcial de un parámetro
+
+export const configuracionApi = {
+  async getParametros() {
+    const response = await request('/api/configuracion/')
+
+    const data = await parseJSON(response)
+
+    if (!response.ok) {
+      throw { status: response.status, data }
+    }
+
+    return data
+  },
+
+  async actualizarParametro(clave, valor) {
+    const response = await request(`/api/configuracion/${clave}/`, {
+      method: 'PATCH',
+      body: JSON.stringify({ valor }),
     })
 
     const data = await parseJSON(response)
@@ -195,8 +243,95 @@ export const usuariosApi = {
     return data
   },
 }
+// Roles
+//
+// Endpoints (apps/roles/urls.py incluido en /api/roles/):
+//   GET    /api/roles/             → RolListCreateView  — lista todos los roles
+//   POST   /api/roles/             → RolListCreateView  — crea un rol
+//   GET    /api/roles/:id/         → RolDetailView      — detalle con permisos anidados
+//   PATCH  /api/roles/:id/         → RolDetailView      — actualización parcial
+//   DELETE /api/roles/:id/         → RolDetailView      — elimina un rol
+//   GET    /api/roles/permisos/    → PermisoListCreateView — lista todos los permisos
 
-//Helpers
+export const rolesApi = {
+  /**
+   * GET /api/roles/
+   * Response 200: [{ id, nombre, descripcion, estado, total_usuarios }]
+   */
+  async listar() {
+    const response = await request('/api/roles/')
+    const data = await parseJSON(response)
+    if (!response.ok) throw { status: response.status, data }
+    return data
+  },
+
+  /**
+   * GET /api/roles/:id/
+   * Response 200: { id, nombre, descripcion, estado, fecha_creacion, permisos: [{id, codigo, modulo, descripcion}] }
+   */
+  async obtener(id) {
+    const response = await request(`/api/roles/${id}/`)
+    const data = await parseJSON(response)
+    if (!response.ok) throw { status: response.status, data }
+    return data
+  },
+
+  /**
+   * POST /api/roles/
+   * Request:  { nombre, descripcion }
+   * Response 201: { id, nombre, descripcion, estado, fecha_creacion, permisos: [] }
+   */
+  async crear({ nombre, descripcion }) {
+    const response = await request('/api/roles/', {
+      method: 'POST',
+      body: JSON.stringify({ nombre, descripcion }),
+    })
+    const data = await parseJSON(response)
+    if (!response.ok) throw { status: response.status, data }
+    return data
+  },
+
+  /**
+   * PATCH /api/roles/:id/
+   * Request:  { nombre?, descripcion?, estado?, permiso_ids?: [id, id, ...] }
+   *   — permiso_ids reemplaza TODOS los permisos del rol (RolSerializer.update)
+   * Response 200: { id, nombre, descripcion, estado, fecha_creacion, permisos: [...] }
+   */
+  async editar(id, campos) {
+    const response = await request(`/api/roles/${id}/`, {
+      method: 'PATCH',
+      body: JSON.stringify(campos),
+    })
+    const data = await parseJSON(response)
+    if (!response.ok) throw { status: response.status, data }
+    return data
+  },
+
+  /**
+   * DELETE /api/roles/:id/
+   * Response 204: sin cuerpo
+   */
+  async eliminar(id) {
+    const response = await request(`/api/roles/${id}/`, { method: 'DELETE' })
+    if (!response.ok) {
+      const data = await parseJSON(response)
+      throw { status: response.status, data }
+    }
+  },
+
+  /**
+   * GET /api/roles/permisos/
+   * Response 200: [{ id, codigo, modulo, descripcion }]
+   */
+  async listarPermisos() {
+    const response = await request('/api/roles/permisos/')
+    const data = await parseJSON(response)
+    if (!response.ok) throw { status: response.status, data }
+    return data
+  },
+}
+
+// Helpers
 export function rutaPorRol(tipo_rol) {
   const rutas = {
     administrador: '/admin',
@@ -205,6 +340,5 @@ export function rutaPorRol(tipo_rol) {
     lider_equipo: '/lider',
     estudiante: '/estudiante',
   }
-
   return rutas[tipo_rol] ?? '/login'
 }

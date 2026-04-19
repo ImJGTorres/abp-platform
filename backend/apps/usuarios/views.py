@@ -1,35 +1,78 @@
-from django.contrib.auth.hashers import check_password
 from rest_framework import generics, status
-from rest_framework.permissions import AllowAny, IsAdminUser
+from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
+
+from apps.usuarios.permissions import EsAdministrador
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_simplejwt.views import TokenBlacklistView
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.bitacora.models import BitacoraSistema
 from apps.bitacora.utils import registrar_evento
 from apps.usuarios.models import Usuario
-from apps.usuarios.serializers import UsuarioSerializer
+from apps.usuarios.serializers import UsuarioSerializer, UsuarioUpdateSerializer
 
 
+class UsuarioProfileView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        usuario = request.user
+        serializer = UsuarioSerializer(usuario)
+        return Response(serializer.data)
+
+    def patch(self, request):
+        usuario = request.user
+        serializer = UsuarioUpdateSerializer(
+            usuario, data=request.data, partial=True, context={'request': request}
+        )
+        if serializer.is_valid():
+            serializer.save()
+            return Response(UsuarioSerializer(usuario).data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+# LoginView: View personalizada para autenticación JWT (BE-02, BE-03)
+# Maneja el inicio de sesión retornando tokens JWT
+# Permite acceso sin token (AllowAny) ya que es el proceso de login
 class LoginView(APIView):
+    # permission_classes: Permite acceso público para poder hacer login
     permission_classes = [AllowAny]
 
     def post(self, request):
+        """
+        Endpoint POST /api/auth/login/
+        Proceso de autenticación:
+        1. Recibe correo y contraseña en body JSON
+        2. Valida credenciales contra modelo Usuario
+        3. Retorna access + refresh tokens JWT
+        """
+        # Extrae credenciales del request JSON
+        # .strip() elimina espacios en blanco al inicio/final del correo
         correo    = request.data.get('correo', '').strip()
         contrasena = request.data.get('contrasena', '')
 
+        # Valida que ambos campos existan
         if not correo or not contrasena:
             return Response(
                 {'detail': 'correo y contrasena son requeridos.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # Busca usuario en la base de datos por correo
+        # Modelo personalizado: apps.usuarios.models.Usuario
         try:
             usuario = Usuario.objects.get(correo=correo)
         except Usuario.DoesNotExist:
             usuario = None
 
-        if usuario is None or not check_password(contrasena, usuario.contrasena_hash):
+        # check_password() es el método de AbstractBaseUser que compara la contraseña
+        # recibida (en texto plano) contra el hash guardado en el campo 'password'.
+        # Antes se llamaba a la función suelta check_password(contrasena, usuario.contrasena_hash).
+        # Ahora el propio objeto sabe dónde está su hash, por eso se llama sobre la instancia.
+        if usuario is None or not usuario.check_password(contrasena):
+            # Registra intento fallido en bitácora para auditoría
             registrar_evento(
                 request=request,
                 accion=BitacoraSistema.Accion.ACCESS_DENIED,
@@ -41,6 +84,8 @@ class LoginView(APIView):
                 status=status.HTTP_401_UNAUTHORIZED,
             )
 
+        # Verifica estado del usuario (BE-02)
+        # Solo usuarios activos pueden iniciar sesión
         if usuario.estado != Usuario.Estado.ACTIVO:
             registrar_evento(
                 request=request,
@@ -53,30 +98,87 @@ class LoginView(APIView):
                 status=status.HTTP_401_UNAUTHORIZED,
             )
 
+        # Genera tokens JWT (BE-03)
+        # RefreshToken: Clase de SimpleJWT que crea par access+refresh
         refresh = RefreshToken()
-        refresh['user_id']   = usuario.id
-        refresh['nombre']    = usuario.nombre
-        refresh['correo']    = usuario.correo
-        refresh['tipo_rol']  = usuario.tipo_rol
+        
+        # Personalización del payload del token (BE-03)
+        # Agrega datos del usuario al token para evitar llamadas adicionales
+        # El frontend puede leer estos datos del access token directamente
+        # Campos incluios en el token:
+        refresh['user_id']   = usuario.id      # ID único del usuario
+        refresh['nombre']   = usuario.nombre # Nombre para mostrar en UI
+        refresh['correo']  = usuario.correo  # Correo del usuario
+        refresh['tipo_rol'] = usuario.tipo_rol # Rol: admin, docente, estudiante
 
+        # Asigna usuario al request para uso en permisos/logging
         request.usuario = usuario
+        # Registra login exitoso en bitácora
         registrar_evento(
             request=request,
             accion=BitacoraSistema.Accion.LOGIN,
             modulo='autenticacion',
-            descripcion=f'Login exitoso: {correo}',
+            descripcion=f'Login efectivo: {correo}',
         )
 
+        # Retorna tokens al cliente
+        # access: Token corto (1 hora) para solicitudes API
+        # refresh: Token largo (7 días) para obtener nuevos access
         return Response({
             'access':  str(refresh.access_token),
             'refresh': str(refresh),
         }, status=status.HTTP_200_OK)
 
 
+class UsuarioUpdateView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def _get_usuario_o_error(self, request, pk):
+        es_admin = request.user.tipo_rol == Usuario.TipoRol.ADMINISTRADOR
+        if not es_admin and request.user.pk != pk:
+            return None, Response(
+                {'detail': 'No tienes permiso para acceder a este perfil.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        try:
+            return Usuario.objects.get(pk=pk), None
+        except Usuario.DoesNotExist:
+            return None, Response({'detail': 'Usuario no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+    def get(self, request, pk):
+        usuario, error = self._get_usuario_o_error(request, pk)
+        if error:
+            return error
+        return Response(UsuarioSerializer(usuario).data)
+
+    def patch(self, request, pk):
+        usuario, error = self._get_usuario_o_error(request, pk)
+        if error:
+            return error
+        serializer = UsuarioUpdateSerializer(
+            usuario, data=request.data, partial=True, context={'request': request}
+        )
+        if serializer.is_valid():
+            campos_modificados = list(serializer.validated_data.keys())
+            serializer.save()
+            registrar_evento(
+                request=request,
+                accion=BitacoraSistema.Accion.UPDATE,
+                modulo='usuarios',
+                descripcion=(
+                    f'Perfil actualizado: ID={usuario.id}, correo={usuario.correo}. '
+                    f'Campos modificados: {", ".join(campos_modificados)}. '
+                    f'Editado por: {request.user.correo}'
+                ),
+            )
+            return Response(UsuarioSerializer(usuario).data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
 class UsuarioCreateView(generics.CreateAPIView):
     queryset         = Usuario.objects.all()
     serializer_class = UsuarioSerializer
-    permission_classes = [IsAdminUser]
+    permission_classes = [EsAdministrador]
 
     def perform_create(self, serializer):
         usuario_creado = serializer.save()      # 1. guarda el usuario en BD
@@ -86,3 +188,17 @@ class UsuarioCreateView(generics.CreateAPIView):
             modulo='usuarios',
             descripcion=f'Usuario creado: ID={usuario_creado.id}, correo={usuario_creado.correo}',
         )
+
+
+class LogoutView(TokenBlacklistView):
+    """Vista personalizada para cerrar sesión y registrar el evento en bitácora."""
+    def post(self, request, *args, **kwargs):
+        user = request.user
+        if user and user.is_authenticated:
+            registrar_evento(
+                request=request,
+                accion=BitacoraSistema.Accion.LOGOUT,
+                modulo='autenticacion',
+                descripcion=f'Logout efectivo: {user.correo}',
+            )
+        return super().post(request, *args, **kwargs)

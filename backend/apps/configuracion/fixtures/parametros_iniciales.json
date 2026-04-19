@@ -8,8 +8,13 @@
       "descripcion": "Nombre oficial de la institución",
       "categoria": "institucional",
       "tipo_dato": "string",
+<<<<<<< HEAD
       "fecha_actualizacion": "2026-04-14T00:00:00Z",
       "usuario_modifico": null
+=======
+      "usuario_modifico": null,
+      "fecha_actualizacion": "2026-04-19T00:00:00Z"
+>>>>>>> develop
     }
   },
   {
@@ -21,8 +26,13 @@
       "descripcion": "Nombre del programa académico",
       "categoria": "institucional",
       "tipo_dato": "string",
+<<<<<<< HEAD
       "fecha_actualizacion": "2026-04-14T00:00:00Z",
       "usuario_modifico": null
+=======
+      "usuario_modifico": null,
+      "fecha_actualizacion": "2026-04-19T00:00:00Z"
+>>>>>>> develop
     }
   },
   {
@@ -34,8 +44,13 @@
       "descripcion": "Correo de soporte del sistema",
       "categoria": "institucional",
       "tipo_dato": "string",
+<<<<<<< HEAD
       "fecha_actualizacion": "2026-04-14T00:00:00Z",
       "usuario_modifico": null
+=======
+      "usuario_modifico": null,
+      "fecha_actualizacion": "2026-04-19T00:00:00Z"
+>>>>>>> develop
     }
   },
   {
@@ -47,8 +62,13 @@
       "descripcion": "Máximo de estudiantes por equipo",
       "categoria": "general",
       "tipo_dato": "integer",
+<<<<<<< HEAD
       "fecha_actualizacion": "2026-04-14T00:00:00Z",
       "usuario_modifico": null
+=======
+      "usuario_modifico": null,
+      "fecha_actualizacion": "2026-04-19T00:00:00Z"
+>>>>>>> develop
     }
   },
   {
@@ -60,8 +80,13 @@
       "descripcion": "Extensiones permitidas para entregables, separadas por coma",
       "categoria": "archivos",
       "tipo_dato": "string",
+<<<<<<< HEAD
       "fecha_actualizacion": "2026-04-14T00:00:00Z",
       "usuario_modifico": null
+=======
+      "usuario_modifico": null,
+      "fecha_actualizacion": "2026-04-19T00:00:00Z"
+>>>>>>> develop
     }
   },
   {
@@ -73,8 +98,13 @@
       "descripcion": "Minutos de inactividad antes de cerrar sesión",
       "categoria": "sesiones",
       "tipo_dato": "integer",
+<<<<<<< HEAD
       "fecha_actualizacion": "2026-04-14T00:00:00Z",
       "usuario_modifico": null
+=======
+      "usuario_modifico": null,
+      "fecha_actualizacion": "2026-04-19T00:00:00Z"
+>>>>>>> develop
     }
   },
   {
@@ -86,8 +116,39 @@
       "descripcion": "URL del logo institucional, vacío usa el logo por defecto",
       "categoria": "institucional",
       "tipo_dato": "string",
+<<<<<<< HEAD
       "fecha_actualizacion": "2026-04-14T00:00:00Z",
       "usuario_modifico": null
+=======
+      "usuario_modifico": null,
+      "fecha_actualizacion": "2026-04-19T00:00:00Z"
+>>>>>>> develop
     }
+  },
+  {
+  "model": "configuracion.parametrosistema",
+  "pk": 8,
+  "fields": {
+    "clave": "semanas_sprint",
+    "valor": "2",
+    "descripcion": "Número de semanas por sprint",
+    "categoria": "general",
+    "tipo_dato": "integer",
+    "usuario_modifico": null,
+    "fecha_actualizacion": "2026-04-19T00:00:00Z"
+    }
+  },
+  {
+  "model": "configuracion.parametrosistema",
+  "pk": 9,
+  "fields": {
+    "clave": "nota_minima_aprobacion",
+    "valor": "3.0",
+    "descripcion": "Nota mínima para aprobar (escala 0-5)",
+    "categoria": "general",
+    "tipo_dato": "string",
+    "usuario_modifico": null,
+    "fecha_actualizacion": "2026-04-19T00:00:00Z"
   }
+}
 ]

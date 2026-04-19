@@ -15,19 +15,39 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import include, path, re_path
-from django.views.generic import TemplateView
-from rest_framework_simplejwt.views import TokenRefreshView
+from django.urls import include, path
+# SimpleJWT views importadas para endpoints de refresh y logout (BE-04, BE-05)
+# TokenRefreshView: Permite obtener nuevo access token usando refresh token
+from rest_framework_simplejwt.views import TokenRefreshView, TokenBlacklistView
 
 from apps.usuarios.views import LoginView
+from apps.roles.views import PermisosAgrupadosView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/usuarios/', include('apps.usuarios.urls')),
-    path('api/auth/login/',   LoginView.as_view(),        name='token_obtain'),  # ← login (HU-002 BE-02)
-    path('api/auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'), # ← refresh (HU-002 ST-01)
-    path('api/configuracion/', include('apps.configuracion.urls')), # ← configuración (HU-035)
+    # Endpoint de login (BE-02): POST /api/auth/login/
+    # Recibe correo y contraseña, retorna access + refresh tokens
+    # Customizado para usar modelo Usuario personalizado
+    path('api/auth/login/',   LoginView.as_view(),        name='token_obtain'),
+    
+    # Endpoint de refresh token (BE-04): POST /api/auth/refresh/
+    # Recibe refresh token, retorna nuevo access token
+    # Configuración en settings.py SIMPLE_JWT (ACCESS_TOKEN_LIFETIME)
+    path('api/auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    
+    # Endpoint de logout (BE-05): POST /api/auth/logout/
+    # Recibe refresh token y lo agrega a blacklist
+    # Evita que el token pueda usarse nuevamente
+    # Requiere: REST_FRAMEWORK_SIMPLEJWT.token_blacklist en INSTALLED_APPS
+    path('api/auth/logout/',  TokenBlacklistView.as_view(), name='token_blacklist'),
 
-    # React SPA catch-all — must be LAST
-    re_path(r'^(?!api/|admin/|static/).*$', TemplateView.as_view(template_name='index.html')),
+    path('api/configuracion/', include('apps.configuracion.urls')),
+    # Se conectan con las urls de cada modelo.
+    # ejemplo: /api/roles/permisos/
+    path('api/roles/', include('apps.roles.urls')),
+
+    # BE-07: Permisos agrupados por módulo (para formulario de asignación)
+    path('api/permisos/', PermisosAgrupadosView.as_view(), name='permisos-agrupados'),
+    path('api/bitacora/', include('apps.bitacora.urls')),  # Endpoint para consultar bitácora del sistema
 ]
