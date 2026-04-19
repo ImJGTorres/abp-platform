@@ -1,7 +1,7 @@
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAdminUser
+from apps.configuracion.permissions import EsAdministrador
 
 from apps.bitacora.models import BitacoraSistema
 from apps.bitacora.serializers import BitacoraSerializer
@@ -15,7 +15,7 @@ class BitacoraPagination(PageNumberPagination):
 class BitacoraListView(APIView):
     """Vista para listar los registros de bitácora del sistema."""
     # Solo administradores pueden acceder a esta vista
-    permission_classes = [IsAdminUser]
+    permission_classes = [EsAdministrador]
     # Restringe los métodos HTTP permitidos a solo lectura
     http_method_names = ['get', 'head', 'options']
     
