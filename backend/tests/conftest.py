@@ -32,7 +32,7 @@ def usuario_activo(db):
     from django.contrib.auth.hashers import make_password
     return UsuarioFactory(
         correo          = "prueba@ufps.edu.co",
-        contrasena_hash = make_password("Abc123!!")
+        password = make_password("Abc123!!")
     )
 
 @pytest.fixture
@@ -40,5 +40,5 @@ def usuario_inactivo(db):
     from django.contrib.auth.hashers import make_password
     return UsuarioInactivoFactory(
         correo          = "inactivo@ufps.edu.co",
-        contrasena_hash = make_password("Abc123!!")
+        password = make_password("Abc123!!")
     )
