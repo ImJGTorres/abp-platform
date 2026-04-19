@@ -19,6 +19,7 @@ from django.urls import include, path
 # SimpleJWT views importadas para endpoints de refresh y logout (BE-04, BE-05)
 # TokenRefreshView: Permite obtener nuevo access token usando refresh token
 from rest_framework_simplejwt.views import TokenRefreshView, TokenBlacklistView
+from django.views.generic import TemplateView
 
 from apps.usuarios.views import LoginView
 from apps.roles.views import PermisosAgrupadosView
@@ -50,4 +51,7 @@ urlpatterns = [
     # BE-07: Permisos agrupados por módulo (para formulario de asignación)
     path('api/permisos/', PermisosAgrupadosView.as_view(), name='permisos-agrupados'),
     path('api/bitacora/', include('apps.bitacora.urls')),  # Endpoint para consultar bitácora del sistema
+
+    # SPA: Servir index.html para cualquier ruta no API (login, admin, etc.)
+    path('', TemplateView.as_view(template_name='index.html'), name='frontend'),
 ]
