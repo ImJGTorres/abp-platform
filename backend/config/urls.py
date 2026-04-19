@@ -15,7 +15,7 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import include, path
+from django.urls import include, path, re_path
 # SimpleJWT views importadas para endpoints de refresh y logout (BE-04, BE-05)
 # TokenRefreshView: Permite obtener nuevo access token usando refresh token
 from rest_framework_simplejwt.views import TokenRefreshView, TokenBlacklistView
@@ -53,5 +53,5 @@ urlpatterns = [
     path('api/bitacora/', include('apps.bitacora.urls')),  # Endpoint para consultar bitácora del sistema
 
     # SPA: Servir index.html para cualquier ruta no API (login, admin, etc.)
-    path('', TemplateView.as_view(template_name='index.html'), name='frontend'),
+    re_path(r'^.*$', TemplateView.as_view(template_name='index.html'), name='frontend'),
 ]
