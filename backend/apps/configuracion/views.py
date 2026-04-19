@@ -285,7 +285,7 @@ class PeriodoAcademicoViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         # Los permisos para update, partial_update y destroy requieren ser administrador (is_staff)
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            return [IsAdminUser()]
+            return [EsAdministrador()]
         return [IsAdminOrDocente()]
     
     def perform_create(self, serializer):
