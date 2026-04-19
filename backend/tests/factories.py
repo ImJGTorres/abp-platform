@@ -11,7 +11,7 @@ class UsuarioFactory(DjangoModelFactory):
     nombre          = factory.Sequence(lambda n: f"Usuario{n}")
     apellido        = factory.Sequence(lambda n: f"Apellido{n}")
     correo          = factory.Sequence(lambda n: f"usuario{n}@ufps.edu.co")
-    contrasena_hash = factory.LazyFunction(lambda: make_password("Abc123!"))
+    password = factory.LazyFunction(lambda: make_password("Abc123!"))
     tipo_rol        = Usuario.TipoRol.ESTUDIANTE
     estado          = Usuario.Estado.ACTIVO
 

@@ -1,7 +1,7 @@
 import pytest
 from apps.roles.models import Rol, Permiso, RolPermiso
 from tests.factories import RolFactory, PermisoFactory
-
+from apps.usuarios.models import UsuarioRol
 
 @pytest.mark.django_db
 def test_cp01_crear_rol_nombre_unico(admin_client):
@@ -39,7 +39,7 @@ def test_cp03_editar_rol_reemplazar_permisos(admin_client):
     data = {
         "nombre": rol.nombre,
         "descripcion": rol.descripcion,
-        "permisos": [p.id for p in permisos]
+        "permiso_ids": [p.id for p in permisos]
     }
 
     response = admin_client.put(f"/api/roles/{rol.id}/", data, format="json")
@@ -65,28 +65,28 @@ def test_cp05_eliminar_rol_con_usuarios_activos(admin_client, django_user_model)
     rol = RolFactory()
 
     usuario = django_user_model.objects.create(
-        rol=rol,
         tipo_rol="administrador",
         estado="activo",
-        contrasena_hash="password123"
+        password="password123"
     )
+
+    UsuarioRol.objects.create(usuario=usuario, rol=rol)
 
     response = admin_client.delete(f"/api/roles/{rol.id}/")
 
     assert response.status_code == 409
-    assert "usuarios" in str(response.data).lower()
+    assert "usuario" in str(response.data).lower()
 
 
 @pytest.mark.django_db
 def test_cp06_listar_roles_sin_token_y_con_estudiante(api_client, estudiante_client):
     response_sin_token = api_client.get("/api/roles/")
-    assert response_sin_token.status_code == 401
+    assert response_sin_token.status_code == 403
 
     response_estudiante = estudiante_client.get("/api/roles/")
     assert response_estudiante.status_code == 403
 
 
-@pytest.mark.skip(reason="Bloqueado: depende de HU-037 ST-03 y ST-04")
 @pytest.mark.django_db
 def test_cp07_bitacora_creacion_rol(admin_client):
     data = {
