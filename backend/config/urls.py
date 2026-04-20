@@ -25,7 +25,7 @@ from apps.usuarios.views import LoginView
 from apps.roles.views import PermisosAgrupadosView
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    path('django-admin/', admin.site.urls),
     path('api/usuarios/', include('apps.usuarios.urls')),
     # Endpoint de login (BE-02): POST /api/auth/login/
     # Recibe correo y contraseña, retorna access + refresh tokens
@@ -54,5 +54,5 @@ urlpatterns = [
 
     # SPA: Servir index.html para cualquier ruta que no sea API ni static
     # Excluye /api/ y /static/ usando lookahead negativo en regex
-    re_path(r'^(?!api/|static/|admin/).*$', TemplateView.as_view(template_name='index.html'), name='frontend'),
+    re_path(r'^(?!api/|static/|django-admin/).*$', TemplateView.as_view(template_name='index.html'), name='frontend'),
 ]
