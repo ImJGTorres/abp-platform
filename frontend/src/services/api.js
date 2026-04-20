@@ -111,10 +111,18 @@ async function request(path, options = {}) {
 
 export const authApi = {
   async login(correo, contrasena) {
-    const response = await request('/api/auth/login/', {
-      method: 'POST',
-      body: JSON.stringify({ correo, contrasena }),
-    })
+    // Usa fetch directo (no request()) para evitar que el interceptor de 401
+    // intente hacer refresh y recargue la página cuando las credenciales son incorrectas.
+    let response
+    try {
+      response = await fetch(`${BASE_URL}/api/auth/login/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ correo, contrasena }),
+      })
+    } catch {
+      throw { type: 'network', message: 'Sin conexión con el servidor' }
+    }
 
     const data = await parseJSON(response)
     if (!response.ok) throw { status: response.status, data }
