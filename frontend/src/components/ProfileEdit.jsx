@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { usuariosApi } from "../services/api";
-import { session } from "../services/api";
+import { useNavigate } from "react-router-dom";
+import { usuariosApi, session, rutaPorRol } from "../services/api";
 
 const AVATAR_SVG = (
   <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg" width="90" height="90">
@@ -74,7 +74,8 @@ const formatRole = (tipo_rol) => {
 
 export default function ProfileEdit() {
   const user = session.getUser();
-  
+  const navigate = useNavigate();
+
   const [loading, setLoading] = useState(true);
   const [initialData, setInitialData] = useState(null);
   const [form, setForm] = useState({
@@ -343,6 +344,23 @@ export default function ProfileEdit() {
               {fieldErrors.general}
             </div>
           )}
+
+          <div style={{ maxWidth: 760, margin: "0 auto 16px" }}>
+            <button
+              onClick={() => navigate(rutaPorRol(user?.tipo_rol))}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                background: "transparent", border: "none", cursor: "pointer",
+                color: "#6b7280", fontSize: 13, fontFamily: "inherit",
+                padding: "4px 0",
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M19 12H5M12 5l-7 7 7 7" />
+              </svg>
+              Volver
+            </button>
+          </div>
 
           <div style={{
             maxWidth: 760,
