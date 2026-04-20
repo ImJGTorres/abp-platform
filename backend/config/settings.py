@@ -96,10 +96,7 @@ SIMPLE_JWT = {
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
-<<<<<<< HEAD
-=======
     'whitenoise.middleware.WhiteNoiseMiddleware',  # ← AGREGAR AQUÍ
->>>>>>> 738c4a22bc914a881b073775d2bc13ab290e0090
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
