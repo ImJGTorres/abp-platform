@@ -85,6 +85,11 @@ export default function ProfileEdit() {
   const [toast, setToast] = useState(false);
   const [phoneError, setPhoneError] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
+  const [fotoUrl, setFotoUrl] = useState("");
+  const [showFotoInput, setShowFotoInput] = useState(false);
+  const [fotoInputValue, setFotoInputValue] = useState("");
+  const [savingFoto, setSavingFoto] = useState(false);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     async function loadProfile() {
@@ -101,15 +106,11 @@ export default function ProfileEdit() {
           apellido: data.apellido || "",
           telefono: data.telefono || "",
         });
+        setFotoUrl(data.foto_perfil || "");
+        setFotoInputValue(data.foto_perfil || "");
       } catch (err) {
         console.error("Error al cargar perfil:", err);
-        if (initialData) {
-          setForm({
-            nombre: initialData.nombre,
-            apellido: initialData.apellido,
-            telefono: initialData.telefono,
-          });
-        }
+        setLoadError(true);
       } finally {
         setLoading(false);
       }
@@ -170,8 +171,21 @@ export default function ProfileEdit() {
     setPhoneError(false);
   };
 
-  const hasChanges = form.nombre !== initialData?.nombre || 
-                     form.apellido !== initialData?.apellido || 
+  const handleSaveFoto = async () => {
+    setSavingFoto(true);
+    try {
+      await usuariosApi.actualizarPerfil({ foto_perfil: fotoInputValue });
+      setFotoUrl(fotoInputValue);
+      setShowFotoInput(false);
+    } catch {
+      // mantener input abierto para que el usuario pueda reintentar
+    } finally {
+      setSavingFoto(false);
+    }
+  };
+
+  const hasChanges = form.nombre !== initialData?.nombre ||
+                     form.apellido !== initialData?.apellido ||
                      form.telefono !== (initialData?.telefono || "");
 
   return (
@@ -287,7 +301,17 @@ export default function ProfileEdit() {
         </div>
       )}
 
-      {!loading && (
+      {!loading && loadError && (
+        <div style={{
+          maxWidth: 760, margin: "0 auto", padding: "16px 20px",
+          background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8,
+          color: "#dc2626", fontSize: 14, textAlign: "center",
+        }}>
+          No se pudo cargar el perfil. Recarga la página e intenta de nuevo.
+        </div>
+      )}
+
+      {!loading && !loadError && (
         <>
           {toast && (
             <div className="toast-anim" style={{
@@ -336,7 +360,7 @@ export default function ProfileEdit() {
               paddingBottom: 28,
               borderBottom: "1px solid #f0f0f0",
             }}>
-              <div style={{ position: "relative", width: 90, height: 90, marginBottom: 14 }}>
+              <div style={{ position: "relative", width: 90, height: 90, marginBottom: showFotoInput ? 8 : 14 }}>
                 <div style={{
                   width: 90, height: 90, borderRadius: "50%",
                   border: "3px solid white",
@@ -345,15 +369,54 @@ export default function ProfileEdit() {
                   background: "#E8EDF2",
                   display: "flex", alignItems: "center", justifyContent: "center",
                 }}>
-                  {AVATAR_SVG}
+                  {fotoUrl
+                    ? <img src={fotoUrl} alt="Foto de perfil" style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={() => setFotoUrl("")} />
+                    : AVATAR_SVG
+                  }
                 </div>
-                <div className="camera-btn">
+                <div className="camera-btn" onClick={() => { setFotoInputValue(fotoUrl); setShowFotoInput(v => !v); }}>
                   <CameraIcon />
                 </div>
               </div>
 
+              {showFotoInput && (
+                <div style={{ display: "flex", gap: 6, marginBottom: 14, padding: "0 24px", width: "100%", maxWidth: 420 }}>
+                  <input
+                    value={fotoInputValue}
+                    onChange={e => setFotoInputValue(e.target.value)}
+                    placeholder="https://ejemplo.com/foto.jpg"
+                    style={{
+                      flex: 1, border: "1.5px solid #e2e2e2", borderRadius: 8,
+                      padding: "7px 10px", fontSize: 13, fontFamily: "inherit", color: "#1a1a1a",
+                    }}
+                  />
+                  <button
+                    onClick={handleSaveFoto}
+                    disabled={savingFoto}
+                    style={{
+                      background: "#c0392b", color: "white", border: "none",
+                      borderRadius: 8, padding: "7px 14px", fontSize: 13,
+                      fontWeight: 600, cursor: savingFoto ? "not-allowed" : "pointer",
+                      opacity: savingFoto ? 0.7 : 1, fontFamily: "inherit",
+                    }}
+                  >
+                    {savingFoto ? "..." : "Guardar"}
+                  </button>
+                  <button
+                    onClick={() => setShowFotoInput(false)}
+                    style={{
+                      background: "transparent", color: "#555", border: "1.5px solid #ddd",
+                      borderRadius: 8, padding: "7px 10px", fontSize: 13,
+                      cursor: "pointer", fontFamily: "inherit",
+                    }}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              )}
+
               <h2 style={{ fontSize: 22, fontWeight: 700, color: "#111", letterSpacing: "-0.4px" }}>
-                {user?.nombre || form.nombre} {form.apellido}
+                {form.nombre} {form.apellido}
               </h2>
 
               <span style={{
@@ -481,7 +544,7 @@ export default function ProfileEdit() {
                   Gestiona tu contraseña y métodos de acceso.
                 </div>
               </div>
-              <button className="pw-link">
+              <button className="pw-link" disabled style={{ opacity: 0.4, cursor: "not-allowed" }}>
                 Cambiar contraseña <ArrowIcon />
               </button>
             </div>

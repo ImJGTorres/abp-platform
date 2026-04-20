@@ -152,11 +152,22 @@ function PanelForm({ rol, onClose, onSave }) {
     const [descripcion, setDescripcion] = useState(rol?.descripcion ?? '')
     const [estado, setEstado] = useState(rol?.estado ?? 'activo')
     const [error, setError] = useState('')
+    const [saving, setSaving] = useState(false)
     const esEdicion = !!rol
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
         if (!nombre.trim()) { setError('El nombre es requerido'); return }
-        onSave({ nombre: nombre.trim(), descripcion: descripcion.trim(), ...(esEdicion ? { estado } : {}) })
+        setSaving(true)
+        setError('')
+        try {
+            await onSave({ nombre: nombre.trim(), descripcion: descripcion.trim(), ...(esEdicion ? { estado } : {}) })
+        } catch (err) {
+            const data = err?.data ?? {}
+            const msg = data.nombre?.[0] ?? data.detail ?? 'Error al guardar. Intenta de nuevo.'
+            setError(msg)
+        } finally {
+            setSaving(false)
+        }
     }
 
     return (
@@ -204,8 +215,8 @@ function PanelForm({ rol, onClose, onSave }) {
             </div>
 
             <div className="px-6 py-4 border-t border-gray-100">
-                <button onClick={handleSubmit} className="w-full bg-gray-900 text-white rounded-lg py-3 text-sm font-medium hover:bg-gray-700 mb-2">
-                    {esEdicion ? 'Guardar cambios' : 'Crear rol'}
+                <button onClick={handleSubmit} disabled={saving} className="w-full bg-gray-900 text-white rounded-lg py-3 text-sm font-medium hover:bg-gray-700 mb-2 disabled:opacity-60 disabled:cursor-not-allowed">
+                    {saving ? 'Guardando...' : (esEdicion ? 'Guardar cambios' : 'Crear rol')}
                 </button>
                 <button onClick={onClose} className="w-full text-sm text-gray-400 hover:text-gray-700 py-1.5">
                     Cancelar
@@ -258,27 +269,17 @@ export default function GestionRoles() {
     // Handlers CRUD
 
     const handleCreate = useCallback(async ({ nombre, descripcion }) => {
-        try {
-            const nuevo = await rolesApi.crear({ nombre, descripcion })
-            setRoles(prev => [...prev, { ...nuevo, total_usuarios: 0 }])
-            setPanel(null)
-            showToast('Rol creado exitosamente')
-        } catch (err) {
-            const msg = err?.data?.nombre?.[0] ?? 'Error al crear el rol'
-            showToast(msg)
-        }
+        const nuevo = await rolesApi.crear({ nombre, descripcion })
+        setRoles(prev => [...prev, { ...nuevo, total_usuarios: 0 }])
+        setPanel(null)
+        showToast('Rol creado exitosamente')
     }, [])
 
     const handleEdit = useCallback(async (id, campos) => {
-        try {
-            const actualizado = await rolesApi.editar(id, campos)
-            setRoles(prev => prev.map(r => r.id === id ? { ...r, ...actualizado } : r))
-            setPanel(null)
-            showToast('Rol actualizado correctamente')
-        } catch (err) {
-            const msg = err?.data?.nombre?.[0] ?? 'Error al actualizar el rol'
-            showToast(msg)
-        }
+        const actualizado = await rolesApi.editar(id, campos)
+        setRoles(prev => prev.map(r => r.id === id ? { ...r, ...actualizado } : r))
+        setPanel(null)
+        showToast('Rol actualizado correctamente')
     }, [])
 
     const handleDelete = useCallback(async () => {
