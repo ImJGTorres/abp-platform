@@ -1,15 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Plus, Pencil, Trash2, X, AlertCircle,
   BarChart2, ChevronLeft, ChevronRight,
 } from "lucide-react";
-
-const initialPeriodos = [
-  { id: 1, nombre: "2026-1", fecha_inicio: "2026-02-01", fecha_fin: "2026-06-30", estado: "activo",   cursos: 8  },
-  { id: 2, nombre: "2025-2", fecha_inicio: "2025-08-01", fecha_fin: "2025-12-15", estado: "inactivo", cursos: 12 },
-  { id: 3, nombre: "2025-1", fecha_inicio: "2025-02-01", fecha_fin: "2025-06-30", estado: "inactivo", cursos: 10 },
-  { id: 4, nombre: "2024-2", fecha_inicio: "2024-08-01", fecha_fin: "2024-12-15", estado: "cerrado",  cursos: 15 },
-];
+import { periodosApi } from "../services/api";
 
 const estadoOptions = [
   { value: "activo",   label: "Activo"   },
@@ -129,7 +123,7 @@ function PeriodoForm({ periodo, onSave, onCancel }) {
           value={nombre}
           onChange={(e) => setNombre(e.target.value)}
           className={inputCls}
-          placeholder="Ej: 2026-1"
+          placeholder="Formato: 2026-1"
           required
         />
       </div>
@@ -181,7 +175,7 @@ function PeriodoForm({ periodo, onSave, onCancel }) {
           <label className={labelCls}>Cursos Asociados</label>
           <input
             type="number"
-            min="0"
+            min="1"
             value={cursos}
             onChange={(e) => setCursos(e.target.value)}
             className={inputCls}
@@ -215,11 +209,28 @@ function PeriodoForm({ periodo, onSave, onCancel }) {
 }
 
 export default function GestionPeriodos() {
-  const [periodos,      setPeriodos]      = useState(initialPeriodos);
+  const [periodos,      setPeriodos]      = useState([]);
+  const [loading,      setLoading]      = useState(true);
   const [showModal,     setShowModal]     = useState(false);
   const [editingPeriodo, setEditingPeriodo] = useState(null);
   const [deleteModal,   setDeleteModal]   = useState({ open: false, periodo: null });
   const [toast,         setToast]         = useState(null);
+
+  useEffect(() => {
+    loadPeriodos();
+  }, []);
+
+  async function loadPeriodos() {
+    try {
+      const data = await periodosApi.listar();
+      setPeriodos(data);
+    } catch (err) {
+      setToast({ msg: err.data?.detail || "Error al cargar períodos", type: "error" });
+      setTimeout(() => setToast(null), 3000);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   const activePeriodo = periodos.find((p) => p.estado === "activo");
 
@@ -231,22 +242,44 @@ export default function GestionPeriodos() {
   const handleCreate = () => { setEditingPeriodo(null); setShowModal(true); };
   const handleEdit   = (p) => { setEditingPeriodo(p);   setShowModal(true); };
 
-  const handleSave = (data) => {
-    if (data.id) {
-      setPeriodos((prev) => prev.map((p) => (p.id === data.id ? { ...p, ...data } : p)));
-      showToast("Periodo actualizado correctamente");
-    } else {
-      setPeriodos((prev) => [{ ...data, id: Date.now() }, ...prev]);
-      showToast("Periodo creado correctamente");
+  const handleSave = async (data) => {
+    try {
+      const payload = {
+        nombre: data.nombre,
+        fecha_inicio: data.fecha_inicio,
+        fecha_fin: data.fecha_fin,
+        estado: data.estado,
+      };
+      console.log('Enviando período:', payload);
+      
+      if (data.id) {
+        await periodosApi.editar(data.id, payload);
+        setPeriodos((prev) => prev.map((p) => (p.id === data.id ? { ...p, ...data } : p)));
+        showToast("Periodo actualizado correctamente");
+      } else {
+        const nuevo = await periodosApi.crear(payload);
+        console.log('Período creado:', nuevo);
+        setPeriodos((prev) => [nuevo, ...prev]);
+        showToast("Periodo creado correctamente");
+      }
+      setShowModal(false);
+      setEditingPeriodo(null);
+    } catch (err) {
+      console.error('Error al guardar:', err);
+      const msg = err.data?.detail || JSON.stringify(err.data) || "Error al guardar período";
+      showToast(msg, "error");
     }
-    setShowModal(false);
-    setEditingPeriodo(null);
   };
 
-  const handleDelete = () => {
-    setPeriodos((prev) => prev.filter((p) => p.id !== deleteModal.periodo.id));
-    showToast("Periodo eliminado correctamente");
-    setDeleteModal({ open: false, periodo: null });
+  const handleDelete = async () => {
+    try {
+      await periodosApi.eliminar(deleteModal.periodo.id);
+      setPeriodos((prev) => prev.filter((p) => p.id !== deleteModal.periodo.id));
+      showToast("Periodo eliminado correctamente");
+      setDeleteModal({ open: false, periodo: null });
+    } catch (err) {
+      showToast(err.data?.detail || "Error al eliminar período", "error");
+    }
   };
 
   return (
@@ -307,7 +340,19 @@ export default function GestionPeriodos() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {periodos.map((p) => {
+            {loading ? (
+              <tr>
+                <td colSpan={6} className="px-5 py-8 text-center text-sm text-gray-500">
+                  Cargando períodos...
+                </td>
+              </tr>
+            ) : periodos.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="px-5 py-8 text-center text-sm text-gray-500">
+                  No hay períodos registrados
+                </td>
+              </tr>
+            ) : periodos.map((p) => {
               const cfg = estadoConfig[p.estado] || estadoConfig.inactivo;
               return (
                 <tr key={p.id} className="hover:bg-gray-50 transition-colors">
