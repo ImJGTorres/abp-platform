@@ -110,10 +110,18 @@ async function request(path, options = {}) {
 
 export const authApi = {
   async login(correo, contrasena) {
-    const response = await request('/api/auth/login/', {
-      method: 'POST',
-      body: JSON.stringify({ correo, contrasena }),
-    })
+    // Usa fetch directo (no request()) para evitar que el interceptor de 401
+    // intente hacer refresh y recargue la página cuando las credenciales son incorrectas.
+    let response
+    try {
+      response = await fetch(`${BASE_URL}/api/auth/login/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ correo, contrasena }),
+      })
+    } catch {
+      throw { type: 'network', message: 'Sin conexión con el servidor' }
+    }
 
     const data = await parseJSON(response)
     if (!response.ok) throw { status: response.status, data }
@@ -237,6 +245,42 @@ export const configuracionApi = {
     return data
   },
 }
+
+// Periodos Académicos API
+export const periodosApi = {
+  async listar() {
+    const response = await request('/api/configuracion/periodos/')
+    const data = await parseJSON(response)
+    if (!response.ok) throw { status: response.status, data }
+    return data
+  },
+  async crear(data) {
+    const response = await request('/api/configuracion/periodos/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+    const result = await parseJSON(response)
+    if (!response.ok) throw { status: response.status, data: result }
+    return result
+  },
+  async editar(id, campos) {
+    const response = await request(`/api/configuracion/periodos/${id}/`, {
+      method: 'PATCH',
+      body: JSON.stringify(campos),
+    })
+    const result = await parseJSON(response)
+    if (!response.ok) throw { status: response.status, data: result }
+    return result
+  },
+  async eliminar(id) {
+    const response = await request(`/api/configuracion/periodos/${id}/`, { method: 'DELETE' })
+    if (!response.ok) {
+      const data = await parseJSON(response)
+      throw { status: response.status, data }
+    }
+  },
+}
+
 // Roles
 //
 // Endpoints (apps/roles/urls.py incluido en /api/roles/):
@@ -319,6 +363,26 @@ export const rolesApi = {
    */
   async listarPermisos() {
     const response = await request('/api/roles/permisos/')
+    const data = await parseJSON(response)
+    if (!response.ok) throw { status: response.status, data }
+    return data
+  },
+}
+
+// Bitácora de Auditoría
+// GET /api/bitacora/ → BitacoraListView (solo administradores)
+// Filtros: modulo, accion, fecha_desde, fecha_hasta, page
+
+export const bitacoraApi = {
+  async listar({ modulo = '', accion = '', fecha_desde = '', fecha_hasta = '', page = 1 } = {}) {
+    const params = new URLSearchParams()
+    if (modulo)      params.set('modulo', modulo)
+    if (accion)      params.set('accion', accion)
+    if (fecha_desde) params.set('fecha_desde', fecha_desde)
+    if (fecha_hasta) params.set('fecha_hasta', fecha_hasta)
+    if (page > 1)    params.set('page', String(page))
+    const qs = params.toString()
+    const response = await request(`/api/bitacora/${qs ? `?${qs}` : ''}`)
     const data = await parseJSON(response)
     if (!response.ok) throw { status: response.status, data }
     return data
