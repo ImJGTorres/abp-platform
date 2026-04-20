@@ -5,6 +5,7 @@ import RegistroUsuarioForm from '../components/RegistroUsuarioForm'
 import ConfiguracionParametros from '../components/ConfiguracionParametros'
 import GestionPeriodos from '../components/GestionPeriodos'
 import GestionRoles from '../components/GestionRoles'
+import BitacorasAuditoria from '../components/BitacorasAuditoria'
 
 // Paneles
 function PanelAdmin() {
@@ -37,6 +38,12 @@ function PanelAdmin() {
         className="bg-red-600 text-white px-4 py-2 rounded"
       >
         Gestión de Roles
+      </Link>
+      <Link
+        to="/admin/bitacoras"
+        className="bg-red-600 text-white px-4 py-2 rounded"
+      >
+        Bitácoras de Auditoría
       </Link>
 
     </div>
@@ -71,6 +78,7 @@ export default function AppRouter() {
           <Route path="/admin/configuracion" element={<ConfiguracionParametros />} />
           <Route path="/admin/periodos" element={<GestionPeriodos />} />
           <Route path="/admin/roles" element={<GestionRoles />} />
+          <Route path="/admin/bitacoras" element={<BitacorasAuditoria />} />
         </Route>
 
         {/* DOCENTE */}

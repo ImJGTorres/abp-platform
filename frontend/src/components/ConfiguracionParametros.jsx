@@ -29,7 +29,16 @@ function Toast({ message, onClose }) {
   );
 }
 
-function ParamRow({ label, paramKey, value, type, onChange }) {
+function ParamRow({ label, paramKey, value, type, onChange, min = null }) {
+  const handleChange = (val) => {
+    if (min !== null && type === "ENTERO") {
+      const num = parseInt(val) || 0;
+      if (num < min) val = min;
+      else val = num;
+    }
+    onChange(val);
+  };
+
   return (
     <div style={{
       display: "grid",
@@ -81,7 +90,7 @@ function ParamRow({ label, paramKey, value, type, onChange }) {
           <input
             type="number"
             value={value}
-            onChange={(e) => onChange(parseInt(e.target.value) || 0)}
+            onChange={(e) => handleChange(e.target.value)}
             style={{
               width: 100,
               height: 32,
@@ -210,11 +219,6 @@ export default function ConfiguracionParametros() {
       semanas_sprint: 0,
       nota_minima_aprobacion: 0,
     },
-    seguridad: {
-      bitacora_activa: false,
-      proyectos_publicos: false,
-      modo_mantenimiento: false,
-    },
   });
   const [toast, setToast] = useState("");
   const [loading, setLoading] = useState(true);
@@ -233,7 +237,6 @@ export default function ConfiguracionParametros() {
       const mapped = {
         institucional: {},
         academicos: {},
-        seguridad: {},
       };
 
       if (data.institucional) {
@@ -249,14 +252,6 @@ export default function ConfiguracionParametros() {
           if (p.clave === "max_estudiantes_por_equipo") mapped.academicos.max_estudiantes_equipo = p.valor_casteado;
           if (p.clave === "semanas_sprint") mapped.academicos.semanas_sprint = p.valor_casteado;
           if (p.clave === "nota_minima_aprobacion") mapped.academicos.nota_minima_aprobacion = p.valor_casteado;
-        });
-      }
-
-      if (data.seguridad) {
-        data.seguridad.forEach((p) => {
-          if (p.clave === "bitacora_activa") mapped.seguridad.bitacora_activa = p.valor_casteado;
-          if (p.clave === "proyectos_publicos") mapped.seguridad.proyectos_publicos = p.valor_casteado;
-          if (p.clave === "modo_mantenimiento") mapped.seguridad.modo_mantenimiento = p.valor_casteado;
         });
       }
 
@@ -286,11 +281,6 @@ export default function ConfiguracionParametros() {
         max_estudiantes_equipo: "max_estudiantes_por_equipo",
         semanas_sprint: "semanas_sprint",
         nota_minima_aprobacion: "nota_minima_aprobacion",
-      },
-      seguridad: {
-        bitacora_activa: "bitacora_activa",
-        proyectos_publicos: "proyectos_publicos",
-        modo_mantenimiento: "modo_mantenimiento",
       },
     };
 
@@ -388,6 +378,7 @@ export default function ConfiguracionParametros() {
           paramKey="max_estudiantes_equipo"
           value={params.academicos.max_estudiantes_equipo}
           type="ENTERO"
+          min={1}
           onChange={(v) => updateParam("academicos", "max_estudiantes_equipo", v)}
         />
         <ParamRow
@@ -395,6 +386,7 @@ export default function ConfiguracionParametros() {
           paramKey="semanas_sprint"
           value={params.academicos.semanas_sprint}
           type="ENTERO"
+          min={1}
           onChange={(v) => updateParam("academicos", "semanas_sprint", v)}
         />
         <ParamRow
@@ -402,40 +394,9 @@ export default function ConfiguracionParametros() {
           paramKey="nota_minima_aprobacion"
           value={params.academicos.nota_minima_aprobacion}
           type="ENTERO"
+          min={1}
           onChange={(v) => updateParam("academicos", "nota_minima_aprobacion", v)}
         />
-      </SectionCard>
-
-      {/* Sección 3: Seguridad y Sistema */}
-      <SectionCard
-        icon="S"
-        iconBg="#c0392b"
-        title="Seguridad y Sistema"
-        onSave={() => handleSave("seguridad")}
-      >
-        <ParamRow
-          label="Bitácora activa"
-          paramKey="bitacora_activa"
-          value={params.seguridad.bitacora_activa}
-          type="BOOLEANO"
-          onChange={(v) => updateParam("seguridad", "bitacora_activa", v)}
-        />
-        <ParamRow
-          label="Proyectos públicos"
-          paramKey="proyectos_publicos"
-          value={params.seguridad.proyectos_publicos}
-          type="BOOLEANO"
-          onChange={(v) => updateParam("seguridad", "proyectos_publicos", v)}
-        />
-        <div style={{ borderBottom: "none" }}>
-          <ParamRow
-            label="Modo de mantenimiento"
-            paramKey="modo_mantenimiento"
-            value={params.seguridad.modo_mantenimiento}
-            type="BOOLEANO"
-            onChange={(v) => updateParam("seguridad", "modo_mantenimiento", v)}
-          />
-        </div>
       </SectionCard>
     </div>
   );
