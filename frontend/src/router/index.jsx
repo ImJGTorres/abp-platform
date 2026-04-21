@@ -9,12 +9,15 @@ import GestionPeriodos from '../components/GestionPeriodos'
 import GestionRoles from '../components/GestionRoles'
 import BitacorasAuditoria from '../components/BitacorasAuditoria'
 import ProfileEdit from '../components/ProfileEdit'
-//holi
+import OlvidarContrasena from '../components/OlvidarContrasena'
+import ResetContrasena from '../components/ResetContrasena'
+
+
 // ── Paneles de otros roles (pendientes de implementar) ────────────────────────
-function PanelDocente()    { return <div className="p-10">Docente</div> }
-function PanelDirector()   { return <div className="p-10">Director</div> }
+function PanelDocente() { return <div className="p-10">Docente</div> }
+function PanelDirector() { return <div className="p-10">Director</div> }
 function PanelEstudiante() { return <div className="p-10">Estudiante</div> }
-function PanelLider()      { return <div className="p-10">Líder</div> }
+function PanelLider() { return <div className="p-10">Líder</div> }
 
 // ── Wrapper para páginas que necesitan padding + scroll propio ────────────────
 // GestionRoles NO usa este wrapper: gestiona su propio layout full-height.
@@ -44,6 +47,8 @@ export default function AppRouter() {
 
         {/* PÚBLICA */}
         <Route path="/login" element={<LoginForm />} />
+        <Route path="/olvidar-contrasena" element={<OlvidarContrasena />} />
+        <Route path="/recuperar-contrasena" element={<ResetContrasena />} />
 
         {/* PERFIL — cualquier usuario autenticado, sin restricción de rol */}
         <Route element={<PrivateRoute />}>
@@ -53,12 +58,12 @@ export default function AppRouter() {
         {/* ADMIN */}
         <Route element={<PrivateRoute allowedRoles={['administrador']} />}>
           <Route element={<AdminLayout />}>
-            <Route path="/admin"               element={<AdminPlaceholder />} />
-            <Route path="/admin/registro"      element={<PaginaRegistro />} />
+            <Route path="/admin" element={<AdminPlaceholder />} />
+            <Route path="/admin/registro" element={<PaginaRegistro />} />
             <Route path="/admin/configuracion" element={<Pagina><ConfiguracionParametros /></Pagina>} />
-            <Route path="/admin/periodos"      element={<Pagina><GestionPeriodos /></Pagina>} />
-            <Route path="/admin/bitacoras"     element={<Pagina><BitacorasAuditoria /></Pagina>} />
-            <Route path="/admin/roles"         element={<GestionRoles />} />
+            <Route path="/admin/periodos" element={<Pagina><GestionPeriodos /></Pagina>} />
+            <Route path="/admin/bitacoras" element={<Pagina><BitacorasAuditoria /></Pagina>} />
+            <Route path="/admin/roles" element={<GestionRoles />} />
           </Route>
         </Route>
 
@@ -83,8 +88,8 @@ export default function AppRouter() {
         </Route>
 
         {/* DEFAULT */}
-        <Route path="/"  element={<Navigate to="/login" replace />} />
-        <Route path="*"  element={<Navigate to="/login" replace />} />
+        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
 
       </Routes>
     </BrowserRouter>
