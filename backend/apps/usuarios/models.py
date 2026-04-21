@@ -14,14 +14,23 @@ class UsuarioManager(BaseUserManager):
     def create_user(self, correo, password=None, **extra_fields):
         if not correo:
             raise ValueError('El correo es obligatorio.')
-        # normalize_email estandariza el dominio a minúsculas (ej. User@GMAIL.COM → User@gmail.com)
         correo = self.normalize_email(correo)
-        # self.model construye una instancia del modelo asociado a este manager (Usuario)
         usuario = self.model(correo=correo, **extra_fields)
-        # set_password hashea la contraseña y la guarda en el campo 'password'
         usuario.set_password(password)
         usuario.save(using=self._db)
         return usuario
+
+    def create_superuser(self, correo, password=None, **extra_fields):
+        extra_fields.setdefault('is_staff', True)
+        extra_fields.setdefault('is_superuser', True)
+        extra_fields.setdefault('tipo_rol', 'administrador')
+        
+        if extra_fields.get('is_staff') is not True:
+            raise ValueError('Superuser must have is_staff=True.')
+        if extra_fields.get('is_superuser') is not True:
+            raise ValueError('Superuser must have is_superuser=True.')
+            
+        return self.create_user(correo, password, **extra_fields)
 
 
 # AbstractBaseUser: le dice a Django que esta clase ES el modelo de autenticación.
@@ -51,6 +60,8 @@ class Usuario(AbstractBaseUser):
     tipo_rol            = models.CharField(max_length=20, choices=TipoRol.choices)
     estado              = models.CharField(max_length=10, choices=Estado.choices,
                                            default=Estado.ACTIVO)
+    is_staff            = models.BooleanField(default=False)
+    is_superuser        = models.BooleanField(default=False)
     fecha_creacion      = models.DateTimeField(auto_now_add=True)
     fecha_actualizacion = models.DateTimeField(auto_now=True)
 
