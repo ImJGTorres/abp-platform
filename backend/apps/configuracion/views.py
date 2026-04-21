@@ -294,28 +294,19 @@ class PeriodoAcademicoViewSet(viewsets.ModelViewSet):
     # Método auxiliar para verificar si hay proyectos activos en los cursos del período
     # Se usa para validar si se pueden modificar las fechas (retorna True si hay proyectos en_curso)
     def _has_active_projects(self, periodo):
-        from django.apps import apps
-        try:
-            # Intenta obtener el modelo Proyecto de la app proyectos
-            # Si la app no existe, retorna False (no hay restricción)
-            Proyecto = apps.get_model('proyectos', 'Proyecto')
-            cursos = Curso.objects.filter(id_periodo_academico=periodo)
-            for curso in cursos:
-                if hasattr(curso, 'proyecto') and curso.proyecto.estado == 'en_curso':
-                    return True
-        except ImportError:
-            pass
+        from apps.cursos.models import Proyecto
+        cursos = Curso.objects.filter(id_periodo_academico=periodo)
+        for curso in cursos:
+            if hasattr(curso, 'proyecto') and curso.proyecto.estado == Proyecto.Estado.EN_EJECUCION:
+                return True
         return False
-    
-    # Método auxiliar para contar proyectos activos en los cursos del período
-    # Retorna el conteo de proyectos con estado 'en_curso' para mostrar en el error 409
+
     def _get_active_projects_count(self, periodo):
-        from django.apps import apps
-        try:
-            Proyecto = apps.get_model('proyectos', 'Proyecto')
-            return Proyecto.objects.filter(curso__id_periodo_academico=periodo, estado='en_curso').count()
-        except ImportError:
-            return 0
+        from apps.cursos.models import Proyecto
+        return Proyecto.objects.filter(
+            id_curso__id_periodo_academico=periodo,
+            estado=Proyecto.Estado.EN_EJECUCION,
+        ).count()
     
     def create(self, request, *args, **kwargs):
         # Si el estado del nuevo período es 'activo', se deben inactivar los demás períodos activos

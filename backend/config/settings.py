@@ -55,6 +55,7 @@ INSTALLED_APPS = [
     'apps.bitacora',
     'apps.configuracion',
     'apps.cursos',
+    'apps.equipos',
 ]
 
 # Configuración de Django REST Framework (BE-01)
@@ -63,6 +64,9 @@ INSTALLED_APPS = [
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
     ),
 }
 
