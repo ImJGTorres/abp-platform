@@ -57,6 +57,7 @@ export default function AppRouter() {
             <Route path="/admin/registro"      element={<PaginaRegistro />} />
             <Route path="/admin/configuracion" element={<Pagina><ConfiguracionParametros /></Pagina>} />
             <Route path="/admin/periodos"      element={<Pagina><GestionPeriodos /></Pagina>} />
+            <Route path="/admin/bitacoras"     element={<Pagina><BitacorasAuditoria /></Pagina>} />
             <Route path="/admin/roles"         element={<GestionRoles />} />
           </Route>
         </Route>

@@ -39,6 +39,18 @@ function IconShield() {
   )
 }
 
+function IconFileText() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" className="w-5 h-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 4V3a1 1 0 00-1-1 2 2 0 00-2 0 1 1 0 00-1 1v1" />
+      <path d="M10 13V8a1 1 0 00-1-1 2 2 0 00-2 0 1 1 0 00-1 1v5" />
+      <path d="M6 10V7a1 1 0 00-1-1 2 2 0 00-2 0 1 1 0 00-1 1v3" />
+      <path d="M18 9v4a2 2 0 01-2 2 2 2 0 01-2-2v-4" />
+      <path d="M2 10h16M2 14h16" />
+    </svg>
+  )
+}
+
 function IconLogout() {
   return (
     <svg viewBox="0 0 20 20" fill="none" className="w-5 h-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
@@ -80,6 +92,7 @@ const NAV_ITEMS = [
   { label: 'Usuarios',      to: '/admin/registro',      icon: <IconUsers />    },
   { label: 'Configuración', to: '/admin/configuracion', icon: <IconSettings /> },
   { label: 'Períodos',      to: '/admin/periodos',      icon: <IconCalendar /> },
+  { label: 'Bitácoras',     to: '/admin/bitacoras',     icon: <IconFileText /> },
   { label: 'Roles',         to: '/admin/roles',         icon: <IconShield />   },
 ]
 
