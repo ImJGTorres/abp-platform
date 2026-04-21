@@ -1,3 +1,11 @@
+import secrets
+from datetime import timedelta
+
+from django.conf import settings
+from django.core.mail import send_mail
+from django.utils import timezone
+from decouple import config as env_config
+
 from rest_framework import generics, status
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 
@@ -9,8 +17,13 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.bitacora.models import BitacoraSistema
 from apps.bitacora.utils import registrar_evento
-from apps.usuarios.models import Usuario
-from apps.usuarios.serializers import UsuarioSerializer, UsuarioUpdateSerializer
+from apps.usuarios.models import TokenRecuperacion, Usuario
+from apps.usuarios.serializers import (
+    OlvidarContrasenaSerializer,
+    RecuperarContrasenaSerializer,
+    UsuarioSerializer,
+    UsuarioUpdateSerializer,
+)
 
 
 class UsuarioProfileView(APIView):
@@ -202,3 +215,106 @@ class LogoutView(TokenBlacklistView):
                 descripcion=f'Logout efectivo: {user.correo}',
             )
         return super().post(request, *args, **kwargs)
+
+
+_RESPUESTA_GENERICA = {
+    'mensaje': 'Si el correo está registrado, recibirás un enlace en los próximos minutos.'
+}
+
+
+class OlvidarContrasenaView(APIView):
+    permission_classes = [AllowAny]
+
+    _RATE_LIMIT_MAX     = 3
+    _RATE_LIMIT_SECONDS = 15 * 60  # 15 minutos
+
+    def post(self, request):
+        from django.core.cache import cache
+
+        serializer = OlvidarContrasenaSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        correo = serializer.validated_data['correo'].lower()
+
+        # Rate limit por correo: máximo 3 solicitudes cada 15 minutos.
+        # Responde igual aunque esté bloqueado para no revelar información.
+        cache_key = f'recuperacion_{correo}'
+        intentos  = cache.get(cache_key, 0)
+        if intentos >= self._RATE_LIMIT_MAX:
+            return Response(_RESPUESTA_GENERICA, status=status.HTTP_200_OK)
+        cache.set(cache_key, intentos + 1, timeout=self._RATE_LIMIT_SECONDS)
+
+        try:
+            usuario = Usuario.objects.get(correo=correo, estado=Usuario.Estado.ACTIVO)
+        except Usuario.DoesNotExist:
+            # Respuesta genérica: no revelar si el correo existe en el sistema
+            return Response(_RESPUESTA_GENERICA, status=status.HTTP_200_OK)
+
+        # Invalidar tokens anteriores pendientes del mismo usuario
+        TokenRecuperacion.objects.filter(usuario=usuario, usado=False).update(usado=True)
+
+        token_str = secrets.token_urlsafe(48)
+        TokenRecuperacion.objects.create(
+            usuario=usuario,
+            token=token_str,
+            expiracion=timezone.now() + timedelta(minutes=30),
+        )
+
+        frontend_url = env_config('FRONTEND_URL', default='http://localhost:5173')
+        enlace = f'{frontend_url}/recuperar-contrasena?token={token_str}'
+
+        send_mail(
+            subject='Recuperación de contraseña - ABP Platform',
+            message=(
+                f'Hola {usuario.nombre},\n\n'
+                f'Solicitaste restablecer tu contraseña en ABP Platform.\n\n'
+                f'Haz clic en el siguiente enlace (válido por 30 minutos):\n\n'
+                f'{enlace}\n\n'
+                f'Si no solicitaste esto, ignora este correo.\n\n'
+                f'ABP Platform - UFPS'
+            ),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[correo],
+            fail_silently=False,
+        )
+
+        return Response(_RESPUESTA_GENERICA, status=status.HTTP_200_OK)
+
+
+class RecuperarContrasenaView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = RecuperarContrasenaSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        token_str        = serializer.validated_data['token']
+        nueva_contrasena = serializer.validated_data['nueva_contrasena']
+
+        try:
+            token_obj = TokenRecuperacion.objects.select_related('usuario').get(token=token_str)
+        except TokenRecuperacion.DoesNotExist:
+            return Response(
+                {'detail': 'Token inválido o expirado.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not token_obj.esta_vigente():
+            return Response(
+                {'detail': 'Token inválido o expirado.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        usuario = token_obj.usuario
+        usuario.set_password(nueva_contrasena)
+        usuario.save()
+
+        token_obj.usado = True
+        token_obj.save()
+
+        return Response(
+            {'mensaje': 'Contraseña actualizada correctamente.'},
+            status=status.HTTP_200_OK,
+        )

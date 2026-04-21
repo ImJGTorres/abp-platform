@@ -3,6 +3,7 @@
 # BaseUserManager: clase base para el manager (UsuarioManager) que crea instancias del modelo.
 from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
 from django.db import models
+from django.utils import timezone
 from apps.roles.models import Rol
 
 
@@ -83,3 +84,20 @@ class UsuarioRol(models.Model):
 
     def __str__(self):
         return f'{self.usuario.correo} → {self.rol.nombre}'
+
+
+class TokenRecuperacion(models.Model):
+    usuario        = models.ForeignKey(Usuario, on_delete=models.CASCADE, related_name='tokens_recuperacion')
+    token          = models.CharField(max_length=86, unique=True)
+    expiracion     = models.DateTimeField()
+    usado          = models.BooleanField(default=False)
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'token_recuperacion'
+
+    def esta_vigente(self):
+        return not self.usado and timezone.now() < self.expiracion
+
+    def __str__(self):
+        return f'Token de {self.usuario.correo} ({"usado" if self.usado else "vigente"})'

@@ -21,7 +21,7 @@ from django.urls import include, path, re_path
 from rest_framework_simplejwt.views import TokenRefreshView, TokenBlacklistView
 from django.views.generic import TemplateView
 
-from apps.usuarios.views import LoginView
+from apps.usuarios.views import LoginView, OlvidarContrasenaView, RecuperarContrasenaView
 from apps.roles.views import PermisosAgrupadosView
 
 urlpatterns = [
@@ -42,6 +42,8 @@ urlpatterns = [
     # Evita que el token pueda usarse nuevamente
     # Requiere: REST_FRAMEWORK_SIMPLEJWT.token_blacklist en INSTALLED_APPS
     path('api/auth/logout/',  TokenBlacklistView.as_view(), name='token_blacklist'),
+    path('api/auth/olvidar-contrasena/',  OlvidarContrasenaView.as_view(),  name='olvidar_contrasena'),
+    path('api/auth/recuperar-contrasena/', RecuperarContrasenaView.as_view(), name='recuperar_contrasena'),
 
     path('api/configuracion/', include('apps.configuracion.urls')),
     # Se conectan con las urls de cada modelo.
