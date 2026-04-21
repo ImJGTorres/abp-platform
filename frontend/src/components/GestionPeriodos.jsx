@@ -94,7 +94,11 @@ function PeriodoForm({ periodo, onSave, onCancel }) {
       ? "La fecha de fin debe ser posterior a la de inicio"
       : "";
 
-  const isValid = nombre && fechaInicio && fechaFin && !dateError;
+  const nombreError = /^\d{4}-[1-2]$/.test(nombre)
+    ? ""
+    : "El formato debe ser YYYY-N (ej: 2026-1 o 2026-2)";
+
+  const isValid = nombre && fechaInicio && fechaFin && !dateError && !nombreError;
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -127,6 +131,13 @@ function PeriodoForm({ periodo, onSave, onCancel }) {
           required
         />
       </div>
+
+      {nombreError && (
+        <div className="flex items-center gap-2 text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+          <AlertCircle size={14} />
+          {nombreError}
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-3">
         <div>
@@ -242,34 +253,39 @@ export default function GestionPeriodos() {
   const handleCreate = () => { setEditingPeriodo(null); setShowModal(true); };
   const handleEdit   = (p) => { setEditingPeriodo(p);   setShowModal(true); };
 
-  const handleSave = async (data) => {
-    try {
-      const payload = {
-        nombre: data.nombre,
-        fecha_inicio: data.fecha_inicio,
-        fecha_fin: data.fecha_fin,
-        estado: data.estado,
-      };
-      console.log('Enviando período:', payload);
-      
-      if (data.id) {
-        await periodosApi.editar(data.id, payload);
-        setPeriodos((prev) => prev.map((p) => (p.id === data.id ? { ...p, ...data } : p)));
-        showToast("Periodo actualizado correctamente");
-      } else {
-        const nuevo = await periodosApi.crear(payload);
-        console.log('Período creado:', nuevo);
-        setPeriodos((prev) => [nuevo, ...prev]);
-        showToast("Periodo creado correctamente");
-      }
-      setShowModal(false);
-      setEditingPeriodo(null);
-    } catch (err) {
-      console.error('Error al guardar:', err);
-      const msg = err.data?.detail || JSON.stringify(err.data) || "Error al guardar período";
-      showToast(msg, "error");
-    }
-  };
+   const handleSave = async (data) => {
+     try {
+       const payload = {
+         nombre: data.nombre,
+         fecha_inicio: data.fecha_inicio,
+         fecha_fin: data.fecha_fin,
+         estado: data.estado,
+       };
+       console.log('Enviando período:', payload);
+
+       if (data.id) {
+         await periodosApi.editar(data.id, payload);
+         setPeriodos((prev) => prev.map((p) => (p.id === data.id ? { ...p, ...data } : p)));
+         showToast("Periodo actualizado correctamente");
+       } else {
+         const nuevo = await periodosApi.crear(payload);
+         console.log('Período creado:', nuevo);
+         setPeriodos((prev) => [nuevo, ...prev]);
+         showToast("Periodo creado correctamente");
+       }
+       setShowModal(false);
+       setEditingPeriodo(null);
+     } catch (err) {
+       console.error('Error al guardar:', err);
+       const errData = err.data || {};
+       const msg = errData.detail
+         || (errData.nombre && typeof errData.nombre === 'object' && errData.nombre.nombre)
+         || (typeof errData.nombre === 'string' ? errData.nombre : null)
+         || JSON.stringify(errData)
+         || "Error al guardar período";
+       showToast(msg, "error");
+     }
+   };
 
   const handleDelete = async () => {
     try {
