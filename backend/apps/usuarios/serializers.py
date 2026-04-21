@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from apps.usuarios.models import Usuario
+from apps.usuarios.models import Usuario, TokenRecuperacion
 
 class UsuarioSerializer(serializers.ModelSerializer):
 
@@ -125,3 +125,20 @@ class UsuarioUpdateSerializer(serializers.ModelSerializer):
         if qs.exists():
             raise serializers.ValidationError("Ya existe un usuario con este correo.")
         return value
+
+
+class OlvidarContrasenaSerializer(serializers.Serializer):
+    correo = serializers.EmailField()
+
+
+class RecuperarContrasenaSerializer(serializers.Serializer):
+    token               = serializers.CharField()
+    nueva_contrasena    = serializers.CharField(min_length=8, write_only=True)
+    confirmar_contrasena = serializers.CharField(min_length=8, write_only=True)
+
+    def validate(self, attrs):
+        if attrs['nueva_contrasena'] != attrs['confirmar_contrasena']:
+            raise serializers.ValidationError(
+                {'confirmar_contrasena': 'Las contraseñas no coinciden.'}
+            )
+        return attrs
