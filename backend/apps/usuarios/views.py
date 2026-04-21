@@ -265,19 +265,40 @@ class OlvidarContrasenaView(APIView):
         enlace = f'{frontend_url}/recuperar-contrasena?token={token_str}'
 
         send_mail(
-            subject='Recuperación de contraseña - ABP Platform',
-            message=(
-                f'Hola {usuario.nombre},\n\n'
-                f'Solicitaste restablecer tu contraseña en ABP Platform.\n\n'
-                f'Haz clic en el siguiente enlace (válido por 30 minutos):\n\n'
-                f'{enlace}\n\n'
-                f'Si no solicitaste esto, ignora este correo.\n\n'
-                f'ABP Platform - UFPS'
-            ),
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[correo],
-            fail_silently=False,
-        )
+    subject='Recuperación de contraseña - ABP Platform',
+    message=f'Hola {usuario.nombre}, restablece tu contraseña aquí: {enlace}',  # fallback texto plano
+    from_email=settings.DEFAULT_FROM_EMAIL,
+    recipient_list=[correo],
+    fail_silently=False,
+    html_message=f"""
+    <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px; background: #f8f9fa; border-radius: 12px;">
+        <h2 style="color: #191c1d; margin-bottom: 8px;">Recupera tu contraseña</h2>
+        <p style="color: #5b403d; font-size: 14px;">Hola <strong>{usuario.nombre}</strong>,</p>
+        <p style="color: #5b403d; font-size: 14px;">Recibimos una solicitud para restablecer tu contraseña en <strong>ABP Platform</strong>. Haz clic en el botón para continuar:</p>
+
+        <div style="text-align: center; margin: 32px 0;">
+            <a href="{enlace}" style="
+                background: linear-gradient(135deg, #af101a, #d32f2f);
+                color: white;
+                padding: 14px 32px;
+                border-radius: 8px;
+                text-decoration: none;
+                font-weight: bold;
+                font-size: 15px;
+                display: inline-block;
+            ">
+                Restablecer contraseña
+            </a>
+        </div>
+
+        <p style="color: #888; font-size: 12px; text-align: center;">Este enlace expira en <strong>30 minutos</strong> y es de un solo uso.</p>
+        <p style="color: #888; font-size: 12px; text-align: center;">Si no solicitaste esto, ignora este correo.</p>
+
+        <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 24px 0;">
+        <p style="color: #aaa; font-size: 11px; text-align: center;">ABP Platform · UFPS</p>
+    </div>
+    """,
+)
 
         return Response(_RESPUESTA_GENERICA, status=status.HTTP_200_OK)
 
