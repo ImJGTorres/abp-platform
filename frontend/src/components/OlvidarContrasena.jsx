@@ -70,51 +70,54 @@ function PantallaConfirmacion({ correo, onReenviar, reenviando, onEditarCorreo, 
                 ))}
             </div>
 
-            {/* Botón reenviar */}
-            <button
-                onClick={onReenviar}
-                disabled={reenviando}
-                className="w-full h-[48px] rounded-xl border-2 border-[#d32f2f] text-[#d32f2f] font-semibold
-          text-[14px] hover:bg-[#fdf0ef] transition-colors disabled:opacity-60 disabled:cursor-not-allowed
-          flex items-center justify-center gap-2"
-                style={{ fontFamily: "'Manrope', sans-serif" }}
-            >
-                {reenviando ? (
-                    <>
-                        <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                        </svg>
-                        Enviando...
-                    </>
-                ) : (
-                    <>
-                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 .49-3.82" />
-                        </svg>
-                        Reenviar correo
-                    </>
-                )}
-            </button>
-            <button
-                onClick={onEditarCorreo}
-                className="w-full h-[48px] rounded-xl border border-gray-300 text-gray-700 font-semibold text-[14px]
-  hover:bg-gray-50 transition-colors"
-                style={{ fontFamily: "'Manrope', sans-serif" }}
-            >
-                Cambiar correo
-            </button>
+            {/* Botones reenviar y cambiar correo — lado a lado */}
+            <div className="flex gap-3">
+                <button
+                    onClick={onReenviar}
+                    disabled={reenviando}
+                    className="flex-1 h-[40px] rounded-xl border-2 border-[#d32f2f] text-[#d32f2f] font-semibold
+              text-[13px] hover:bg-[#fdf0ef] transition-colors disabled:opacity-60 disabled:cursor-not-allowed
+              flex items-center justify-center gap-1.5"
+                    style={{ fontFamily: "'Manrope', sans-serif" }}
+                >
+                    {reenviando ? (
+                        <>
+                            <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                            </svg>
+                            Enviando...
+                        </>
+                    ) : (
+                        <>
+                            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 .49-3.82" />
+                            </svg>
+                            Reenviar
+                        </>
+                    )}
+                </button>
+                <button
+                    onClick={onEditarCorreo}
+                    className="flex-1 h-[40px] rounded-xl border border-gray-300 text-gray-700 font-semibold text-[13px]
+              hover:bg-gray-50 transition-colors"
+                    style={{ fontFamily: "'Manrope', sans-serif" }}
+                >
+                    Cambiar correo
+                </button>
+            </div>
 
-            {/* Volver al login */}
-            <button
-                onClick={() => navigate('/login')}
-                className="w-full h-[48px] rounded-xl bg-[#f0f0f0] text-[#5b403d] font-semibold text-[14px]
-          hover:bg-[#e5e5e5] transition-colors"
-                style={{ fontFamily: "'Manrope', sans-serif" }}
-            >
-                Volver al inicio de sesión
-            </button>
+            {/* Volver al login — centrado */}
+            <div className="flex justify-center">
+                <button
+                    onClick={() => navigate('/login')}
+                    className="text-[13px] text-[#5b403d] hover:underline"
+                    style={{ fontFamily: "'Manrope', sans-serif" }}
+                >
+                    Volver al inicio de sesión
+                </button>
+            </div>
         </div>
     )
 }
