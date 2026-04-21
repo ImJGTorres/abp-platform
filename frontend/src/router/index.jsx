@@ -9,7 +9,7 @@ import GestionPeriodos from '../components/GestionPeriodos'
 import GestionRoles from '../components/GestionRoles'
 import BitacorasAuditoria from '../components/BitacorasAuditoria'
 import ProfileEdit from '../components/ProfileEdit'
-
+//holi
 // ── Paneles de otros roles (pendientes de implementar) ────────────────────────
 function PanelDocente()    { return <div className="p-10">Docente</div> }
 function PanelDirector()   { return <div className="p-10">Director</div> }
@@ -57,6 +57,7 @@ export default function AppRouter() {
             <Route path="/admin/registro"      element={<PaginaRegistro />} />
             <Route path="/admin/configuracion" element={<Pagina><ConfiguracionParametros /></Pagina>} />
             <Route path="/admin/periodos"      element={<Pagina><GestionPeriodos /></Pagina>} />
+            <Route path="/admin/bitacoras"     element={<Pagina><BitacorasAuditoria /></Pagina>} />
             <Route path="/admin/roles"         element={<GestionRoles />} />
           </Route>
         </Route>

@@ -336,3 +336,425 @@
 }
 ```
 **No existen endpoints PUT, PATCH ni DELETE para este recurso.**
+
+---
+
+## Sprint 2 — Gestión de Cursos, Proyectos y Equipos
+
+**Responsables:** 
+- Sub-equipo A (Nicole + Angie): HU-005, HU-006, HU-007, HU-008, HU-009
+- Sub-equipo B (Gabriel + Ovallos): HU-010, HU-011, HU-012, HU-013
+
+---
+
+## HU-005 — Gestión de cursos
+
+### `POST /api/cursos/`
+**Permiso:** Solo administrador y docentes
+**Body:**
+```json
+{
+  "nombre": "Análisis y Diseño de Sistemas",
+  "codigo": "AYD-01",
+  "descripcion": "Curso de arquitectura de software",
+  "periodo_id": 1,
+  "docente_id": 5,
+  "cantidad_max_estudiantes": 30
+}
+```
+**Respuesta exitosa `201`:** Objeto curso creado con `id`, campos del body, `estado: "activo"`, `fecha_creacion`
+**Errores:**
+- `400` — código duplicado: `{"codigo": ["Ya existe un curso con este código."]}`
+- `400` — campo faltante o inválido
+
+---
+
+### `GET /api/cursos/`
+**Permiso:** Administrador, docentes y estudiantes
+**Query params opcionales:**
+- `periodo_id=1` — filtrar por periodo académico
+- `docente_id=5` — filtrar por docente
+- `estado=activo` — filtrar por estado
+- `page=2` — paginación
+
+**Respuesta `200`:**
+```json
+{
+  "count": 12,
+  "next": null,
+  "previous": null,
+  "results": [
+    {
+      "id": 1,
+      "nombre": "Análisis y Diseño de Sistemas",
+      "codigo": "AYD-01",
+      "descripcion": "Curso de arquitectura de software",
+      "periodo_id": 1,
+      "docente": {
+        "id": 5,
+        "nombre": "Juan",
+        "apellido": "Pérez"
+      },
+      "cantidad_max_estudiantes": 30,
+      "cantidad_estudiantes_actual": 25,
+      "estado": "activo",
+      "fecha_creacion": "2026-04-06T10:30:00-05:00"
+    }
+  ]
+}
+```
+
+---
+
+### `PUT /api/cursos/:id/`
+**Permiso:** Docente del curso o administrador
+**Body:** Mismo formato que POST (todos los campos son opcionales)
+**Respuesta `200`:** Objeto curso actualizado
+**Errores:**
+- `403` — no es docente del curso ni administrador
+- `404` — curso no encontrado
+
+---
+
+### `DELETE /api/cursos/:id/`
+**Permiso:** Solo administrador
+**Respuesta `204`:** Sin body
+**Errores:**
+- `409` — no se puede eliminar: `{"error": "No se puede eliminar este curso. Tiene 25 estudiantes inscritos y/o 3 proyectos asociados."}`
+
+---
+
+## HU-006 — Proyectos dentro de cursos
+
+### `POST /api/cursos/:id/proyectos/`
+**Permiso:** Docente del curso o administrador
+**Body:**
+```json
+{
+  "nombre": "Sistema de Gestión de Biblioteca",
+  "descripcion": "Proyecto ABP de gestión de biblioteca",
+  "fecha_inicio": "2026-04-15",
+  "fecha_fin": "2026-06-15"
+}
+```
+**Respuesta exitosa `201`:** Objeto proyecto con `id`, `curso_id`, campos del body, `estado: "activo"`, `fecha_creacion`
+**Errores:**
+- `400` — fecha_fin ≤ fecha_inicio
+- `403` — no es docente del curso
+
+---
+
+### `GET /api/cursos/:id/proyectos/`
+**Permiso:** Docente del curso, estudiantes inscritos o administrador
+**Query params opcionales:**
+- `estado=activo` — filtrar por estado
+- `page=2` — paginación
+
+**Respuesta `200`:**
+```json
+{
+  "count": 3,
+  "next": null,
+  "previous": null,
+  "results": [
+    {
+      "id": 1,
+      "nombre": "Sistema de Gestión de Biblioteca",
+      "descripcion": "Proyecto ABP de gestión de biblioteca",
+      "curso_id": 1,
+      "fecha_inicio": "2026-04-15",
+      "fecha_fin": "2026-06-15",
+      "estado": "activo",
+      "cantidad_equipos": 2,
+      "fecha_creacion": "2026-04-06T10:30:00-05:00"
+    }
+  ]
+}
+```
+
+---
+
+## HU-007 — Actualizar proyectos
+
+### `PUT /api/proyectos/:id/`
+**Permiso:** Docente del curso asociado o administrador
+**Body:** Mismo formato que POST (todos los campos son opcionales)
+**Respuesta `200`:** Objeto proyecto actualizado
+**Errores:**
+- `403` — no tiene permisos
+- `404` — proyecto no encontrado
+
+---
+
+## HU-008 — Objetivos de aprendizaje
+
+### `POST /api/proyectos/:id/objetivos/`
+**Permiso:** Docente del curso asociado o administrador
+**Body:**
+```json
+{
+  "descripcion": "Comprender arquitectura de sistemas de información",
+  "tipo": "conceptual",
+  "orden": 1
+}
+```
+**tipo válidos:** `conceptual | procedimental | actitudinal`
+
+**Respuesta exitosa `201`:** Objeto objetivo con `id`, `proyecto_id`, campos del body, `fecha_creacion`
+
+---
+
+### `GET /api/proyectos/:id/objetivos/`
+**Permiso:** Docente, estudiantes del curso o administrador
+**Respuesta `200`:**
+```json
+[
+  {
+    "id": 1,
+    "proyecto_id": 1,
+    "descripcion": "Comprender arquitectura de sistemas de información",
+    "tipo": "conceptual",
+    "orden": 1,
+    "fecha_creacion": "2026-04-06T10:30:00-05:00"
+  }
+]
+```
+
+---
+
+## HU-009 — RAPs (Resultados de Aprendizaje Ponderado) e Hitos
+
+### `POST /api/proyectos/:id/raps/`
+**Permiso:** Docente del curso asociado o administrador
+**Body:**
+```json
+{
+  "nombre": "RAP 1",
+  "descripcion": "Análisis de requisitos",
+  "porcentaje_evaluacion": 20,
+  "orden": 1
+}
+```
+
+**Respuesta exitosa `201`:** Objeto RAP con `id`, `proyecto_id`, campos del body, `fecha_creacion`
+
+---
+
+### `GET /api/proyectos/:id/raps/`
+**Permiso:** Docente, estudiantes del curso o administrador
+**Respuesta `200`:**
+```json
+[
+  {
+    "id": 1,
+    "proyecto_id": 1,
+    "nombre": "RAP 1",
+    "descripcion": "Análisis de requisitos",
+    "porcentaje_evaluacion": 20,
+    "orden": 1,
+    "fecha_creacion": "2026-04-06T10:30:00-05:00"
+  }
+]
+```
+
+---
+
+### `POST /api/proyectos/:id/hitos/`
+**Permiso:** Docente del curso asociado o administrador
+**Body:**
+```json
+{
+  "nombre": "Entrega de análisis",
+  "descripcion": "Primera entrega del análisis de requisitos",
+  "fecha_limite": "2026-05-01",
+  "rap_id": 1,
+  "orden": 1
+}
+```
+
+**Respuesta exitosa `201`:** Objeto hito con `id`, `proyecto_id`, campos del body, `estado: "pendiente"`, `fecha_creacion`
+
+---
+
+### `GET /api/proyectos/:id/hitos/`
+**Permiso:** Docente, estudiantes del curso o administrador
+**Respuesta `200`:**
+```json
+[
+  {
+    "id": 1,
+    "proyecto_id": 1,
+    "nombre": "Entrega de análisis",
+    "descripcion": "Primera entrega del análisis de requisitos",
+    "fecha_limite": "2026-05-01",
+    "rap_id": 1,
+    "orden": 1,
+    "estado": "pendiente",
+    "fecha_creacion": "2026-04-06T10:30:00-05:00"
+  }
+]
+```
+
+---
+
+## HU-010 — Equipos en proyectos
+
+### `POST /api/proyectos/:id/equipos/`
+**Permiso:** Docente del curso asociado o administrador
+**Body:**
+```json
+{
+  "nombre": "Equipo 1",
+  "descripcion": "Equipo de desarrollo backend",
+  "cantidad_max_miembros": 6
+}
+```
+
+**Respuesta exitosa `201`:** Objeto equipo con `id`, `proyecto_id`, campos del body, `estado: "activo"`, `fecha_creacion`
+
+---
+
+### `GET /api/proyectos/:id/equipos/`
+**Permiso:** Docente, estudiantes del proyecto o administrador
+**Query params opcionales:**
+- `estado=activo` — filtrar por estado
+- `page=2` — paginación
+
+**Respuesta `200`:**
+```json
+{
+  "count": 2,
+  "next": null,
+  "previous": null,
+  "results": [
+    {
+      "id": 1,
+      "proyecto_id": 1,
+      "nombre": "Equipo 1",
+      "descripcion": "Equipo de desarrollo backend",
+      "cantidad_max_miembros": 6,
+      "cantidad_miembros_actual": 5,
+      "estado": "activo",
+      "fecha_creacion": "2026-04-06T10:30:00-05:00"
+    }
+  ]
+}
+```
+
+---
+
+## HU-011 — Miembros de equipos
+
+### `POST /api/equipos/:id/miembros/`
+**Permiso:** Docente del proyecto asociado o administrador
+**Body:**
+```json
+{
+  "usuario_id": 10,
+  "rol_interno": "lider"
+}
+```
+**rol_interno válidos:** `lider | desarrollador | revisor | documentador`
+
+**Respuesta exitosa `201`:** Objeto miembro con `id`, `equipo_id`, `usuario_id`, `usuario` (objeto), `rol_interno`, `fecha_incorporacion`
+**Errores:**
+- `400` — usuario ya está en el equipo
+- `409` — equipo lleno: `{"error": "El equipo ha alcanzado el máximo de miembros permitidos."}`
+
+---
+
+### `GET /api/equipos/:id/miembros/`
+**Permiso:** Miembros del equipo, docente del proyecto o administrador
+**Respuesta `200`:**
+```json
+[
+  {
+    "id": 1,
+    "equipo_id": 1,
+    "usuario_id": 10,
+    "usuario": {
+      "id": 10,
+      "nombre": "Carlos",
+      "apellido": "García",
+      "correo": "carlos.garcia@ufps.edu.co"
+    },
+    "rol_interno": "lider",
+    "fecha_incorporacion": "2026-04-06T10:30:00-05:00"
+  }
+]
+```
+
+---
+
+### `DELETE /api/equipos/:id/miembros/:id_usuario/`
+**Permiso:** Docente del proyecto, administrador o el mismo usuario
+**Respuesta `204`:** Sin body
+**Errores:**
+- `403` — no tiene permisos
+- `404` — miembro no encontrado
+
+---
+
+## HU-012 — Actualizar rol interno de miembros
+
+### `PATCH /api/equipos/:id/miembros/:id_usuario/`
+**Permiso:** Docente del proyecto asociado o administrador
+**Body:**
+```json
+{
+  "rol_interno": "revisor"
+}
+```
+
+**Respuesta `200`:**
+```json
+{
+  "id": 1,
+  "equipo_id": 1,
+  "usuario_id": 10,
+  "usuario": {
+    "id": 10,
+    "nombre": "Carlos",
+    "apellido": "García",
+    "correo": "carlos.garcia@ufps.edu.co"
+  },
+  "rol_interno": "revisor",
+  "fecha_incorporacion": "2026-04-06T10:30:00-05:00"
+}
+```
+
+---
+
+## HU-013 — Operaciones avanzadas en equipos
+
+### `POST /api/equipos/:id/miembros/mover/`
+**Permiso:** Docente del proyecto asociado o administrador
+**Body:**
+```json
+{
+  "usuario_id": 10,
+  "equipo_destino_id": 2
+}
+```
+
+**Respuesta exitosa `200`:**
+```json
+{
+  "mensaje": "Usuario movido exitosamente del equipo 1 al equipo 2",
+  "usuario_id": 10,
+  "equipo_origen_id": 1,
+  "equipo_destino_id": 2
+}
+```
+**Errores:**
+- `404` — usuario o equipo no encontrado
+- `409` — equipo destino lleno
+- `400` — usuario no está en el equipo origen
+
+---
+
+### `DELETE /api/equipos/:id/`
+**Permiso:** Docente del proyecto asociado o administrador
+**Respuesta `204`:** Sin body
+**Errores:**
+- `409` — no se puede eliminar: `{"error": "No se puede eliminar este equipo. Tiene 5 miembros activos asignados."}`
