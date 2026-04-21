@@ -225,8 +225,8 @@ _RESPUESTA_GENERICA = {
 class OlvidarContrasenaView(APIView):
     permission_classes = [AllowAny]
 
-    _RATE_LIMIT_MAX     = 3
-    _RATE_LIMIT_SECONDS = 15 * 60  # 15 minutos
+    _RATE_LIMIT_MAX     = 1
+    _RATE_LIMIT_SECONDS = 60  # 1 minuto entre intentos
 
     def post(self, request):
         from django.core.cache import cache
