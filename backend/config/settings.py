@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'apps.bitacora',
     'apps.configuracion',
     'apps.cursos',
+    'apps.equipos',
 ]
 
 # Configuración de Django REST Framework (BE-01)
