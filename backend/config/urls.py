@@ -24,7 +24,7 @@ from apps.usuarios.views import LoginView
 from apps.roles.views import PermisosAgrupadosView
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    path('django-admin/', admin.site.urls),
     path('api/usuarios/', include('apps.usuarios.urls')),
     # Endpoint de login (BE-02): POST /api/auth/login/
     # Recibe correo y contraseña, retorna access + refresh tokens
