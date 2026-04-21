@@ -9,7 +9,7 @@ import GestionPeriodos from '../components/GestionPeriodos'
 import GestionRoles from '../components/GestionRoles'
 import BitacorasAuditoria from '../components/BitacorasAuditoria'
 import ProfileEdit from '../components/ProfileEdit'
-
+//holi
 // ── Paneles de otros roles (pendientes de implementar) ────────────────────────
 function PanelDocente()    { return <div className="p-10">Docente</div> }
 function PanelDirector()   { return <div className="p-10">Director</div> }
