@@ -166,6 +166,29 @@ export const authApi = {
 
     session.clear()
   },
+
+  // POST /api/auth/olvidar-contrasena/
+  async olvidarContrasena(correo) {
+    const response = await request('/api/auth/olvidar-contrasena/', {
+      method: 'POST',
+      body: JSON.stringify({ correo }),
+    })
+    const data = await parseJSON(response)
+    if (!response.ok) throw { status: response.status, data }
+    return data
+  },
+
+  // POST /api/auth/recuperar-contrasena/
+  async recuperarContrasena({ token, nueva_contrasena, confirmar_contrasena }) {
+    const response = await request('/api/auth/recuperar-contrasena/', {
+      method: 'POST',
+      body: JSON.stringify({ token, nueva_contrasena, confirmar_contrasena }),
+    })
+    const data = await parseJSON(response)
+    if (!response.ok) throw { status: response.status, data }
+    return data
+  },
+
 }
 
 // Usuarios
@@ -377,11 +400,11 @@ export const rolesApi = {
 export const bitacoraApi = {
   async listar({ modulo = '', accion = '', fecha_desde = '', fecha_hasta = '', page = 1 } = {}) {
     const params = new URLSearchParams()
-    if (modulo)      params.set('modulo', modulo)
-    if (accion)      params.set('accion', accion)
+    if (modulo) params.set('modulo', modulo)
+    if (accion) params.set('accion', accion)
     if (fecha_desde) params.set('fecha_desde', fecha_desde)
     if (fecha_hasta) params.set('fecha_hasta', fecha_hasta)
-    if (page > 1)    params.set('page', String(page))
+    if (page > 1) params.set('page', String(page))
     const qs = params.toString()
     const response = await request(`/api/bitacora/${qs ? `?${qs}` : ''}`)
     const data = await parseJSON(response)
