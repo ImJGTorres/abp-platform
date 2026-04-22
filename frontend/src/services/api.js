@@ -204,6 +204,16 @@ export const authApi = {
     if (!response.ok) throw { status: response.status, data }
     return data
   },
+  // POST /api/auth/cambiar-contrasena/ (usuario autenticado)
+  async cambiarContrasena(data) {
+    const response = await request('/api/auth/cambiar-contrasena/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+    const resData = await parseJSON(response)
+    if (!response.ok) throw { status: response.status, data: resData }
+    return resData
+  }
 
 }
 
