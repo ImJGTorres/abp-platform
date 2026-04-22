@@ -120,6 +120,12 @@ export default function ProfileEdit() {
   }, []);
 
   const handleChange = (field, value) => {
+    // Filtro en tiempo real: solo permite letras unicode, tildes, ñ y espacios para nombre y apellido
+    if (field === "nombre" || field === "apellido") {
+      // Elimina TODO carácter que NO sea letra (unicode) ni espacio
+      value = value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]/g, "");
+    }
+    
     setForm((prev) => ({ ...prev, [field]: value }));
     setFieldErrors((prev) => ({ ...prev, [field]: null }));
     if (field === "telefono") {

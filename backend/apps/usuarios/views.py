@@ -349,23 +349,26 @@ class RecuperarContrasenaView(APIView):
         token_str        = serializer.validated_data['token']
         nueva_contrasena = serializer.validated_data['nueva_contrasena']
 
-        # Atómico: marca como usado solo si aún no lo estaba y no expiró
-        actualizados = TokenRecuperacion.objects.filter(
-            token=token_str,
-            usado=False,
-            expiracion__gt=timezone.now(),
-        ).update(usado=True)
-
-        if actualizados == 0:
+        try:
+            token_obj = TokenRecuperacion.objects.select_related('usuario').get(token=token_str)
+        except TokenRecuperacion.DoesNotExist:
             return Response(
                 {'detail': 'Token inválido o expirado.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        token_obj = TokenRecuperacion.objects.select_related('usuario').get(token=token_str)
+        if not token_obj.esta_vigente():
+            return Response(
+                {'detail': 'Token inválido o expirado.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         usuario = token_obj.usuario
         usuario.set_password(nueva_contrasena)
         usuario.save()
+
+        token_obj.usado = True
+        token_obj.save()
 
         return Response(
             {'mensaje': 'Contraseña actualizada correctamente.'},

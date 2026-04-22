@@ -24,16 +24,20 @@ class UsuarioSerializer(serializers.ModelSerializer):
             'fecha_actualizacion': {'read_only': True},
         }
 
-    # Validar longitud mínima del nombre (ST-04)
+    # Validar longitud mínima y caracteres permitidos para nombre (ST-04)
     def validate_nombre(self, value):
         if len(value) < 2:
             raise serializers.ValidationError("El nombre debe tener al menos 2 caracteres.")
+        if not value.replace(' ', '').isalpha():
+            raise serializers.ValidationError("El nombre solo puede contener letras y espacios.")
         return value
 
-    # Validar longitud mínima del apellido (ST-04)
+    # Validar longitud mínima y caracteres permitidos para apellido (ST-04)
     def validate_apellido(self, value):
         if len(value) < 2:
             raise serializers.ValidationError("El apellido debe tener al menos 2 caracteres.")
+        if not value.replace(' ', '').isalpha():
+            raise serializers.ValidationError("El apellido solo puede contener letras y espacios.")
         return value
 
     # Validar que el rol sea uno de los permitidos (ST-04)
@@ -104,11 +108,15 @@ class UsuarioUpdateSerializer(serializers.ModelSerializer):
     def validate_nombre(self, value):
         if len(value) < 2:
             raise serializers.ValidationError("El nombre debe tener al menos 2 caracteres.")
+        if not value.replace(' ', '').isalpha():
+            raise serializers.ValidationError("El nombre solo puede contener letras y espacios.")
         return value
 
     def validate_apellido(self, value):
         if len(value) < 2:
             raise serializers.ValidationError("El apellido debe tener al menos 2 caracteres.")
+        if not value.replace(' ', '').isalpha():
+            raise serializers.ValidationError("El apellido solo puede contener letras y espacios.")
         return value
 
     def validate_tipo_rol(self, value):
