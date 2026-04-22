@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { NavLink, Outlet, useNavigate, Link } from 'react-router-dom'
 import { authApi, session } from '../services/api'
 
@@ -107,7 +107,13 @@ function navLinkClass({ isActive }) {
 
 export default function AdminLayout() {
   const navigate = useNavigate()
-  const user = session.getUser()
+  const [user, setUser] = useState(() => session.getUser())
+
+  useEffect(() => {
+    const refresh = () => setUser(session.getUser())
+    window.addEventListener('user-updated', refresh)
+    return () => window.removeEventListener('user-updated', refresh)
+  }, [])
   const [collapsed, setCollapsed] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
@@ -175,10 +181,11 @@ export default function AdminLayout() {
               className="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-[#f0f2f3] cursor-pointer transition-colors mb-1 relative"
               onClick={e => { e.stopPropagation(); setUserMenuOpen(o => !o) }}
             >
-              <div className="w-7 h-7 rounded-full bg-[#ffdad6] flex items-center justify-center flex-shrink-0">
-                <span className="text-[11px] font-bold text-[#af101a]">
-                  {user.nombre?.[0]?.toUpperCase() ?? 'A'}
-                </span>
+              <div className="w-7 h-7 rounded-full bg-[#ffdad6] flex items-center justify-center flex-shrink-0 overflow-hidden">
+                {user.foto_perfil
+                  ? <img src={user.foto_perfil} alt="" className="w-full h-full object-cover" onError={e => { e.target.style.display='none' }} />
+                  : <span className="text-[11px] font-bold text-[#af101a]">{user.nombre?.[0]?.toUpperCase() ?? 'A'}</span>
+                }
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-[12px] font-semibold text-[#191c1d] truncate leading-tight">
@@ -234,10 +241,11 @@ export default function AdminLayout() {
           <div className="flex-1" />
           {user && (
             <Link to="/perfil" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
-              <div className="w-8 h-8 rounded-full bg-[#ffdad6] flex items-center justify-center">
-                <span className="text-[12px] font-bold text-[#af101a]">
-                  {user.nombre?.[0]?.toUpperCase() ?? 'A'}
-                </span>
+              <div className="w-8 h-8 rounded-full bg-[#ffdad6] flex items-center justify-center overflow-hidden">
+                {user.foto_perfil
+                  ? <img src={user.foto_perfil} alt="" className="w-full h-full object-cover" onError={e => { e.target.style.display='none' }} />
+                  : <span className="text-[12px] font-bold text-[#af101a]">{user.nombre?.[0]?.toUpperCase() ?? 'A'}</span>
+                }
               </div>
               <div className="hidden sm:block">
                 <p className="text-[13px] font-semibold text-[#191c1d] leading-tight">

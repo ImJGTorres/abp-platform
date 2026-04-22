@@ -120,6 +120,12 @@ export default function ProfileEdit() {
   }, []);
 
   const handleChange = (field, value) => {
+    // Filtro en tiempo real: solo permite letras unicode, tildes, ñ y espacios para nombre y apellido
+    if (field === "nombre" || field === "apellido") {
+      // Elimina TODO carácter que NO sea letra (unicode) ni espacio
+      value = value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]/g, "");
+    }
+    
     setForm((prev) => ({ ...prev, [field]: value }));
     setFieldErrors((prev) => ({ ...prev, [field]: null }));
     if (field === "telefono") {
@@ -178,6 +184,16 @@ export default function ProfileEdit() {
       await usuariosApi.actualizarPerfil({ foto_perfil: fotoInputValue });
       setFotoUrl(fotoInputValue);
       setShowFotoInput(false);
+      // Sincronizar foto_perfil en localStorage para que header y sidebar la reflejen
+      const currentUser = session.getUser();
+      if (currentUser) {
+        session.save(
+          session.getAccess(),
+          session.getRefresh(),
+          { ...currentUser, foto_perfil: fotoInputValue }
+        );
+        window.dispatchEvent(new Event('user-updated'));
+      }
     } catch {
       // mantener input abierto para que el usuario pueda reintentar
     } finally {

@@ -203,7 +203,8 @@ export default function LoginForm() {
                                         className="w-full h-[52px] bg-[#e8eaeb] rounded-xl pl-11 pr-12
                             text-[14px] text-[#191c1d] placeholder:text-[rgba(91,64,61,0.45)]
                             outline-none focus:ring-2 focus:ring-[#d32f2f]/50
-                            transition-shadow duration-150"
+                            transition-shadow duration-150
+                            [&::-ms-reveal]:hidden [&::-webkit-credentials-auto-fill-button]:hidden"
                                     />
                                     {/* Toggle ver contraseña */}
                                     <button

@@ -53,6 +53,8 @@ class Usuario(AbstractBaseUser):
                                            default=Estado.ACTIVO)
     fecha_creacion      = models.DateTimeField(auto_now_add=True)
     fecha_actualizacion = models.DateTimeField(auto_now=True)
+    is_staff            = models.BooleanField(default=False)  # Requerido para admin site
+    is_superuser         = models.BooleanField(default=False)  # Requerido para admin site
 
     # Conecta el modelo con su manager personalizado.
     # A partir de aquí, Usuario.objects.create_user(...) usa UsuarioManager.
