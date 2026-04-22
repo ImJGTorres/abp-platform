@@ -146,6 +146,22 @@ export const authApi = {
     }
 
     session.save(data.access, data.refresh, user)
+
+    // Obtener foto_perfil desde el perfil (no viene en el JWT)
+    try {
+      const perfilRes = await fetch(`${BASE_URL}/api/usuarios/perfil/`, {
+        headers: { Authorization: `Bearer ${data.access}` },
+      })
+      if (perfilRes.ok) {
+        const perfil = await perfilRes.json()
+        const userConFoto = { ...user, foto_perfil: perfil.foto_perfil ?? null }
+        session.save(data.access, data.refresh, userConFoto)
+        return userConFoto
+      }
+    } catch {
+      // Si falla el fetch del perfil no bloqueamos el login
+    }
+
     return user
   },
 
@@ -187,6 +203,16 @@ export const authApi = {
     if (!response.ok) throw { status: response.status, data }
     return data
   },
+  // POST /api/auth/cambiar-contrasena/ (usuario autenticado)
+  async cambiarContrasena(data) {
+    const response = await request('/api/auth/cambiar-contrasena/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+    const resData = await parseJSON(response)
+    if (!response.ok) throw { status: response.status, data: resData }
+    return resData
+  }
 
 }
 

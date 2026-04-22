@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { authApi } from '../services/api'
 
@@ -33,7 +33,7 @@ function CampoCorreo({ value, onChange, disabled }) {
 }
 
 // ─── Vista de confirmación tras enviar ────────────────────────────────────────
-function PantallaConfirmacion({ correo, onReenviar, reenviando, onEditarCorreo, navigate }) {
+function PantallaConfirmacion({ correo, onReenviar, reenviando, cooldown, onEditarCorreo, navigate }) {
     return (
         <div className="flex flex-col gap-6">
             {/* Ícono de éxito */}
@@ -74,7 +74,7 @@ function PantallaConfirmacion({ correo, onReenviar, reenviando, onEditarCorreo, 
             <div className="flex gap-3">
                 <button
                     onClick={onReenviar}
-                    disabled={reenviando}
+                    disabled={reenviando || cooldown > 0}
                     className="flex-1 h-[40px] rounded-xl border-2 border-[#d32f2f] text-[#d32f2f] font-semibold
               text-[13px] hover:bg-[#fdf0ef] transition-colors disabled:opacity-60 disabled:cursor-not-allowed
               flex items-center justify-center gap-1.5"
@@ -88,6 +88,8 @@ function PantallaConfirmacion({ correo, onReenviar, reenviando, onEditarCorreo, 
                             </svg>
                             Enviando...
                         </>
+                    ) : cooldown > 0 ? (
+                        `Reenviar (${cooldown}s)`
                     ) : (
                         <>
                             <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -130,6 +132,20 @@ export default function OlvidarContrasena() {
     const [loading, setLoading] = useState(false)
     const [reenviando, setReenviando] = useState(false)
     const [error, setError] = useState('')
+    const [cooldown, setCooldown] = useState(0)
+    const timerRef = useRef(null)
+
+    useEffect(() => () => clearInterval(timerRef.current), [])
+
+    const iniciarCooldown = () => {
+        setCooldown(60)
+        timerRef.current = setInterval(() => {
+            setCooldown(s => {
+                if (s <= 1) { clearInterval(timerRef.current); return 0 }
+                return s - 1
+            })
+        }, 1000)
+    }
 
     const enviar = async (esReenvio = false) => {
         if (!correo.trim()) { setError('Ingresa tu correo electrónico.'); return }
@@ -141,6 +157,7 @@ export default function OlvidarContrasena() {
         try {
             await authApi.olvidarContrasena(correo.trim().toLowerCase())
             setEnviado(true)
+            iniciarCooldown()
         } catch (err) {
             if (err?.type === 'network') {
                 setError('No se pudo conectar con el servidor.')
@@ -246,6 +263,7 @@ export default function OlvidarContrasena() {
                             correo={correo}
                             onReenviar={() => enviar(true)}
                             reenviando={reenviando}
+                            cooldown={cooldown}
                             onEditarCorreo={() => {
                                 setEnviado(false)
                                 setError('')
