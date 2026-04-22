@@ -5,15 +5,21 @@ from apps.configuracion.models import ParametroSistema
 from .models import Equipo, MiembroEquipo
 
 
+# Serializador para crear y validar equipos.
+# Valida que el cupo máximo no exceda el parámetro del sistema max_estudiantes_por_equipo.
 class EquipoSerializer(serializers.ModelSerializer):
+    # El proyecto se inyecta desde la vista, no se permite enviarlo en el request.
     proyecto = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:
         model = Equipo
         fields = '__all__'
 
+    # Valida que el cupo máximo no supere el límite configurado en el sistema.
+    # Lee el parámetro max_estudiantes_por_equipo de la tabla de configuración.
     def validate_cupo_maximo(self, value):
         try:
+            # Obtiene el parámetro de configuración que define el máximo de estudiantes por equipo.
             parametro = ParametroSistema.objects.get(clave='max_estudiantes_por_equipo')
             max_valor = int(parametro.valor)
         except ParametroSistema.DoesNotExist:
@@ -27,8 +33,12 @@ class EquipoSerializer(serializers.ModelSerializer):
         return value
 
 
+# Serializador para crear y validar membresías de usuarios en equipos.
+# Valida que el usuario no pertenezca ya a otro equipo del mismo proyecto
+# y que el equipo no haya excedido su cupo máximo.
 # Requiere que la vista pase context={'equipo': equipo_instance} al instanciar este serializer.
 class MiembroEquipoSerializer(serializers.ModelSerializer):
+    # El equipo se inyecta desde la vista, no se permite enviarlo en el request.
     equipo = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:
@@ -36,10 +46,13 @@ class MiembroEquipoSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
     def validate(self, data):
+        # Obtiene el equipo del contexto (inyectado por la vista).
         equipo = self.context['equipo']
         usuario = data['usuario']
         proyecto = equipo.proyecto
 
+        # Validación de negocio: un estudiante no puede pertenecer a dos equipos del mismo proyecto.
+        # Busca membresías activas del usuario en equipos del mismo proyecto, excluyendo el equipo actual.
         ya_en_proyecto = MiembroEquipo.objects.filter(
             usuario=usuario,
             estado='activo',
@@ -51,6 +64,8 @@ class MiembroEquipoSerializer(serializers.ModelSerializer):
                 "El estudiante ya pertenece a otro equipo en este proyecto."
             )
 
+        # Validación de negocio: el equipo no puede exceder su cupo máximo de integrantes.
+        # Cuenta los miembros activos actuales del equipo.
         miembros_activos = MiembroEquipo.objects.filter(
             equipo=equipo,
             estado='activo',
