@@ -19,6 +19,7 @@ backend/db.sqlite3
 frontend/node_modules/
 frontend/dist/
 frontend/.env
+frontend/.env.example
 frontend/.env.local
 frontend/.env.production
 
@@ -51,3 +52,4 @@ logs/
 # ia
 .kilo
 .claude
+docs/
