@@ -178,6 +178,16 @@ export default function ProfileEdit() {
       await usuariosApi.actualizarPerfil({ foto_perfil: fotoInputValue });
       setFotoUrl(fotoInputValue);
       setShowFotoInput(false);
+      // Sincronizar foto_perfil en localStorage para que header y sidebar la reflejen
+      const currentUser = session.getUser();
+      if (currentUser) {
+        session.save(
+          session.getAccess(),
+          session.getRefresh(),
+          { ...currentUser, foto_perfil: fotoInputValue }
+        );
+        window.dispatchEvent(new Event('user-updated'));
+      }
     } catch {
       // mantener input abierto para que el usuario pueda reintentar
     } finally {

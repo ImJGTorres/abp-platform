@@ -19,6 +19,7 @@ from apps.bitacora.models import BitacoraSistema
 from apps.bitacora.utils import registrar_evento
 from apps.usuarios.models import TokenRecuperacion, Usuario
 from apps.usuarios.serializers import (
+    CambiarContrasenaSerializer,
     OlvidarContrasenaSerializer,
     RecuperarContrasenaSerializer,
     UsuarioSerializer,
@@ -217,6 +218,40 @@ class LogoutView(TokenBlacklistView):
         return super().post(request, *args, **kwargs)
 
 
+class CambiarContrasenaView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = CambiarContrasenaSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        usuario = request.user
+        password_actual  = serializer.validated_data['password_actual']
+        nueva_contrasena = serializer.validated_data['nueva_contrasena']
+
+        if not usuario.check_password(password_actual):
+            return Response(
+                {'password_actual': 'La contraseña actual es incorrecta.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        usuario.set_password(nueva_contrasena)
+        usuario.save()
+
+        registrar_evento(
+            request=request,
+            accion=BitacoraSistema.Accion.UPDATE,
+            modulo='autenticacion',
+            descripcion=f'Cambio de contraseña: {usuario.correo}',
+        )
+
+        return Response(
+            {'mensaje': 'Contraseña actualizada correctamente.'},
+            status=status.HTTP_200_OK,
+        )
+
+
 _RESPUESTA_GENERICA = {
     'mensaje': 'Si el correo está registrado, recibirás un enlace en los próximos minutos.'
 }
@@ -314,26 +349,23 @@ class RecuperarContrasenaView(APIView):
         token_str        = serializer.validated_data['token']
         nueva_contrasena = serializer.validated_data['nueva_contrasena']
 
-        try:
-            token_obj = TokenRecuperacion.objects.select_related('usuario').get(token=token_str)
-        except TokenRecuperacion.DoesNotExist:
+        # Atómico: marca como usado solo si aún no lo estaba y no expiró
+        actualizados = TokenRecuperacion.objects.filter(
+            token=token_str,
+            usado=False,
+            expiracion__gt=timezone.now(),
+        ).update(usado=True)
+
+        if actualizados == 0:
             return Response(
                 {'detail': 'Token inválido o expirado.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        if not token_obj.esta_vigente():
-            return Response(
-                {'detail': 'Token inválido o expirado.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
+        token_obj = TokenRecuperacion.objects.select_related('usuario').get(token=token_str)
         usuario = token_obj.usuario
         usuario.set_password(nueva_contrasena)
         usuario.save()
-
-        token_obj.usado = True
-        token_obj.save()
 
         return Response(
             {'mensaje': 'Contraseña actualizada correctamente.'},
