@@ -1,12 +1,17 @@
+import re
 import secrets
 from datetime import timedelta
 
 from django.conf import settings
+from django.contrib.auth.hashers import make_password
 from django.core.mail import send_mail
+from django.core.validators import validate_email
+from django.core.exceptions import ValidationError
 from django.utils import timezone
 from decouple import config as env_config
 
 from rest_framework import generics, status
+from rest_framework.parsers import MultiPartParser
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 
 from apps.usuarios.permissions import EsAdministrador
@@ -17,7 +22,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.bitacora.models import BitacoraSistema
 from apps.bitacora.utils import registrar_evento
-from apps.usuarios.models import TokenRecuperacion, Usuario
+from apps.roles.models import Rol
+from apps.usuarios.models import TokenRecuperacion, Usuario, UsuarioRol
 from apps.usuarios.serializers import (
     CambiarContrasenaSerializer,
     OlvidarContrasenaSerializer,
@@ -372,5 +378,146 @@ class RecuperarContrasenaView(APIView):
 
         return Response(
             {'mensaje': 'Contraseña actualizada correctamente.'},
+            status=status.HTTP_200_OK,
+        )
+
+
+class CargaMasivaEstudiantesView(APIView):
+    """
+    POST /api/usuarios/carga-masiva/
+    Recibe un archivo .xlsx y crea usuarios con rol estudiante.
+    Columnas esperadas: codigo_estudiante, nombre, apellido, correo.
+    """
+    permission_classes = [EsAdministrador]
+    parser_classes     = [MultiPartParser]
+
+    def post(self, request):
+        archivo = request.FILES.get('archivo')
+        if archivo is None:
+            return Response(
+                {'detail': 'Debe adjuntar el archivo en el campo "archivo".'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        nombre_archivo = (archivo.name or '').lower()
+        if not nombre_archivo.endswith('.xlsx'):
+            return Response(
+                {'detail': 'El archivo debe ser formato .xlsx.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            from openpyxl import load_workbook
+            from openpyxl.utils.exceptions import InvalidFileException
+        except ImportError:
+            return Response(
+                {'detail': 'Dependencia openpyxl no instalada en el servidor.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        try:
+            wb = load_workbook(archivo, read_only=True, data_only=True)
+        except InvalidFileException:
+            return Response(
+                {'detail': 'El archivo .xlsx es inválido o está corrupto.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except Exception:
+            return Response(
+                {'detail': 'No fue posible leer el archivo .xlsx.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        ws = wb.active
+        filas = list(ws.iter_rows(values_only=True))
+
+        if len(filas) <= 1:
+            return Response(
+                {'detail': 'El archivo está vacío o no contiene filas de datos.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        rol_estudiante = Rol.objects.filter(nombre__iexact='Estudiante').first()
+
+        creados = 0
+        omitidos = 0
+        errores = []
+        correos_archivo = set()
+
+        for idx, fila in enumerate(filas[1:], start=2):
+            fila = list(fila) + [None] * (4 - len(fila)) if len(fila) < 4 else fila
+            codigo_estudiante, nombre, apellido, correo = fila[0], fila[1], fila[2], fila[3]
+
+            codigo_estudiante = str(codigo_estudiante).strip() if codigo_estudiante is not None else ''
+            nombre   = str(nombre).strip() if nombre is not None else ''
+            apellido = str(apellido).strip() if apellido is not None else ''
+            correo   = str(correo).strip().lower() if correo is not None else ''
+
+            if not any([codigo_estudiante, nombre, apellido, correo]):
+                continue
+
+            if not correo:
+                omitidos += 1
+                errores.append({'fila': idx, 'correo': correo, 'motivo': 'correo vacío'})
+                continue
+
+            try:
+                validate_email(correo)
+            except ValidationError:
+                omitidos += 1
+                errores.append({'fila': idx, 'correo': correo, 'motivo': 'correo con formato inválido'})
+                continue
+
+            if not nombre or not apellido:
+                omitidos += 1
+                errores.append({'fila': idx, 'correo': correo, 'motivo': 'nombre o apellido vacío'})
+                continue
+
+            if correo in correos_archivo:
+                omitidos += 1
+                errores.append({'fila': idx, 'correo': correo, 'motivo': 'correo duplicado en el archivo'})
+                continue
+
+            if Usuario.objects.filter(correo=correo).exists():
+                omitidos += 1
+                errores.append({'fila': idx, 'correo': correo, 'motivo': 'correo ya registrado'})
+                continue
+
+            correos_archivo.add(correo)
+
+            try:
+                usuario = Usuario.objects.create(
+                    codigo_estudiante=codigo_estudiante if codigo_estudiante else None,
+                    nombre=nombre,
+                    apellido=apellido,
+                    correo=correo,
+                    password=make_password(f'Abp{codigo_estudiante}'),
+                    tipo_rol=Usuario.TipoRol.ESTUDIANTE,
+                    estado=Usuario.Estado.ACTIVO,
+                    is_staff=False,
+                    is_superuser=False,
+                )
+            except Exception as exc:
+                omitidos += 1
+                errores.append({'fila': idx, 'correo': correo, 'motivo': f'error al crear: {exc}'})
+                continue
+
+            if rol_estudiante is not None:
+                UsuarioRol.objects.get_or_create(usuario=usuario, rol=rol_estudiante)
+
+            creados += 1
+
+        registrar_evento(
+            request=request,
+            accion=BitacoraSistema.Accion.CREATE,
+            modulo='usuarios',
+            descripcion=(
+                f'Carga masiva de estudiantes: creados={creados}, '
+                f'omitidos={omitidos}, archivo={archivo.name}'
+            ),
+        )
+
+        return Response(
+            {'creados': creados, 'omitidos': omitidos, 'errores': errores},
             status=status.HTTP_200_OK,
         )
