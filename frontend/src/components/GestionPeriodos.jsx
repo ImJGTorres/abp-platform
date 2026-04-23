@@ -219,6 +219,43 @@ function PeriodoForm({ periodo, onSave, onCancel }) {
   );
 }
 
+function ConfirmActivarModal({ isOpen, onClose, onConfirm }) {
+  if (!isOpen) return null;
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      style={{ backgroundColor: "rgba(0,0,0,0.45)" }}
+    >
+      <div className="bg-white rounded-xl w-full max-w-sm shadow-2xl p-6">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-10 h-10 rounded-full bg-yellow-50 flex items-center justify-center flex-shrink-0">
+            <AlertCircle size={20} className="text-yellow-600" />
+          </div>
+          <h3 className="text-base font-semibold text-gray-800">Activar Periodo</h3>
+        </div>
+        <p className="text-sm text-gray-500 mb-6 leading-relaxed">
+          Al activar este periodo, los demás quedarán como inactivos.
+        </p>
+        <div className="flex gap-3 justify-end">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={onConfirm}
+            className="px-4 py-2 text-sm font-medium text-white rounded-lg"
+            style={{ backgroundColor: "#c0392b" }}
+          >
+            Activar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function GestionPeriodos() {
   const [periodos,      setPeriodos]      = useState([]);
   const [loading,      setLoading]      = useState(true);
@@ -226,6 +263,7 @@ export default function GestionPeriodos() {
   const [editingPeriodo, setEditingPeriodo] = useState(null);
   const [deleteModal,   setDeleteModal]   = useState({ open: false, periodo: null });
   const [toast,         setToast]         = useState(null);
+  const [pendingSave,   setPendingSave]   = useState(null);
 
   useEffect(() => {
     loadPeriodos();
@@ -253,39 +291,43 @@ export default function GestionPeriodos() {
   const handleCreate = () => { setEditingPeriodo(null); setShowModal(true); };
   const handleEdit   = (p) => { setEditingPeriodo(p);   setShowModal(true); };
 
-   const handleSave = async (data) => {
-     try {
-       const payload = {
-         nombre: data.nombre,
-         fecha_inicio: data.fecha_inicio,
-         fecha_fin: data.fecha_fin,
-         estado: data.estado,
-       };
-       console.log('Enviando período:', payload);
+  const handleSave = (data) => {
+    if (data.estado === "activo") {
+      setPendingSave(data);
+    } else {
+      ejecutarSave(data);
+    }
+  };
 
-       if (data.id) {
-         await periodosApi.editar(data.id, payload);
-         setPeriodos((prev) => prev.map((p) => (p.id === data.id ? { ...p, ...data } : p)));
-         showToast("Periodo actualizado correctamente");
-       } else {
-         const nuevo = await periodosApi.crear(payload);
-         console.log('Período creado:', nuevo);
-         setPeriodos((prev) => [nuevo, ...prev]);
-         showToast("Periodo creado correctamente");
-       }
-       setShowModal(false);
-       setEditingPeriodo(null);
-     } catch (err) {
-       console.error('Error al guardar:', err);
-       const errData = err.data || {};
-       const msg = errData.detail
-         || (errData.nombre && typeof errData.nombre === 'object' && errData.nombre.nombre)
-         || (typeof errData.nombre === 'string' ? errData.nombre : null)
-         || JSON.stringify(errData)
-         || "Error al guardar período";
-       showToast(msg, "error");
-     }
-   };
+  const ejecutarSave = async (data) => {
+    try {
+      const payload = {
+        nombre: data.nombre,
+        fecha_inicio: data.fecha_inicio,
+        fecha_fin: data.fecha_fin,
+        estado: data.estado,
+      };
+
+      if (data.id) {
+        await periodosApi.editar(data.id, payload);
+        showToast("Periodo actualizado correctamente");
+      } else {
+        await periodosApi.crear(payload);
+        showToast("Periodo creado correctamente");
+      }
+      setShowModal(false);
+      setEditingPeriodo(null);
+      await loadPeriodos();
+    } catch (err) {
+      const errData = err.data || {};
+      const msg = errData.detail
+        || (errData.nombre && typeof errData.nombre === 'object' && errData.nombre.nombre)
+        || (typeof errData.nombre === 'string' ? errData.nombre : null)
+        || JSON.stringify(errData)
+        || "Error al guardar período";
+      showToast(msg, "error");
+    }
+  };
 
   const handleDelete = async () => {
     try {
@@ -502,6 +544,16 @@ export default function GestionPeriodos() {
         onClose={() => setDeleteModal({ open: false, periodo: null })}
         onConfirm={handleDelete}
         nombre={deleteModal.periodo?.nombre}
+      />
+
+      <ConfirmActivarModal
+        isOpen={!!pendingSave}
+        onClose={() => setPendingSave(null)}
+        onConfirm={() => {
+          const data = pendingSave;
+          setPendingSave(null);
+          ejecutarSave(data);
+        }}
       />
     </div>
   );

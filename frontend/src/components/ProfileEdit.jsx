@@ -503,10 +503,11 @@ export default function ProfileEdit() {
   const [fieldErrors, setFieldErrors] = useState({});
   const [phoneError, setPhoneError] = useState(false);
 
-  const [fotoUrl, setFotoUrl] = useState("");
-  const [showFotoInput, setShowFotoInput] = useState(false);
-  const [fotoInputValue, setFotoInputValue] = useState("");
-  const [savingFoto, setSavingFoto] = useState(false);
+  const [fotoUrl,      setFotoUrl]      = useState("");
+  const [fotoArchivo,  setFotoArchivo]  = useState(null);   // File object seleccionado
+  const [fotoPreview,  setFotoPreview]  = useState(null);   // URL de preview local
+  const [uploadingFoto, setUploadingFoto] = useState(false);
+  const fotoInputRef = useState(() => ({ current: null }))[0];
 
   const [toast, setToast] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -525,7 +526,6 @@ export default function ProfileEdit() {
         setInitialData(profile);
         setForm(profile);
         setFotoUrl(data.foto_perfil || "");
-        setFotoInputValue(data.foto_perfil || "");
       } catch (err) {
         console.error("Error al cargar perfil:", err);
         setLoadError(true);
@@ -585,27 +585,44 @@ export default function ProfileEdit() {
     setPhoneError(false);
   };
 
+  const handleSeleccionarFoto = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Liberar URL de preview anterior
+    if (fotoPreview) URL.revokeObjectURL(fotoPreview);
+
+    setFotoArchivo(file);
+    setFotoPreview(URL.createObjectURL(file));
+  };
+
   const handleSaveFoto = async () => {
-    setSavingFoto(true);
+    if (!fotoArchivo) return;
+    setUploadingFoto(true);
     try {
-      await usuariosApi.actualizarPerfil({ foto_perfil: fotoInputValue });
-      setFotoUrl(fotoInputValue);
-      setShowFotoInput(false);
-      // Sincronizar foto_perfil en localStorage para que header y sidebar la reflejen
+      const data = await usuariosApi.subirFotoPerfil(fotoArchivo);
+      const nuevaUrl = data.foto_perfil;
+      setFotoUrl(nuevaUrl);
+      setFotoArchivo(null);
+      if (fotoPreview) { URL.revokeObjectURL(fotoPreview); setFotoPreview(null); }
+
+      // Sincronizar en localStorage para header y sidebar
       const currentUser = session.getUser();
       if (currentUser) {
-        session.save(
-          session.getAccess(),
-          session.getRefresh(),
-          { ...currentUser, foto_perfil: fotoInputValue }
-        );
+        session.save(session.getAccess(), session.getRefresh(), { ...currentUser, foto_perfil: nuevaUrl });
         window.dispatchEvent(new Event('user-updated'));
       }
     } catch {
-      // mantener input abierto para reintento
+      // mantener preview para reintento
     } finally {
-      setSavingFoto(false);
+      setUploadingFoto(false);
     }
+  };
+
+  const handleCancelarFoto = () => {
+    if (fotoPreview) { URL.revokeObjectURL(fotoPreview); setFotoPreview(null); }
+    setFotoArchivo(null);
+    if (fotoInputRef.current) fotoInputRef.current.value = '';
   };
 
   const showToast = () => {
@@ -708,8 +725,17 @@ export default function ProfileEdit() {
               display: "flex", flexDirection: "column", alignItems: "center",
               paddingTop: 36, paddingBottom: 28, borderBottom: "1px solid #f0f0f0",
             }}>
+              {/* Input de archivo oculto */}
+              <input
+                ref={(el) => { fotoInputRef.current = el; }}
+                type="file"
+                accept="image/jpeg,image/png,image/gif,image/webp"
+                style={{ display: "none" }}
+                onChange={handleSeleccionarFoto}
+              />
+
               {/* Avatar */}
-              <div style={{ position: "relative", width: 90, height: 90, marginBottom: showFotoInput ? 8 : 14 }}>
+              <div style={{ position: "relative", width: 90, height: 90, marginBottom: (fotoArchivo) ? 8 : 14 }}>
                 <div style={{
                   width: 90, height: 90, borderRadius: "50%",
                   border: "3px solid white",
@@ -717,36 +743,37 @@ export default function ProfileEdit() {
                   overflow: "hidden", background: "#E8EDF2",
                   display: "flex", alignItems: "center", justifyContent: "center",
                 }}>
-                  {fotoUrl
-                    ? <img src={fotoUrl} alt="Foto de perfil" style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={() => setFotoUrl("")} />
+                  {(fotoPreview || fotoUrl)
+                    ? <img
+                        src={fotoPreview || fotoUrl}
+                        alt="Foto de perfil"
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                        onError={() => { setFotoUrl(""); setFotoPreview(null); }}
+                      />
                     : AVATAR_SVG
                   }
                 </div>
-                <div className="camera-btn" onClick={() => { setFotoInputValue(fotoUrl); setShowFotoInput((v) => !v); }}>
+                <div className="camera-btn" onClick={() => fotoInputRef.current?.click()}>
                   <CameraIcon />
                 </div>
               </div>
 
-              {/* Input de foto */}
-              {showFotoInput && (
-                <div style={{ display: "flex", gap: 6, marginBottom: 14, padding: "0 24px", width: "100%", maxWidth: 420 }}>
-                  <input
-                    value={fotoInputValue}
-                    onChange={(e) => setFotoInputValue(e.target.value)}
-                    placeholder="https://ejemplo.com/foto.jpg"
-                    className="field-input"
-                    style={{ flex: 1, padding: "7px 10px", fontSize: 13 }}
-                  />
+              {/* Controles de foto: solo visibles al seleccionar un archivo */}
+              {fotoArchivo && (
+                <div style={{ display: "flex", gap: 6, marginBottom: 14, alignItems: "center" }}>
+                  <span style={{ fontSize: 12, color: "#666", maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {fotoArchivo.name}
+                  </span>
                   <button
                     onClick={handleSaveFoto}
-                    disabled={savingFoto}
+                    disabled={uploadingFoto}
                     className="btn-primary"
                     style={{ padding: "7px 14px", fontSize: 13 }}
                   >
-                    {savingFoto ? "..." : "Guardar"}
+                    {uploadingFoto ? "Subiendo..." : "Guardar foto"}
                   </button>
                   <button
-                    onClick={() => setShowFotoInput(false)}
+                    onClick={handleCancelarFoto}
                     className="btn-secondary"
                     style={{ padding: "7px 10px", fontSize: 13 }}
                   >

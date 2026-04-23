@@ -4,11 +4,10 @@ from apps.usuarios.models import Usuario, TokenRecuperacion
 class UsuarioSerializer(serializers.ModelSerializer):
 
     contrasena = serializers.CharField(
-        write_only=True,   # nunca se devuelve en la respuesta
-        min_length=8,
-        error_messages={
-            'min_length': 'La contraseña debe tener al menos 8 caracteres.'
-        }
+        write_only=True,
+        required=False,
+        allow_blank=True,
+        default='',
     )
 
     class Meta:

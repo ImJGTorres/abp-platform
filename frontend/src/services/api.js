@@ -235,6 +235,23 @@ export const usuariosApi = {
     return data
   },
 
+  async listar() {
+    const response = await request('/api/usuarios/')
+    const data = await parseJSON(response)
+    if (!response.ok) throw { status: response.status, data }
+    return data
+  },
+
+  async cambiarRolUsuario(id, tipo_rol) {
+    const response = await request(`/api/usuarios/${id}/`, {
+      method: 'PATCH',
+      body: JSON.stringify({ tipo_rol }),
+    })
+    const data = await parseJSON(response)
+    if (!response.ok) throw { status: response.status, data }
+    return data
+  },
+
   async getPerfil() {
     const response = await request('/api/usuarios/perfil/')
 
@@ -247,9 +264,10 @@ export const usuariosApi = {
     return data
   },
 
-  async cargaMasiva(archivo) {
+  async cargaMasiva(archivo, rol) {
     const formData = new FormData()
     formData.append('archivo', archivo)
+    formData.append('rol', rol)
 
     const token = session.getAccess()
     const headers = {}
@@ -284,6 +302,30 @@ export const usuariosApi = {
     }
 
     return result
+  },
+
+  async subirFotoPerfil(archivo) {
+    const formData = new FormData()
+    formData.append('foto', archivo)
+
+    const token = session.getAccess()
+    const headers = {}
+    if (token) headers['Authorization'] = `Bearer ${token}`
+
+    let response
+    try {
+      response = await fetch(`${BASE_URL}/api/usuarios/foto-perfil/`, {
+        method: 'POST',
+        headers,
+        body: formData,
+      })
+    } catch {
+      throw { type: 'network', message: 'Sin conexión con el servidor' }
+    }
+
+    const data = await parseJSON(response)
+    if (!response.ok) throw { status: response.status, data }
+    return data
   },
 }
 

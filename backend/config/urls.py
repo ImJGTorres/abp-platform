@@ -14,10 +14,10 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+from django.conf import settings
+from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
-# SimpleJWT views importadas para endpoints de refresh y logout (BE-04, BE-05)
-# TokenRefreshView: Permite obtener nuevo access token usando refresh token
 from rest_framework_simplejwt.views import TokenRefreshView, TokenBlacklistView
 
 from apps.usuarios.views import CambiarContrasenaView, LoginView, OlvidarContrasenaView, RecuperarContrasenaView
@@ -53,4 +53,4 @@ urlpatterns = [
     # BE-07: Permisos agrupados por módulo (para formulario de asignación)
     path('api/permisos/', PermisosAgrupadosView.as_view(), name='permisos-agrupados'),
     path('api/bitacora/', include('apps.bitacora.urls')),  # Endpoint para consultar bitácora del sistema
-]
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
