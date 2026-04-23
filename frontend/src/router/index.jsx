@@ -13,6 +13,10 @@ import ProfileEdit from '../components/ProfileEdit'
 import OlvidarContrasena from '../components/OlvidarContrasena'
 import ResetContrasena from '../components/ResetContrasena'
 
+import DocenteLayout from '../components/docente/DocenteLayout'
+import GestionCursos from '../components/docente/GestionCursos'
+import DetalleCurso from '../components/docente/GestionCursos'
+
 
 // ── Paneles de otros roles (pendientes de implementar) ────────────────────────
 function PanelDocente() { return <div className="p-10">Docente</div> }
@@ -71,7 +75,11 @@ export default function AppRouter() {
 
         {/* DOCENTE */}
         <Route element={<PrivateRoute allowedRoles={['docente']} />}>
-          <Route path="/docente" element={<PanelDocente />} />
+          <Route element={<DocenteLayout />}>
+            <Route path="/docente" element={<Navigate to="/docente/cursos" replace />} />
+            <Route path="/docente/cursos" element={<GestionCursos />} />
+            <Route path="/docente/cursos/:id" element={<DetalleCurso />} />
+          </Route>
         </Route>
 
         {/* DIRECTOR */}

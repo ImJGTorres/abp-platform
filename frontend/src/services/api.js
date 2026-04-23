@@ -104,6 +104,7 @@ async function request(path, options = {}) {
 
   return response
 }
+export { request }
 
 // Auth y usuarios
 //   POST /api/auth/login/   → LoginView  (SimpleJWT personalizado) — obtiene access y refresh tokens
