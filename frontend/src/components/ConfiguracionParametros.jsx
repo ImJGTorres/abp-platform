@@ -50,7 +50,6 @@ function ParamRow({ label, paramKey, value, type, onChange, min = null }) {
     }}>
       <div>
         <div style={{ fontSize: 13, color: "#374151", fontWeight: 500 }}>{label}</div>
-        <div style={{ fontSize: 10, color: "#c0392b", fontFamily: "monospace", marginTop: 2 }}>{paramKey}</div>
       </div>
 
       <div>
