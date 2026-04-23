@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { NavLink, Outlet, useNavigate, Link } from 'react-router-dom'
-import { authApi, session } from '../services/api'
+import { authApi, session, buildMediaUrl } from '../services/api'
 
 // ── Íconos SVG inline ─────────────────────────────────────────────────────────
 
@@ -184,7 +184,7 @@ export default function AdminLayout() {
             >
               <div className="w-7 h-7 rounded-full bg-[#ffdad6] flex items-center justify-center flex-shrink-0 overflow-hidden">
                 {user.foto_perfil
-                  ? <img src={user.foto_perfil} alt="" className="w-full h-full object-cover" onError={e => { e.target.style.display = 'none' }} />
+                  ? <img src={buildMediaUrl(user.foto_perfil)} alt="" className="w-full h-full object-cover" onError={e => { e.target.style.display = 'none' }} />
                   : <span className="text-[11px] font-bold text-[#af101a]">{user.nombre?.[0]?.toUpperCase() ?? 'A'}</span>
                 }
               </div>
@@ -244,7 +244,7 @@ export default function AdminLayout() {
             <Link to="/perfil" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
               <div className="w-8 h-8 rounded-full bg-[#ffdad6] flex items-center justify-center overflow-hidden">
                 {user.foto_perfil
-                  ? <img src={user.foto_perfil} alt="" className="w-full h-full object-cover" onError={e => { e.target.style.display = 'none' }} />
+                  ? <img src={buildMediaUrl(user.foto_perfil)} alt="" className="w-full h-full object-cover" onError={e => { e.target.style.display = 'none' }} />
                   : <span className="text-[12px] font-bold text-[#af101a]">{user.nombre?.[0]?.toUpperCase() ?? 'A'}</span>
                 }
               </div>

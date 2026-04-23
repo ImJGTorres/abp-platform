@@ -636,9 +636,8 @@ class SubirFotoPerfilView(APIView):
                 f.write(chunk)
 
         url_relativa = f'{settings.MEDIA_URL}fotos_perfil/{nombre_archivo}'
-        url_completa = request.build_absolute_uri(url_relativa)
 
-        usuario.foto_perfil = url_completa
+        usuario.foto_perfil = url_relativa
         usuario.save(update_fields=['foto_perfil', 'fecha_actualizacion'])
 
         registrar_evento(
@@ -648,4 +647,4 @@ class SubirFotoPerfilView(APIView):
             descripcion=f'Foto de perfil actualizada: ID={usuario.id}, correo={usuario.correo}',
         )
 
-        return Response({'foto_perfil': url_completa}, status=status.HTTP_200_OK)
+        return Response({'foto_perfil': url_relativa}, status=status.HTTP_200_OK)
