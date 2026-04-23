@@ -17,8 +17,11 @@ Including another URLconf
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
-from django.urls import include, path
+from django.urls import include, path, re_path
+# SimpleJWT views importadas para endpoints de refresh y logout (BE-04, BE-05)
+# TokenRefreshView: Permite obtener nuevo access token usando refresh token
 from rest_framework_simplejwt.views import TokenRefreshView, TokenBlacklistView
+from django.views.generic import TemplateView
 
 from apps.usuarios.views import CambiarContrasenaView, LoginView, OlvidarContrasenaView, RecuperarContrasenaView
 from apps.roles.views import PermisosAgrupadosView
@@ -53,4 +56,8 @@ urlpatterns = [
     # BE-07: Permisos agrupados por módulo (para formulario de asignación)
     path('api/permisos/', PermisosAgrupadosView.as_view(), name='permisos-agrupados'),
     path('api/bitacora/', include('apps.bitacora.urls')),  # Endpoint para consultar bitácora del sistema
+
+    # SPA: Servir index.html para cualquier ruta que no sea API ni static
+    # Excluye /api/ y /static/ usando lookahead negativo en regex
+    re_path(r'^(?!api/|static/|django-admin/).*$', TemplateView.as_view(template_name='index.html'), name='frontend'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
