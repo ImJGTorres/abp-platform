@@ -14,6 +14,8 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+from django.conf import settings
+from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path, re_path
 # SimpleJWT views importadas para endpoints de refresh y logout (BE-04, BE-05)
@@ -58,4 +60,4 @@ urlpatterns = [
     # SPA: Servir index.html para cualquier ruta que no sea API ni static
     # Excluye /api/ y /static/ usando lookahead negativo en regex
     re_path(r'^(?!api/|static/|django-admin/).*$', TemplateView.as_view(template_name='index.html'), name='frontend'),
-]
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

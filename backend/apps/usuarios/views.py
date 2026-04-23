@@ -1,3 +1,5 @@
+import logging
+import os
 import re
 import secrets
 from datetime import timedelta
@@ -14,7 +16,9 @@ from rest_framework import generics, status
 from rest_framework.parsers import MultiPartParser
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 
+from apps.usuarios.authentication import UsuarioJWTAuthentication
 from apps.usuarios.permissions import EsAdministrador
+from apps.usuarios.utils import generar_contrasena, enviar_contrasena_bienvenida
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenBlacklistView
@@ -31,6 +35,8 @@ from apps.usuarios.serializers import (
     UsuarioSerializer,
     UsuarioUpdateSerializer,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class UsuarioProfileView(APIView):
@@ -195,19 +201,49 @@ class UsuarioUpdateView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class UsuarioCreateView(generics.CreateAPIView):
-    queryset         = Usuario.objects.all()
-    serializer_class = UsuarioSerializer
-    permission_classes = [EsAdministrador]
+class UsuarioCreateView(generics.ListCreateAPIView):
+    queryset             = Usuario.objects.all().order_by('-fecha_creacion')
+    serializer_class     = UsuarioSerializer
+    authentication_classes = [UsuarioJWTAuthentication]
+    permission_classes   = [EsAdministrador]
+
+    def get_serializer_class(self):
+        if self.request.method == 'GET':
+            return UsuarioSerializer
+        return UsuarioSerializer
 
     def perform_create(self, serializer):
-        usuario_creado = serializer.save()      # 1. guarda el usuario en BD
-        registrar_evento(                        # 2. registra en bitácora (ST-08)
-            request=self.request,               # ← saca la IP y el admin automáticamente
+        contrasena = generar_contrasena()
+        serializer.validated_data['contrasena'] = contrasena
+        usuario_creado = serializer.save()
+
+        email_enviado = True
+        try:
+            enviar_contrasena_bienvenida(usuario_creado.nombre, usuario_creado.correo, contrasena)
+        except Exception as exc:
+            logger.error('Error al enviar correo de bienvenida a %s: %s', usuario_creado.correo, exc)
+            email_enviado = False
+
+        registrar_evento(
+            request=self.request,
             accion=BitacoraSistema.Accion.CREATE,
             modulo='usuarios',
-            descripcion=f'Usuario creado: ID={usuario_creado.id}, correo={usuario_creado.correo}',
+            descripcion=(
+                f'Usuario creado: ID={usuario_creado.id}, correo={usuario_creado.correo}. '
+                f'Correo enviado: {email_enviado}'
+            ),
         )
+        self._email_enviado = email_enviado
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        data = serializer.data
+        data_out = dict(data)
+        data_out['email_enviado'] = getattr(self, '_email_enviado', True)
+        headers = self.get_success_headers(serializer.data)
+        return Response(data_out, status=status.HTTP_201_CREATED, headers=headers)
 
 
 class LogoutView(TokenBlacklistView):
@@ -382,20 +418,31 @@ class RecuperarContrasenaView(APIView):
         )
 
 
+ROLES_VALIDOS = ['administrador', 'director', 'docente', 'lider_equipo', 'estudiante']
+
+
 class CargaMasivaEstudiantesView(APIView):
     """
     POST /api/usuarios/carga-masiva/
-    Recibe un archivo .xlsx y crea usuarios con rol estudiante.
-    Columnas esperadas: codigo_estudiante, nombre, apellido, correo.
+    Recibe un archivo .xlsx y un campo 'rol', crea usuarios con ese rol.
+    Columnas esperadas: nombre, apellido, correo (y opcionalmente codigo_estudiante).
     """
-    permission_classes = [EsAdministrador]
-    parser_classes     = [MultiPartParser]
+    authentication_classes = [UsuarioJWTAuthentication]
+    permission_classes     = [EsAdministrador]
+    parser_classes         = [MultiPartParser]
 
     def post(self, request):
         archivo = request.FILES.get('archivo')
         if archivo is None:
             return Response(
                 {'detail': 'Debe adjuntar el archivo en el campo "archivo".'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        rol = request.data.get('rol', '').strip()
+        if rol not in ROLES_VALIDOS:
+            return Response(
+                {'detail': f'Rol inválido. Opciones: {ROLES_VALIDOS}'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -437,7 +484,7 @@ class CargaMasivaEstudiantesView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        rol_estudiante = Rol.objects.filter(nombre__iexact='Estudiante').first()
+        rol_obj = Rol.objects.filter(nombre__iexact=rol).first()
 
         creados = 0
         omitidos = 0
@@ -484,6 +531,7 @@ class CargaMasivaEstudiantesView(APIView):
                 continue
 
             correos_archivo.add(correo)
+            contrasena = generar_contrasena()
 
             try:
                 usuario = Usuario.objects.create(
@@ -491,8 +539,8 @@ class CargaMasivaEstudiantesView(APIView):
                     nombre=nombre,
                     apellido=apellido,
                     correo=correo,
-                    password=make_password(f'Abp{codigo_estudiante}'),
-                    tipo_rol=Usuario.TipoRol.ESTUDIANTE,
+                    password=make_password(contrasena),
+                    tipo_rol=rol,
                     estado=Usuario.Estado.ACTIVO,
                     is_staff=False,
                     is_superuser=False,
@@ -502,8 +550,14 @@ class CargaMasivaEstudiantesView(APIView):
                 errores.append({'fila': idx, 'correo': correo, 'motivo': f'error al crear: {exc}'})
                 continue
 
-            if rol_estudiante is not None:
-                UsuarioRol.objects.get_or_create(usuario=usuario, rol=rol_estudiante)
+            if rol_obj is not None:
+                UsuarioRol.objects.get_or_create(usuario=usuario, rol=rol_obj)
+
+            try:
+                enviar_contrasena_bienvenida(nombre, correo, contrasena)
+            except Exception as exc:
+                logger.error('Error al enviar correo a %s: %s', correo, exc)
+                errores.append({'fila': idx, 'correo': correo, 'motivo': f'usuario creado, pero fallo el correo: {exc}'})
 
             creados += 1
 
@@ -512,7 +566,7 @@ class CargaMasivaEstudiantesView(APIView):
             accion=BitacoraSistema.Accion.CREATE,
             modulo='usuarios',
             descripcion=(
-                f'Carga masiva de estudiantes: creados={creados}, '
+                f'Carga masiva ({rol}): creados={creados}, '
                 f'omitidos={omitidos}, archivo={archivo.name}'
             ),
         )
@@ -521,3 +575,77 @@ class CargaMasivaEstudiantesView(APIView):
             {'creados': creados, 'omitidos': omitidos, 'errores': errores},
             status=status.HTTP_200_OK,
         )
+
+
+class SubirFotoPerfilView(APIView):
+    """
+    POST /api/usuarios/foto-perfil/
+    Sube una imagen desde el dispositivo y la guarda como foto de perfil.
+    Campo del form: 'foto' (archivo de imagen).
+    """
+    authentication_classes = [UsuarioJWTAuthentication]
+    permission_classes     = [IsAuthenticated]
+    parser_classes         = [MultiPartParser]
+
+    TIPOS_PERMITIDOS = {'image/jpeg', 'image/png', 'image/gif', 'image/webp'}
+    TAMANO_MAX       = 5 * 1024 * 1024  # 5 MB
+
+    def post(self, request):
+        archivo = request.FILES.get('foto')
+        if not archivo:
+            return Response(
+                {'detail': 'No se recibió ningún archivo. Usa el campo "foto".'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if archivo.content_type not in self.TIPOS_PERMITIDOS:
+            return Response(
+                {'detail': 'Solo se permiten imágenes JPG, PNG, GIF o WebP.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if archivo.size > self.TAMANO_MAX:
+            return Response(
+                {'detail': 'La imagen no puede superar 5 MB.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        usuario = request.user
+        ext = (archivo.name or 'foto').rsplit('.', 1)[-1].lower()
+        if ext not in ('jpg', 'jpeg', 'png', 'gif', 'webp'):
+            ext = 'jpg'
+        nombre_archivo = f'{usuario.id}_{int(timezone.now().timestamp())}.{ext}'
+
+        carpeta = os.path.join(settings.MEDIA_ROOT, 'fotos_perfil')
+        os.makedirs(carpeta, exist_ok=True)
+        ruta_disco = os.path.join(carpeta, nombre_archivo)
+
+        # Eliminar foto anterior si es un archivo local
+        foto_anterior = usuario.foto_perfil or ''
+        if 'fotos_perfil' in foto_anterior:
+            nombre_anterior = foto_anterior.rsplit('fotos_perfil/', 1)[-1].split('?')[0]
+            ruta_anterior = os.path.join(carpeta, nombre_anterior)
+            if os.path.isfile(ruta_anterior):
+                try:
+                    os.remove(ruta_anterior)
+                except OSError:
+                    pass
+
+        with open(ruta_disco, 'wb') as f:
+            for chunk in archivo.chunks():
+                f.write(chunk)
+
+        url_relativa = f'{settings.MEDIA_URL}fotos_perfil/{nombre_archivo}'
+        url_completa = request.build_absolute_uri(url_relativa)
+
+        usuario.foto_perfil = url_completa
+        usuario.save(update_fields=['foto_perfil', 'fecha_actualizacion'])
+
+        registrar_evento(
+            request=request,
+            accion=BitacoraSistema.Accion.UPDATE,
+            modulo='usuarios',
+            descripcion=f'Foto de perfil actualizada: ID={usuario.id}, correo={usuario.correo}',
+        )
+
+        return Response({'foto_perfil': url_completa}, status=status.HTTP_200_OK)
