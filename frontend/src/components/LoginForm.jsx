@@ -287,21 +287,6 @@ export default function LoginForm() {
                         </form>
                     </div>
                 </div>
-
-                {/* Footer */}
-                <div className="flex flex-col items-center gap-3 pb-4">
-                    <p className="text-[11px] text-[#5b403d] text-center leading-relaxed">
-                        © 2026 Academic Management System.
-                    </p>
-                    <div className="flex gap-5">
-                        {['Privacidad', 'Términos', 'Soporte'].map(link => (
-                            <button key={link} type="button"
-                                className="text-[11px] text-[#5b403d] hover:underline">
-                                {link}
-                            </button>
-                        ))}
-                    </div>
-                </div>
             </div>
         </div>
     )

@@ -3,7 +3,7 @@ import { bitacoraApi } from '../services/api'
 import { Search, ShieldAlert, Trash2, Shield, LogIn, LogOut, Eye, Plus, RefreshCw } from 'lucide-react'
 
 const MODULOS = ['Usuarios', 'Autenticacion', 'Configuracion', 'Periodos', 'Cursos', 'Roles']
-const ACCIONES = ['CREATE', 'UPDATE', 'DELETE', 'LOGIN', 'LOGOUT', 'ACCESS_DENIED', 'ACCESS']
+const ACCIONES = ['CREATE', 'UPDATE', 'DELETE', 'LOGIN', 'ACCESS_DENIED', 'ACCESS']
 const PAGE_SIZE = 50
 
 const ACCION_CONFIG = {
