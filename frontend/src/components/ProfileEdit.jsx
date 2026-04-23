@@ -504,9 +504,10 @@ export default function ProfileEdit() {
   const [phoneError, setPhoneError] = useState(false);
 
   const [fotoUrl,      setFotoUrl]      = useState("");
-  const [fotoArchivo,  setFotoArchivo]  = useState(null);   // File object seleccionado
-  const [fotoPreview,  setFotoPreview]  = useState(null);   // URL de preview local
+  const [fotoArchivo,  setFotoArchivo]  = useState(null);
+  const [fotoPreview,  setFotoPreview]  = useState(null);
   const [uploadingFoto, setUploadingFoto] = useState(false);
+  const [fotoError,    setFotoError]    = useState(null);
   const fotoInputRef = useState(() => ({ current: null }))[0];
 
   const [toast, setToast] = useState(false);
@@ -599,6 +600,7 @@ export default function ProfileEdit() {
   const handleSaveFoto = async () => {
     if (!fotoArchivo) return;
     setUploadingFoto(true);
+    setFotoError(null);
     try {
       const data = await usuariosApi.subirFotoPerfil(fotoArchivo);
       const nuevaUrl = data.foto_perfil;
@@ -606,14 +608,15 @@ export default function ProfileEdit() {
       setFotoArchivo(null);
       if (fotoPreview) { URL.revokeObjectURL(fotoPreview); setFotoPreview(null); }
 
-      // Sincronizar en localStorage para header y sidebar
       const currentUser = session.getUser();
       if (currentUser) {
         session.save(session.getAccess(), session.getRefresh(), { ...currentUser, foto_perfil: nuevaUrl });
         window.dispatchEvent(new Event('user-updated'));
       }
-    } catch {
-      // mantener preview para reintento
+    } catch (err) {
+      console.error('Error al subir foto:', err);
+      const msg = err?.data?.detail || err?.message || 'Error al subir la foto. Intenta de nuevo.';
+      setFotoError(msg);
     } finally {
       setUploadingFoto(false);
     }
@@ -760,25 +763,30 @@ export default function ProfileEdit() {
 
               {/* Controles de foto: solo visibles al seleccionar un archivo */}
               {fotoArchivo && (
-                <div style={{ display: "flex", gap: 6, marginBottom: 14, alignItems: "center" }}>
-                  <span style={{ fontSize: 12, color: "#666", maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {fotoArchivo.name}
-                  </span>
-                  <button
-                    onClick={handleSaveFoto}
-                    disabled={uploadingFoto}
-                    className="btn-primary"
-                    style={{ padding: "7px 14px", fontSize: 13 }}
-                  >
-                    {uploadingFoto ? "Subiendo..." : "Guardar foto"}
-                  </button>
-                  <button
-                    onClick={handleCancelarFoto}
-                    className="btn-secondary"
-                    style={{ padding: "7px 10px", fontSize: 13 }}
-                  >
-                    Cancelar
-                  </button>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 14, alignItems: "center" }}>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    <span style={{ fontSize: 12, color: "#666", maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {fotoArchivo.name}
+                    </span>
+                    <button
+                      onClick={handleSaveFoto}
+                      disabled={uploadingFoto}
+                      className="btn-primary"
+                      style={{ padding: "7px 14px", fontSize: 13 }}
+                    >
+                      {uploadingFoto ? "Subiendo..." : "Guardar foto"}
+                    </button>
+                    <button
+                      onClick={handleCancelarFoto}
+                      className="btn-secondary"
+                      style={{ padding: "7px 10px", fontSize: 13 }}
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                  {fotoError && (
+                    <span style={{ fontSize: 12, color: "#c0392b" }}>{fotoError}</span>
+                  )}
                 </div>
               )}
 
