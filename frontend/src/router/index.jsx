@@ -4,6 +4,7 @@ import AdminLayout from '../components/AdminLayout'
 import AdminPlaceholder from '../components/AdminPlaceholder'
 import LoginForm from '../components/LoginForm'
 import RegistroUsuarioForm from '../components/RegistroUsuarioForm'
+import CargaMasivaEstudiantes from '../components/CargaMasivaEstudiantes'
 import ConfiguracionParametros from '../components/ConfiguracionParametros'
 import GestionPeriodos from '../components/GestionPeriodos'
 import GestionRoles from '../components/GestionRoles'
@@ -32,8 +33,9 @@ function Pagina({ children }) {
 function PaginaRegistro() {
   return (
     <Pagina>
-      <div className="flex items-start justify-center pt-4">
+      <div className="flex flex-col items-center gap-6 pt-4">
         <RegistroUsuarioForm />
+        <CargaMasivaEstudiantes />
       </div>
     </Pagina>
   )

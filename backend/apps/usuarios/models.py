@@ -43,6 +43,7 @@ class Usuario(AbstractBaseUser):
     # Nota: ya no se declara 'contrasena_hash' aquí.
     # AbstractBaseUser agrega automáticamente el campo 'password' a la tabla,
     # que cumple exactamente esa función. La migración 0003 renombró la columna.
+    codigo_estudiante   = models.CharField(max_length=20, blank=True, null=True)
     nombre              = models.CharField(max_length=100)
     apellido            = models.CharField(max_length=100)
     correo              = models.EmailField(max_length=150, unique=True)

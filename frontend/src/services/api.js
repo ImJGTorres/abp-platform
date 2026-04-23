@@ -245,6 +245,30 @@ export const usuariosApi = {
     return data
   },
 
+  async cargaMasiva(archivo) {
+    const formData = new FormData()
+    formData.append('archivo', archivo)
+
+    const token = session.getAccess()
+    const headers = {}
+    if (token) headers['Authorization'] = `Bearer ${token}`
+
+    let response
+    try {
+      response = await fetch(`${BASE_URL}/api/usuarios/carga-masiva/`, {
+        method: 'POST',
+        headers,
+        body: formData,
+      })
+    } catch {
+      throw { type: 'network', message: 'Sin conexión con el servidor' }
+    }
+
+    const data = await parseJSON(response)
+    if (!response.ok) throw { status: response.status, data }
+    return data
+  },
+
   async actualizarPerfil(data) {
     const response = await request('/api/usuarios/perfil/', {
       method: 'PATCH',
