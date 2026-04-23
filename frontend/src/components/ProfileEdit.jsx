@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { usuariosApi, session, rutaPorRol, authApi } from "../services/api";
+import { usuariosApi, session, rutaPorRol, authApi, buildMediaUrl } from "../services/api";
 
 // ─── SVG Assets ────────────────────────────────────────────────────────────────
 
@@ -745,7 +745,7 @@ export default function ProfileEdit() {
                 }}>
                   {(fotoPreview || fotoUrl)
                     ? <img
-                        src={fotoPreview || fotoUrl}
+                        src={fotoPreview || buildMediaUrl(fotoUrl)}
                         alt="Foto de perfil"
                         style={{ width: "100%", height: "100%", objectFit: "cover" }}
                         onError={() => { setFotoUrl(""); setFotoPreview(null); }}

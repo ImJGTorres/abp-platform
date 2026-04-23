@@ -506,6 +506,20 @@ export const bitacoraApi = {
 }
 
 // Helpers
+export function buildMediaUrl(url) {
+  if (!url) return null
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    try {
+      const parsed = new URL(url)
+      if (parsed.pathname.startsWith('/media/')) {
+        return `${BASE_URL}${parsed.pathname}`
+      }
+    } catch { /* external URL, keep as-is */ }
+    return url
+  }
+  return `${BASE_URL}${url}`
+}
+
 export function rutaPorRol(tipo_rol) {
   const rutas = {
     administrador: '/admin',
