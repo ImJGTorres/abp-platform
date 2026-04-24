@@ -91,3 +91,35 @@ export const cursosApi = {
     },
 
 }
+
+// ─── Equipos ──────────────────────────────────────────────────────────────────
+// GET /api/proyectos/:proyectoId/equipos/
+// GET /api/equipos/:equipoId/estudiantes/
+// POST /api/equipos/:equipoId/asignar/
+export const equiposApi = {
+
+    async obtenerPorProyecto(proyectoId) {
+        const response = await request(`/api/proyectos/${proyectoId}/equipos/`)
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+
+    async obtenerEstudiantes(equipoId) {
+        const response = await request(`/api/equipos/${equipoId}/estudiantes/`)
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+
+    async asignarEstudiantes(equipoId, usuarios) {
+        const response = await request(`/api/equipos/${equipoId}/asignar/`, {
+            method: 'POST',
+            body: JSON.stringify({ usuarios }),
+        })
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+
+}

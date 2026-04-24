@@ -77,3 +77,70 @@ class MiembroEquipoSerializer(serializers.ModelSerializer):
             )
 
         return data
+
+
+# ── Serializers de lectura (vistas de gestión y asignación) ──────────────────
+
+class MiembroDetalleSerializer(serializers.ModelSerializer):
+    nombre_completo = serializers.SerializerMethodField()
+    iniciales       = serializers.SerializerMethodField()
+
+    class Meta:
+        model  = MiembroEquipo
+        fields = ['id', 'usuario_id', 'nombre_completo', 'iniciales', 'rol_interno', 'estado']
+
+    def get_nombre_completo(self, obj):
+        return f"{obj.usuario.nombre} {obj.usuario.apellido}".strip()
+
+    def get_iniciales(self, obj):
+        n = obj.usuario.nombre[:1].upper()   if obj.usuario.nombre   else ''
+        a = obj.usuario.apellido[:1].upper() if obj.usuario.apellido else ''
+        return n + a
+
+
+class EquipoDetalleSerializer(serializers.ModelSerializer):
+    miembros             = serializers.SerializerMethodField()
+    cantidad_miembros    = serializers.SerializerMethodField()
+    lider                = serializers.SerializerMethodField()
+    cantidad_entregables = serializers.SerializerMethodField()
+
+    class Meta:
+        model  = Equipo
+        fields = [
+            'id', 'nombre', 'descripcion', 'estado', 'cupo_maximo',
+            'miembros', 'cantidad_miembros', 'lider', 'cantidad_entregables',
+        ]
+
+    def get_miembros(self, obj):
+        activos = obj.miembros.filter(estado='activo').select_related('usuario')
+        return MiembroDetalleSerializer(activos, many=True).data
+
+    def get_cantidad_miembros(self, obj):
+        return obj.miembros.filter(estado='activo').count()
+
+    def get_lider(self, obj):
+        lider = obj.miembros.filter(
+            rol_interno='lider', estado='activo'
+        ).select_related('usuario').first()
+        if not lider:
+            return None
+        return {
+            'id':     lider.usuario.id,
+            'nombre': f"{lider.usuario.nombre} {lider.usuario.apellido}".strip(),
+        }
+
+    def get_cantidad_entregables(self, obj):
+        return 0  # placeholder hasta que se implemente el modelo Entregable
+
+
+class EstudianteDisponibleSerializer(serializers.Serializer):
+    id       = serializers.IntegerField()
+    nombre   = serializers.CharField()
+    apellido = serializers.CharField()
+    correo   = serializers.EmailField()
+    iniciales = serializers.SerializerMethodField()
+
+    def get_iniciales(self, obj):
+        n = obj.nombre[:1].upper()   if obj.nombre   else ''
+        a = obj.apellido[:1].upper() if obj.apellido else ''
+        return n + a
