@@ -16,7 +16,9 @@ import ResetContrasena from '../components/ResetContrasena'
 
 import DocenteLayout from '../components/docente/DocenteLayout'
 import GestionCursos from '../components/docente/GestionCursos'
-import DetalleCurso from '../components/docente/GestionCursos'
+import DetalleCurso from '../components/docente/DetalleCurso'
+import GestionEquipos from '../components/docente/GestionEquipos'
+import AsignarEstudiantes from '../components/docente/AsignarEstudiantes'
 
 
 // ── Paneles de otros roles (pendientes de implementar) ────────────────────────
@@ -83,6 +85,8 @@ export default function AppRouter() {
             <Route path="/docente" element={<Navigate to="/docente/cursos" replace />} />
             <Route path="/docente/cursos" element={<GestionCursos />} />
             <Route path="/docente/cursos/:id" element={<DetalleCurso />} />
+            <Route path="/docente/proyectos/:proyectoId/equipos" element={<GestionEquipos />} />
+            <Route path="/docente/equipos/:equipoId/asignar" element={<AsignarEstudiantes />} />
           </Route>
         </Route>
 
