@@ -51,6 +51,15 @@ function IconFileText() {
   )
 }
 
+function IconBook() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" className="w-5 h-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2 3h6a2 2 0 012 2v11a2 2 0 00-2 2H2z" />
+      <path d="M18 3h-6a2 2 0 00-2 2v11a2 2 0 012 2h6z" />
+    </svg>
+  )
+}
+
 function IconLogout() {
   return (
     <svg viewBox="0 0 20 20" fill="none" className="w-5 h-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
@@ -90,6 +99,7 @@ function IconProfile() {
 
 const NAV_ITEMS = [
   { label: 'Usuarios', to: '/admin/registro', icon: <IconUsers /> },
+  { label: 'Cursos', to: '/admin/cursos', icon: <IconBook /> },
   { label: 'Configuración', to: '/admin/configuracion', icon: <IconSettings /> },
   { label: 'Períodos', to: '/admin/periodos', icon: <IconCalendar /> },
   { label: 'Bitácoras', to: '/admin/bitacoras', icon: <IconFileText /> },

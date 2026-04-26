@@ -1,14 +1,17 @@
 from rest_framework import serializers
 
 from apps.configuracion.models import PeriodoAcademico
+from apps.usuarios.models import Usuario
 from .models import Curso, Proyecto
 
 
 class CursoSerializer(serializers.ModelSerializer):
+    """Serializer de lectura para cursos (docente y admin)."""
     docente_nombre = serializers.SerializerMethodField()
     periodo_nombre = serializers.SerializerMethodField()
     total_proyectos = serializers.SerializerMethodField()
     total_equipos = serializers.SerializerMethodField()
+    cantidad_estudiantes_actual = serializers.SerializerMethodField()
 
     class Meta:
         model = Curso
@@ -22,20 +25,14 @@ class CursoSerializer(serializers.ModelSerializer):
             'id_periodo_academico',
             'periodo_nombre',
             'estado',
+            'cantidad_max_estudiantes',
+            'cantidad_estudiantes_actual',
             'total_proyectos',
             'total_equipos',
             'fecha_creacion',
             'fecha_actualizacion',
         ]
-        read_only_fields = [
-            'id',
-            'id_docente',
-            'estado',
-            'total_proyectos',
-            'total_equipos',
-            'fecha_creacion',
-            'fecha_actualizacion',
-        ]
+        read_only_fields = fields
 
     def get_docente_nombre(self, obj):
         d = obj.id_docente
@@ -45,45 +42,82 @@ class CursoSerializer(serializers.ModelSerializer):
         return obj.id_periodo_academico.nombre
 
     def get_total_proyectos(self, obj):
-        try:
-            _ = obj.proyecto
-            return 1
-        except Exception:
-            return 0
+        return obj.proyectos.count()
 
     def get_total_equipos(self, obj):
-        try:
-            # len() usa el prefetch cache; .count() emitiría una query extra
-            return len(obj.proyecto.equipos.all())
-        except Exception:
-            return 0
+        from apps.equipos.models import Equipo
+        return Equipo.objects.filter(proyecto__id_curso=obj).count()
+
+    def get_cantidad_estudiantes_actual(self, obj):
+        from apps.equipos.models import MiembroEquipo
+        return MiembroEquipo.objects.filter(
+            equipo__proyecto__id_curso=obj,
+            estado='activo',
+        ).count()
+
+
+class CursoAdminCreateSerializer(serializers.ModelSerializer):
+    """Serializer de escritura para que el admin cree un curso."""
+    id_periodo_academico = serializers.PrimaryKeyRelatedField(
+        queryset=PeriodoAcademico.objects.all(),
+    )
+    id_docente = serializers.PrimaryKeyRelatedField(
+        queryset=Usuario.objects.filter(tipo_rol='docente'),
+    )
+
+    class Meta:
+        model = Curso
+        fields = [
+            'nombre',
+            'codigo',
+            'descripcion',
+            'id_periodo_academico',
+            'id_docente',
+            'cantidad_max_estudiantes',
+        ]
 
     def validate_id_periodo_academico(self, periodo):
         if periodo.estado != PeriodoAcademico.Estado.ACTIVO:
-            raise serializers.ValidationError(
-                'El período académico debe estar activo.'
-            )
+            raise serializers.ValidationError('El período académico debe estar activo.')
         return periodo
 
-    def validate(self, attrs):
-        attrs = super().validate(attrs)
-        request = self.context.get('request')
-        if self.instance is not None and request is not None:
-            if self.instance.id_docente_id != request.user.pk:
-                raise serializers.ValidationError(
-                    'Solo el docente propietario puede modificar este curso.'
-                )
-        return attrs
-
     def create(self, validated_data):
-        request = self.context['request']
-        validated_data['id_docente'] = request.user
-        validated_data['usuario_creo'] = request.user
+        validated_data['usuario_creo'] = self.context['request'].user
         return super().create(validated_data)
+
+    def to_representation(self, instance):
+        return CursoSerializer(instance, context=self.context).data
+
+
+class CursoAdminUpdateSerializer(serializers.ModelSerializer):
+    """Serializer de escritura para que el admin edite cualquier campo del curso."""
+    id_periodo_academico = serializers.PrimaryKeyRelatedField(
+        queryset=PeriodoAcademico.objects.all(),
+        required=False,
+    )
+    id_docente = serializers.PrimaryKeyRelatedField(
+        queryset=Usuario.objects.filter(tipo_rol='docente'),
+        required=False,
+    )
+
+    class Meta:
+        model = Curso
+        fields = [
+            'nombre',
+            'codigo',
+            'descripcion',
+            'estado',
+            'id_periodo_academico',
+            'id_docente',
+            'cantidad_max_estudiantes',
+        ]
+
+    def to_representation(self, instance):
+        return CursoSerializer(instance, context=self.context).data
 
 
 class CursoUpdateSerializer(serializers.ModelSerializer):
-    """Serializer de escritura para PUT/PATCH: solo nombre, descripcion y estado."""
+    """Serializer de escritura para que el docente edite su propio curso."""
 
     class Meta:
         model = Curso
@@ -94,6 +128,8 @@ class CursoUpdateSerializer(serializers.ModelSerializer):
 
 
 class ProyectoSerializer(serializers.ModelSerializer):
+    fecha_fin = serializers.DateField(source='fecha_fin_estimada')
+    cantidad_equipos = serializers.SerializerMethodField()
 
     class Meta:
         model = Proyecto
@@ -104,41 +140,21 @@ class ProyectoSerializer(serializers.ModelSerializer):
             'descripcion',
             'estado',
             'fecha_inicio',
-            'fecha_fin_estimada',
+            'fecha_fin',
+            'cantidad_equipos',
             'fecha_creacion',
         ]
-        read_only_fields = ['fecha_creacion']
+        read_only_fields = ['id', 'id_curso', 'fecha_creacion']
+
+    def get_cantidad_equipos(self, obj):
+        return obj.equipos.count()
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
-
         fecha_inicio = attrs.get('fecha_inicio')
         fecha_fin_estimada = attrs.get('fecha_fin_estimada')
         if fecha_inicio and fecha_fin_estimada and fecha_fin_estimada < fecha_inicio:
             raise serializers.ValidationError(
-                {'fecha_fin_estimada': 'La fecha fin estimada no puede ser anterior a la fecha de inicio.'}
+                {'fecha_fin': 'La fecha de fin debe ser posterior a la fecha de inicio.'}
             )
-
         return attrs
-
-    def validate_id_curso(self, curso):
-        request = self.context.get('request')
-        if request is None:
-            return curso
-
-        usuario = getattr(request, 'user', None)
-        if usuario is None or not usuario.is_authenticated:
-            raise serializers.ValidationError('Se requiere autenticación.')
-
-        if curso.id_docente_id != usuario.pk:
-            raise serializers.ValidationError(
-                'Solo el docente propietario del curso puede crear un proyecto en él.'
-            )
-
-        # Un curso solo puede tener un proyecto (OneToOne); verificar en creación
-        if self.instance is None and hasattr(curso, 'proyecto'):
-            raise serializers.ValidationError(
-                'Este curso ya tiene un proyecto asignado.'
-            )
-
-        return curso

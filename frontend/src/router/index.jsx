@@ -6,6 +6,7 @@ import LoginForm from '../components/LoginForm'
 import RegistroUsuarioForm from '../components/RegistroUsuarioForm'
 import CargaMasivaEstudiantes from '../components/CargaMasivaEstudiantes'
 import GestionUsuarios from '../components/GestionUsuarios'
+import GestionCursosAdmin from '../components/GestionCursosAdmin'
 import ConfiguracionParametros from '../components/ConfiguracionParametros'
 import GestionPeriodos from '../components/GestionPeriodos'
 import GestionRoles from '../components/GestionRoles'
@@ -20,18 +21,13 @@ import DetalleCurso from '../components/docente/DetalleCurso'
 import GestionEquipos from '../components/docente/GestionEquipos'
 import AsignarEstudiantes from '../components/docente/AsignarEstudiantes'
 
-
-// ── Paneles de otros roles (pendientes de implementar) ────────────────────────
-function PanelDocente() { return <div className="p-10">Docente</div> }
 function PanelDirector() { return <div className="p-10">Director</div> }
 function PanelEstudiante() { return <div className="p-10">Estudiante</div> }
 function PanelLider() { return <div className="p-10">Líder</div> }
 
-// ── Wrapper para páginas que necesitan padding + scroll propio ────────────────
-// GestionRoles NO usa este wrapper: gestiona su propio layout full-height.
 function Pagina({ children }) {
   return (
-    <div className="flex-1 overflow-y-auto p-6">
+    <div className="flex-1 overflow-y-auto p-4 sm:p-6">
       {children}
     </div>
   )
@@ -40,9 +36,9 @@ function Pagina({ children }) {
 function PaginaRegistro() {
   return (
     <Pagina>
-      <div className="flex flex-col gap-6 pt-4">
+      <div className="flex flex-col gap-6 pt-2">
         <GestionUsuarios />
-        <div className="flex flex-col items-center gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <RegistroUsuarioForm />
           <CargaMasivaEstudiantes />
         </div>
@@ -51,7 +47,6 @@ function PaginaRegistro() {
   )
 }
 
-// ── Router ────────────────────────────────────────────────────────────────────
 export default function AppRouter() {
   return (
     <BrowserRouter>
@@ -62,7 +57,7 @@ export default function AppRouter() {
         <Route path="/olvidar-contrasena" element={<OlvidarContrasena />} />
         <Route path="/recuperar-contrasena" element={<ResetContrasena />} />
 
-        {/* PERFIL — cualquier usuario autenticado, sin restricción de rol */}
+        {/* PERFIL */}
         <Route element={<PrivateRoute />}>
           <Route path="/perfil" element={<ProfileEdit />} />
         </Route>
@@ -72,6 +67,7 @@ export default function AppRouter() {
           <Route element={<AdminLayout />}>
             <Route path="/admin" element={<AdminPlaceholder />} />
             <Route path="/admin/registro" element={<PaginaRegistro />} />
+            <Route path="/admin/cursos" element={<Pagina><GestionCursosAdmin /></Pagina>} />
             <Route path="/admin/configuracion" element={<Pagina><ConfiguracionParametros /></Pagina>} />
             <Route path="/admin/periodos" element={<Pagina><GestionPeriodos /></Pagina>} />
             <Route path="/admin/bitacoras" element={<Pagina><BitacorasAuditoria /></Pagina>} />
