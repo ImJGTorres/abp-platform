@@ -3,9 +3,9 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { cursosApi } from '../../services/docenteApi'
 
 const ESTADO_PROYECTO = {
-    planificado:  { label: 'Planificado',  bg: 'bg-[#e3f2fd]', text: 'text-[#1565c0]', dot: 'bg-[#1565c0]' },
+    planificado: { label: 'Planificado', bg: 'bg-[#e3f2fd]', text: 'text-[#1565c0]', dot: 'bg-[#1565c0]' },
     en_ejecucion: { label: 'En ejecución', bg: 'bg-[#e8f5e9]', text: 'text-[#2e7d32]', dot: 'bg-[#2e7d32]' },
-    finalizado:   { label: 'Finalizado',   bg: 'bg-[#f0f2f3]', text: 'text-[#9ba7ae]', dot: 'bg-[#9ba7ae]' },
+    finalizado: { label: 'Finalizado', bg: 'bg-[#f0f2f3]', text: 'text-[#9ba7ae]', dot: 'bg-[#9ba7ae]' },
 }
 
 function ModalProyecto({ cursoId, proyecto, onGuardar, onCancelar }) {
@@ -15,6 +15,7 @@ function ModalProyecto({ cursoId, proyecto, onGuardar, onCancelar }) {
         descripcion: proyecto?.descripcion ?? '',
         fecha_inicio: proyecto?.fecha_inicio ?? '',
         fecha_fin: proyecto?.fecha_fin ?? '',
+        estado: proyecto?.estado ?? 'planificado',
     })
     const [errores, setErrores] = useState({})
     const [guardando, setGuardando] = useState(false)
@@ -36,7 +37,7 @@ function ModalProyecto({ cursoId, proyecto, onGuardar, onCancelar }) {
 
         setGuardando(true)
         try {
-            const data = { nombre: form.nombre, descripcion: form.descripcion, fecha_inicio: form.fecha_inicio, fecha_fin: form.fecha_fin }
+            const data = { nombre: form.nombre, descripcion: form.descripcion, fecha_inicio: form.fecha_inicio, fecha_fin_estimada: form.fecha_fin, estado: form.estado, }
             if (esEdicion) {
                 await cursosApi.editarProyecto(cursoId, proyecto.id, data)
             } else {
@@ -179,7 +180,7 @@ export default function DetalleCurso() {
 
     const estadoCurso = curso.estado === 'activo' ? { label: 'Activo', bg: 'bg-[#e8f5e9]', text: 'text-[#2e7d32]' }
         : curso.estado === 'cerrado' ? { label: 'Cerrado', bg: 'bg-[#f0f2f3]', text: 'text-[#9ba7ae]' }
-        : { label: 'Borrador', bg: 'bg-[#fff8e1]', text: 'text-[#f57f17]' }
+            : { label: 'Borrador', bg: 'bg-[#fff8e1]', text: 'text-[#f57f17]' }
 
     return (
         <div className="flex-1 overflow-y-auto p-4 sm:p-6" style={{ fontFamily: "'Manrope', sans-serif" }}>
