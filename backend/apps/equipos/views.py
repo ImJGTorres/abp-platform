@@ -3,10 +3,13 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 
-from apps.cursos.models import Proyecto
+from apps.usuarios.authentication import UsuarioJWTAuthentication
+from apps.cursos.permissions import EsDocente
 from apps.usuarios.models import Usuario
+from apps.configuracion.models import ParametroSistema
+from apps.bitacora.models import BitacoraSistema
 from .models import Equipo, MiembroEquipo
-from .serializers import EquipoDetalleSerializer, EstudianteDisponibleSerializer
+from .serializers import EquipoDetalleSerializer, EstudianteDisponibleSerializer, MiembroEquipoSerializer
 
 
 class EquiposPorProyectoView(APIView):
@@ -131,3 +134,76 @@ class AsignarEstudiantesView(APIView):
             asignados += 1
 
         return Response({'asignados': asignados, 'errores': errores}, status=status.HTTP_200_OK)
+
+
+class AsignarEstudianteView(APIView):
+    """POST /api/equipos/<id>/miembros/ - Asignar estudiante a equipo"""
+    authentication_classes = [UsuarioJWTAuthentication]
+    permission_classes = [EsDocente]
+
+    def post(self, request, id):
+        try:
+            equipo = Equipo.objects.get(pk=id)
+        except Equipo.DoesNotExist:
+            return Response({'detail': 'Equipo no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        estudiante_id = request.data.get('estudiante_id')
+        if not estudiante_id:
+            return Response({'detail': 'Se requiere estudiante_id.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            estudiante = Usuario.objects.get(pk=estudiante_id, tipo_rol='estudiante', estado='activo')
+        except Usuario.DoesNotExist:
+            return Response({'detail': 'Estudiante no encontrado o no es un estudiante activo.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Validar que el estudiante no pertenezca ya a este equipo
+        if MiembroEquipo.objects.filter(equipo=equipo, usuario=estudiante, estado='activo').exists():
+            return Response({'detail': 'El estudiante ya es miembro de este equipo.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Validar que el estudiante no pertenezca a otro equipo en el mismo proyecto
+        if MiembroEquipo.objects.filter(
+            usuario=estudiante,
+            estado='activo',
+            equipo__proyecto=equipo.proyecto
+        ).exclude(equipo=equipo).exists():
+            return Response({'detail': 'El estudiante ya pertenece a otro equipo en este proyecto.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Validar cupo máximo del equipo
+        miembros_activos = MiembroEquipo.objects.filter(equipo=equipo, estado='activo').count()
+        if miembros_activos >= equipo.cupo_maximo:
+            return Response({'detail': 'El equipo ha alcanzado su cupo máximo.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Validar parámetro del sistema max_estudiantes_equipo
+        try:
+            parametro = ParametroSistema.objects.get(clave='max_estudiantes_equipo')
+            max_estudiantes = int(parametro.valor)
+            if miembros_activos >= max_estudiantes:
+                return Response({'detail': 'Se ha superado el límite máximo de estudiantes por equipo configurado en el sistema.'}, status=status.HTTP_400_BAD_REQUEST)
+        except ParametroSistema.DoesNotExist:
+            # Si no existe el parámetro, continuar con la validación del cupo del equipo
+            pass
+
+        # Crear la membresía
+        miembro = MiembroEquipo.objects.create(equipo=equipo, usuario=estudiante)
+
+        # Registrar en bitácora
+        try:
+            BitacoraSistema.objects.create(
+                accion=BitacoraSistema.Accion.CREATE,
+                modulo='miembros_equipo',
+                descripcion=f'Estudiante {estudiante.id} asignado al equipo {equipo.id}'
+            )
+        except Exception:
+            # Si falla la bitácora, no romper el endpoint
+            pass
+
+        # Preparar respuesta
+        data = {
+            'id': miembro.id,
+            'equipo_id': miembro.equipo.id,
+            'estudiante_id': miembro.usuario.id,
+            'nombre_estudiante': f"{miembro.usuario.nombre} {miembro.usuario.apellido}".strip(),
+            'fecha_ingreso': miembro.fecha_asignacion
+        }
+
+        return Response(data, status=status.HTTP_201_CREATED)
