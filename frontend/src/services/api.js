@@ -104,6 +104,7 @@ async function request(path, options = {}) {
 
   return response
 }
+export { request }
 
 // Auth y usuarios
 //   POST /api/auth/login/   → LoginView  (SimpleJWT personalizado) — obtiene access y refresh tokens
@@ -147,6 +148,22 @@ export const authApi = {
     }
 
     session.save(data.access, data.refresh, user)
+
+    // Obtener foto_perfil desde el perfil (no viene en el JWT)
+    try {
+      const perfilRes = await fetch(`${BASE_URL}/api/usuarios/perfil/`, {
+        headers: { Authorization: `Bearer ${data.access}` },
+      })
+      if (perfilRes.ok) {
+        const perfil = await perfilRes.json()
+        const userConFoto = { ...user, foto_perfil: perfil.foto_perfil ?? null }
+        session.save(data.access, data.refresh, userConFoto)
+        return userConFoto
+      }
+    } catch {
+      // Si falla el fetch del perfil no bloqueamos el login
+    }
+
     return user
   },
 
@@ -188,6 +205,16 @@ export const authApi = {
     if (!response.ok) throw { status: response.status, data }
     return data
   },
+  // POST /api/auth/cambiar-contrasena/ (usuario autenticado)
+  async cambiarContrasena(data) {
+    const response = await request('/api/auth/cambiar-contrasena/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+    const resData = await parseJSON(response)
+    if (!response.ok) throw { status: response.status, data: resData }
+    return resData
+  }
 
 }
 
@@ -208,6 +235,23 @@ export const usuariosApi = {
     return data
   },
 
+  async listar() {
+    const response = await request('/api/usuarios/')
+    const data = await parseJSON(response)
+    if (!response.ok) throw { status: response.status, data }
+    return data
+  },
+
+  async cambiarRolUsuario(id, tipo_rol) {
+    const response = await request(`/api/usuarios/${id}/`, {
+      method: 'PATCH',
+      body: JSON.stringify({ tipo_rol }),
+    })
+    const data = await parseJSON(response)
+    if (!response.ok) throw { status: response.status, data }
+    return data
+  },
+
   async getPerfil() {
     const response = await request('/api/usuarios/perfil/')
 
@@ -217,6 +261,31 @@ export const usuariosApi = {
       throw { status: response.status, data }
     }
 
+    return data
+  },
+
+  async cargaMasiva(archivo, rol) {
+    const formData = new FormData()
+    formData.append('archivo', archivo)
+    formData.append('rol', rol)
+
+    const token = session.getAccess()
+    const headers = {}
+    if (token) headers['Authorization'] = `Bearer ${token}`
+
+    let response
+    try {
+      response = await fetch(`${BASE_URL}/api/usuarios/carga-masiva/`, {
+        method: 'POST',
+        headers,
+        body: formData,
+      })
+    } catch {
+      throw { type: 'network', message: 'Sin conexión con el servidor' }
+    }
+
+    const data = await parseJSON(response)
+    if (!response.ok) throw { status: response.status, data }
     return data
   },
 
@@ -233,6 +302,30 @@ export const usuariosApi = {
     }
 
     return result
+  },
+
+  async subirFotoPerfil(archivo) {
+    const formData = new FormData()
+    formData.append('foto', archivo)
+
+    const token = session.getAccess()
+    const headers = {}
+    if (token) headers['Authorization'] = `Bearer ${token}`
+
+    let response
+    try {
+      response = await fetch(`${BASE_URL}/api/usuarios/foto-perfil/`, {
+        method: 'POST',
+        headers,
+        body: formData,
+      })
+    } catch {
+      throw { type: 'network', message: 'Sin conexión con el servidor' }
+    }
+
+    const data = await parseJSON(response)
+    if (!response.ok) throw { status: response.status, data }
+    return data
   },
 }
 
@@ -414,6 +507,20 @@ export const bitacoraApi = {
 }
 
 // Helpers
+export function buildMediaUrl(url) {
+  if (!url) return null
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    try {
+      const parsed = new URL(url)
+      if (parsed.pathname.startsWith('/media/')) {
+        return `${BASE_URL}${parsed.pathname}`
+      }
+    } catch { /* external URL, keep as-is */ }
+    return url
+  }
+  return `${BASE_URL}${url}`
+}
+
 export function rutaPorRol(tipo_rol) {
   const rutas = {
     administrador: '/admin',

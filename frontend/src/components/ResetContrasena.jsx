@@ -22,6 +22,7 @@ function PasswordInput({ id, label, value, onChange, error, placeholder = 'â€¢â€
                     placeholder={placeholder}
                     className={`w-full h-[52px] bg-[#e8eaeb] rounded-xl pl-11 pr-12 text-[14px] text-[#191c1d]
             placeholder:text-[rgba(91,64,61,0.45)] outline-none transition-shadow duration-150
+            [&::-ms-reveal]:hidden [&::-webkit-credentials-auto-fill-button]:hidden
             focus:ring-2 ${error ? 'ring-2 ring-[#ba1a1a]/40' : 'focus:ring-[#d32f2f]/50'}`}
                 />
                 <button type="button" onClick={() => setVer(v => !v)}

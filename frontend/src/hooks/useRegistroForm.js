@@ -110,6 +110,7 @@ export function useRegistroForm() {
 
     function handleChange(e) {
         const { name, value } = e.target;
+        if ((name === 'nombre' || name === 'apellido') && !/^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s]*$/.test(value)) return
         setForm((prev) => ({ ...prev, [name]: value }));
         // Limpiar error del campo al escribir
         if (erroresCampo[name]) {

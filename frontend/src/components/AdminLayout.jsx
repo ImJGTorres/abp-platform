@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { NavLink, Outlet, useNavigate, Link } from 'react-router-dom'
-import { authApi, session } from '../services/api'
+import { authApi, session, buildMediaUrl } from '../services/api'
 
 // ── Íconos SVG inline ─────────────────────────────────────────────────────────
 
@@ -89,11 +89,11 @@ function IconProfile() {
 // ── Ítems del sidebar ─────────────────────────────────────────────────────────
 
 const NAV_ITEMS = [
-  { label: 'Usuarios',      to: '/admin/registro',      icon: <IconUsers />    },
+  { label: 'Usuarios', to: '/admin/registro', icon: <IconUsers /> },
   { label: 'Configuración', to: '/admin/configuracion', icon: <IconSettings /> },
-  { label: 'Períodos',      to: '/admin/periodos',      icon: <IconCalendar /> },
-  { label: 'Bitácoras',     to: '/admin/bitacoras',     icon: <IconFileText /> },
-  { label: 'Roles',         to: '/admin/roles',         icon: <IconShield />   },
+  { label: 'Períodos', to: '/admin/periodos', icon: <IconCalendar /> },
+  { label: 'Bitácoras', to: '/admin/bitacoras', icon: <IconFileText /> },
+  { label: 'Roles', to: '/admin/roles', icon: <IconShield /> },
 ]
 
 function navLinkClass({ isActive }) {
@@ -107,7 +107,13 @@ function navLinkClass({ isActive }) {
 
 export default function AdminLayout() {
   const navigate = useNavigate()
-  const user = session.getUser()
+  const [user, setUser] = useState(() => session.getUser())
+
+  useEffect(() => {
+    const refresh = () => setUser(session.getUser())
+    window.addEventListener('user-updated', refresh)
+    return () => window.removeEventListener('user-updated', refresh)
+  }, [])
   const [collapsed, setCollapsed] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
@@ -140,10 +146,11 @@ export default function AdminLayout() {
         {/* Marca */}
         <div className="flex items-center gap-2.5 px-4 h-[60px] border-b border-[#e1e3e4] flex-shrink-0">
           <div className="flex-shrink-0 w-8 h-8 bg-[#d32f2f] rounded-lg flex items-center justify-center shadow-sm">
-            <svg viewBox="0 0 28 24" className="w-4 h-3.5 text-white" fill="currentColor">
-              <path d="M14 0L28 8v8l-14 8L0 16V8L14 0z" opacity=".3" />
-              <path d="M14 3l11 6.5v7L14 23 3 16.5v-7L14 3z" opacity=".5" />
-              <path d="M14 7l7 4v4l-7 4-7-4v-4l7-4z" />
+            <svg viewBox="0 0 24 24" className="w-8 h-6 text-white" fill="currentColor">
+              <path d="M12 2L2 7l10 5 10-5-10-5z" />
+              <path d="M6 10v4c0 2.5 3.5 4 6 4s6-1.5 6-4v-4l-6 3-6-3z" opacity="0.9" />
+              <path d="M22 7v6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              <circle cx="22" cy="14" r="1" fill="currentColor" />
             </svg>
           </div>
           {!collapsed && (
@@ -175,10 +182,11 @@ export default function AdminLayout() {
               className="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-[#f0f2f3] cursor-pointer transition-colors mb-1 relative"
               onClick={e => { e.stopPropagation(); setUserMenuOpen(o => !o) }}
             >
-              <div className="w-7 h-7 rounded-full bg-[#ffdad6] flex items-center justify-center flex-shrink-0">
-                <span className="text-[11px] font-bold text-[#af101a]">
-                  {user.nombre?.[0]?.toUpperCase() ?? 'A'}
-                </span>
+              <div className="w-7 h-7 rounded-full bg-[#ffdad6] flex items-center justify-center flex-shrink-0 overflow-hidden">
+                {user.foto_perfil
+                  ? <img src={buildMediaUrl(user.foto_perfil)} alt="" className="w-full h-full object-cover" onError={e => { e.target.style.display = 'none' }} />
+                  : <span className="text-[11px] font-bold text-[#af101a]">{user.nombre?.[0]?.toUpperCase() ?? 'A'}</span>
+                }
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-[12px] font-semibold text-[#191c1d] truncate leading-tight">
@@ -234,10 +242,11 @@ export default function AdminLayout() {
           <div className="flex-1" />
           {user && (
             <Link to="/perfil" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
-              <div className="w-8 h-8 rounded-full bg-[#ffdad6] flex items-center justify-center">
-                <span className="text-[12px] font-bold text-[#af101a]">
-                  {user.nombre?.[0]?.toUpperCase() ?? 'A'}
-                </span>
+              <div className="w-8 h-8 rounded-full bg-[#ffdad6] flex items-center justify-center overflow-hidden">
+                {user.foto_perfil
+                  ? <img src={buildMediaUrl(user.foto_perfil)} alt="" className="w-full h-full object-cover" onError={e => { e.target.style.display = 'none' }} />
+                  : <span className="text-[12px] font-bold text-[#af101a]">{user.nombre?.[0]?.toUpperCase() ?? 'A'}</span>
+                }
               </div>
               <div className="hidden sm:block">
                 <p className="text-[13px] font-semibold text-[#191c1d] leading-tight">

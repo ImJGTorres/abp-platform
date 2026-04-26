@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from apps.usuarios.models import UsuarioRol
+from apps.usuarios.models import Usuario, UsuarioRol
 from .models import Permiso, Rol, RolPermiso
 
 # Serializer para CRUD de Permisos (modelo Permiso)
@@ -65,9 +65,9 @@ class RolSerializer(serializers.ModelSerializer):
         return PermisoSerializer(permisos, many=True).data
 
     # get_total_usuarios(): cantidad de usuarios asignados al rol (BE-02)
-    # Cuenta los registros en UsuarioRol donde rol = este rol
+    # Cuenta los usuarios cuyo tipo_rol coincide con el nombre del rol
     def get_total_usuarios(self, obj):
-        return UsuarioRol.objects.filter(rol=obj).count()
+        return Usuario.objects.filter(tipo_rol=obj.nombre).count()
 
     # validate_nombre(): Validar que el nombre del rol sea único
     # Se ejecuta automáticamente al recibir datos del cliente

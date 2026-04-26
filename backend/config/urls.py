@@ -14,13 +14,16 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+from django.conf import settings
+from django.conf.urls.static import static
 from django.contrib import admin
-from django.urls import include, path
+from django.urls import include, path, re_path
 # SimpleJWT views importadas para endpoints de refresh y logout (BE-04, BE-05)
 # TokenRefreshView: Permite obtener nuevo access token usando refresh token
 from rest_framework_simplejwt.views import TokenRefreshView, TokenBlacklistView
+from django.views.generic import TemplateView
 
-from apps.usuarios.views import LoginView, OlvidarContrasenaView, RecuperarContrasenaView
+from apps.usuarios.views import CambiarContrasenaView, LoginView, OlvidarContrasenaView, RecuperarContrasenaView
 from apps.roles.views import PermisosAgrupadosView
 
 urlpatterns = [
@@ -43,6 +46,7 @@ urlpatterns = [
     path('api/auth/logout/',  TokenBlacklistView.as_view(), name='token_blacklist'),
     path('api/auth/olvidar-contrasena/',  OlvidarContrasenaView.as_view(),  name='olvidar_contrasena'),
     path('api/auth/recuperar-contrasena/', RecuperarContrasenaView.as_view(), name='recuperar_contrasena'),
+    path('api/auth/cambiar-contrasena/',   CambiarContrasenaView.as_view(),   name='cambiar_contrasena'),
 
     path('api/configuracion/', include('apps.configuracion.urls')),
     # Se conectan con las urls de cada modelo.
@@ -53,4 +57,11 @@ urlpatterns = [
     path('api/permisos/', PermisosAgrupadosView.as_view(), name='permisos-agrupados'),
     path('api/bitacora/', include('apps.bitacora.urls')),  # Endpoint para consultar bitácora del sistema
     path('api/', include('apps.equipos.urls')),
-]
+    path('api/cursos/', include('apps.cursos.urls')),
+    path('api/', include('apps.equipos.urls')),
+
+    # SPA: Servir index.html para cualquier ruta que no sea API ni static
+    # Excluye /api/ y /static/ usando lookahead negativo en regex
+    re_path(r'^(?!api/|static/|django-admin/).*$', TemplateView.as_view(template_name='index.html'), name='frontend'),
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    

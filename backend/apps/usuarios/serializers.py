@@ -4,11 +4,10 @@ from apps.usuarios.models import Usuario, TokenRecuperacion
 class UsuarioSerializer(serializers.ModelSerializer):
 
     contrasena = serializers.CharField(
-        write_only=True,   # nunca se devuelve en la respuesta
-        min_length=8,
-        error_messages={
-            'min_length': 'La contraseña debe tener al menos 8 caracteres.'
-        }
+        write_only=True,
+        required=False,
+        allow_blank=True,
+        default='',
     )
 
     class Meta:
@@ -24,16 +23,20 @@ class UsuarioSerializer(serializers.ModelSerializer):
             'fecha_actualizacion': {'read_only': True},
         }
 
-    # Validar longitud mínima del nombre (ST-04)
+    # Validar longitud mínima y caracteres permitidos para nombre (ST-04)
     def validate_nombre(self, value):
         if len(value) < 2:
             raise serializers.ValidationError("El nombre debe tener al menos 2 caracteres.")
+        if not value.replace(' ', '').isalpha():
+            raise serializers.ValidationError("El nombre solo puede contener letras y espacios.")
         return value
 
-    # Validar longitud mínima del apellido (ST-04)
+    # Validar longitud mínima y caracteres permitidos para apellido (ST-04)
     def validate_apellido(self, value):
         if len(value) < 2:
             raise serializers.ValidationError("El apellido debe tener al menos 2 caracteres.")
+        if not value.replace(' ', '').isalpha():
+            raise serializers.ValidationError("El apellido solo puede contener letras y espacios.")
         return value
 
     # Validar que el rol sea uno de los permitidos (ST-04)
@@ -67,6 +70,7 @@ class UsuarioSerializer(serializers.ModelSerializer):
         usuario = Usuario(**validated_data)
         # Hashea la contraseña y la almacena en el campo 'password' de AbstractBaseUser
         usuario.set_password(contrasena)
+        usuario.is_staff = False
         usuario.save()
         return usuario
 
@@ -103,11 +107,15 @@ class UsuarioUpdateSerializer(serializers.ModelSerializer):
     def validate_nombre(self, value):
         if len(value) < 2:
             raise serializers.ValidationError("El nombre debe tener al menos 2 caracteres.")
+        if not value.replace(' ', '').isalpha():
+            raise serializers.ValidationError("El nombre solo puede contener letras y espacios.")
         return value
 
     def validate_apellido(self, value):
         if len(value) < 2:
             raise serializers.ValidationError("El apellido debe tener al menos 2 caracteres.")
+        if not value.replace(' ', '').isalpha():
+            raise serializers.ValidationError("El apellido solo puede contener letras y espacios.")
         return value
 
     def validate_tipo_rol(self, value):
@@ -125,6 +133,19 @@ class UsuarioUpdateSerializer(serializers.ModelSerializer):
         if qs.exists():
             raise serializers.ValidationError("Ya existe un usuario con este correo.")
         return value
+
+
+class CambiarContrasenaSerializer(serializers.Serializer):
+    password_actual      = serializers.CharField(write_only=True)
+    nueva_contrasena     = serializers.CharField(write_only=True, min_length=8)
+    confirmar_contrasena = serializers.CharField(write_only=True, min_length=8)
+
+    def validate(self, attrs):
+        if attrs['nueva_contrasena'] != attrs['confirmar_contrasena']:
+            raise serializers.ValidationError(
+                {'confirmar_contrasena': 'Las contraseñas no coinciden.'}
+            )
+        return attrs
 
 
 class OlvidarContrasenaSerializer(serializers.Serializer):

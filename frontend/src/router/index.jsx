@@ -4,6 +4,8 @@ import AdminLayout from '../components/AdminLayout'
 import AdminPlaceholder from '../components/AdminPlaceholder'
 import LoginForm from '../components/LoginForm'
 import RegistroUsuarioForm from '../components/RegistroUsuarioForm'
+import CargaMasivaEstudiantes from '../components/CargaMasivaEstudiantes'
+import GestionUsuarios from '../components/GestionUsuarios'
 import ConfiguracionParametros from '../components/ConfiguracionParametros'
 import GestionPeriodos from '../components/GestionPeriodos'
 import GestionRoles from '../components/GestionRoles'
@@ -11,6 +13,12 @@ import BitacorasAuditoria from '../components/BitacorasAuditoria'
 import ProfileEdit from '../components/ProfileEdit'
 import OlvidarContrasena from '../components/OlvidarContrasena'
 import ResetContrasena from '../components/ResetContrasena'
+
+import DocenteLayout from '../components/docente/DocenteLayout'
+import GestionCursos from '../components/docente/GestionCursos'
+import DetalleCurso from '../components/docente/DetalleCurso'
+import GestionEquipos from '../components/docente/GestionEquipos'
+import AsignarEstudiantes from '../components/docente/AsignarEstudiantes'
 
 
 // ── Paneles de otros roles (pendientes de implementar) ────────────────────────
@@ -32,8 +40,12 @@ function Pagina({ children }) {
 function PaginaRegistro() {
   return (
     <Pagina>
-      <div className="flex items-start justify-center pt-4">
-        <RegistroUsuarioForm />
+      <div className="flex flex-col gap-6 pt-4">
+        <GestionUsuarios />
+        <div className="flex flex-col items-center gap-6">
+          <RegistroUsuarioForm />
+          <CargaMasivaEstudiantes />
+        </div>
       </div>
     </Pagina>
   )
@@ -69,7 +81,13 @@ export default function AppRouter() {
 
         {/* DOCENTE */}
         <Route element={<PrivateRoute allowedRoles={['docente']} />}>
-          <Route path="/docente" element={<PanelDocente />} />
+          <Route element={<DocenteLayout />}>
+            <Route path="/docente" element={<Navigate to="/docente/cursos" replace />} />
+            <Route path="/docente/cursos" element={<GestionCursos />} />
+            <Route path="/docente/cursos/:id" element={<DetalleCurso />} />
+            <Route path="/docente/proyectos/:proyectoId/equipos" element={<GestionEquipos />} />
+            <Route path="/docente/equipos/:equipoId/asignar" element={<AsignarEstudiantes />} />
+          </Route>
         </Route>
 
         {/* DIRECTOR */}

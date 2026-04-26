@@ -1,13 +1,42 @@
 import pytest
 from rest_framework.test import APIClient
-from rest_framework_simplejwt.tokens import RefreshToken
-from tests.factories import UsuarioFactory, AdminFactory
-from apps.usuarios.models import Usuario
+from tests.factories import (
+    DocenteFactory,
+    PeriodoAcademicoFactory,
+    CursoFactory,
+    ProyectoFactory,
+    UsuarioFactory,
+    AdminFactory,
+)
 
 @pytest.fixture
 def api_client():
     return APIClient()
 
+@pytest.fixture
+def docente_a():
+    return DocenteFactory()
+
+@pytest.fixture
+def docente_b():
+    return DocenteFactory()
+
+@pytest.fixture
+def periodo_activo(docente_a):
+    return PeriodoAcademicoFactory(usuario_creo=docente_a)
+
+@pytest.fixture
+def cliente_a(api_client, docente_a):
+    api_client.force_authenticate(user=docente_a)
+    return api_client
+
+@pytest.fixture
+def cliente_b(api_client, docente_b):
+    client = APIClient()
+    client.force_authenticate(user=docente_b)
+    return client
+
+# Existing fixtures (kept)
 @pytest.fixture
 def admin_user(db):
     return AdminFactory()
@@ -25,20 +54,3 @@ def admin_client(api_client, admin_user):
 def estudiante_client(api_client, estudiante_user):
     api_client.force_authenticate(user=estudiante_user)
     return api_client
-
-from tests.factories import UsuarioInactivoFactory
-@pytest.fixture
-def usuario_activo(db):
-    from django.contrib.auth.hashers import make_password
-    return UsuarioFactory(
-        correo          = "prueba@ufps.edu.co",
-        password = make_password("Abc123!!")
-    )
-
-@pytest.fixture
-def usuario_inactivo(db):
-    from django.contrib.auth.hashers import make_password
-    return UsuarioInactivoFactory(
-        correo          = "inactivo@ufps.edu.co",
-        password = make_password("Abc123!!")
-    )
