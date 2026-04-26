@@ -37,7 +37,7 @@ function ModalProyecto({ cursoId, proyecto, onGuardar, onCancelar }) {
 
         setGuardando(true)
         try {
-            const data = { nombre: form.nombre, descripcion: form.descripcion, fecha_inicio: form.fecha_inicio, fecha_fin_estimada: form.fecha_fin, estado: form.estado, }
+            const data = { nombre: form.nombre, descripcion: form.descripcion, fecha_inicio: form.fecha_inicio, fecha_fin: form.fecha_fin, estado: form.estado, }
             if (esEdicion) {
                 await cursosApi.editarProyecto(cursoId, proyecto.id, data)
             } else {

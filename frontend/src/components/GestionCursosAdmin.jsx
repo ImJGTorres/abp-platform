@@ -100,7 +100,7 @@ function ModalCurso({ curso, periodos, docentes, onGuardar, onCancelar }) {
                             <select value={form.id_periodo_academico} onChange={e => set('id_periodo_academico', e.target.value)}
                                 className={`${inputCls('id_periodo_academico')} appearance-none`}>
                                 <option value="">Selecciona un periodo</option>
-                                {periodos.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+                                {periodos.filter(p => p.estado === 'activo').map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
                             </select>
                             {errores.id_periodo_academico && <p className="text-[12px] text-[#ba1a1a] pl-1">{errores.id_periodo_academico}</p>}
                         </div>
@@ -256,9 +256,9 @@ function CargaMasivaCursos({ onCargado }) {
 // ── Badge estado ──────────────────────────────────────────────────────────────
 
 const ESTADO_BADGE = {
-    activo:   'bg-[#e8f5e9] text-[#2e7d32]',
+    activo: 'bg-[#e8f5e9] text-[#2e7d32]',
     borrador: 'bg-[#fff8e1] text-[#f57f17]',
-    cerrado:  'bg-[#f0f2f3] text-[#9ba7ae]',
+    cerrado: 'bg-[#f0f2f3] text-[#9ba7ae]',
 }
 
 // ── Componente principal ──────────────────────────────────────────────────────
