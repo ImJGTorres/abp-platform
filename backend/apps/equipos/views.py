@@ -1,15 +1,19 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status
+from rest_framework import generics, status
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
+from django.shortcuts import get_object_or_404
 
 from apps.usuarios.authentication import UsuarioJWTAuthentication
-from apps.cursos.permissions import EsDocente
+from apps.cursos.models import Proyecto
 from apps.usuarios.models import Usuario
-from apps.configuracion.models import ParametroSistema
 from apps.bitacora.models import BitacoraSistema
 from .models import Equipo, MiembroEquipo
-from .serializers import EquipoDetalleSerializer, EstudianteDisponibleSerializer, MiembroEquipoSerializer
+from .serializers import (
+    EquipoDetalleSerializer, EstudianteDisponibleSerializer,
+    MiembroEquipoSerializer, UsuarioResumenSerializer,
+)
 
 
 class EquiposPorProyectoView(APIView):
@@ -136,16 +140,22 @@ class AsignarEstudiantesView(APIView):
         return Response({'asignados': asignados, 'errores': errores}, status=status.HTTP_200_OK)
 
 
-class AsignarEstudianteView(APIView):
-    """POST /api/equipos/<id>/miembros/ - Asignar estudiante a equipo"""
-    authentication_classes = [UsuarioJWTAuthentication]
-    permission_classes = [EsDocente]
 
-    def post(self, request, id):
-        try:
-            equipo = Equipo.objects.get(pk=id)
-        except Equipo.DoesNotExist:
-            return Response({'detail': 'Equipo no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+# BE-03: GET /api/equipos/<equipo_id>/miembros/
+class MiembroListView(generics.ListAPIView):
+    authentication_classes = [UsuarioJWTAuthentication]
+    serializer_class = MiembroEquipoSerializer
+
+    def get_queryset(self):
+        equipo_id = self.kwargs['equipo_id']
+        get_object_or_404(Equipo, pk=equipo_id)
+        return MiembroEquipo.objects.filter(
+            equipo_id=equipo_id,
+            estado='activo'
+        ).select_related('usuario')
+
+    def post(self, request, equipo_id):
+        equipo = get_object_or_404(Equipo, pk=equipo_id)
 
         estudiante_id = request.data.get('estudiante_id')
         if not estudiante_id:
@@ -154,56 +164,87 @@ class AsignarEstudianteView(APIView):
         try:
             estudiante = Usuario.objects.get(pk=estudiante_id, tipo_rol='estudiante', estado='activo')
         except Usuario.DoesNotExist:
-            return Response({'detail': 'Estudiante no encontrado o no es un estudiante activo.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {'detail': 'Estudiante no encontrado o no es un estudiante activo.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-        # Validar que el estudiante no pertenezca ya a este equipo
         if MiembroEquipo.objects.filter(equipo=equipo, usuario=estudiante, estado='activo').exists():
-            return Response({'detail': 'El estudiante ya es miembro de este equipo.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {'detail': 'El estudiante ya es miembro de este equipo.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-        # Validar que el estudiante no pertenezca a otro equipo en el mismo proyecto
         if MiembroEquipo.objects.filter(
-            usuario=estudiante,
-            estado='activo',
-            equipo__proyecto=equipo.proyecto
+            usuario=estudiante, estado='activo', equipo__proyecto=equipo.proyecto
         ).exclude(equipo=equipo).exists():
-            return Response({'detail': 'El estudiante ya pertenece a otro equipo en este proyecto.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {'detail': 'El estudiante ya pertenece a otro equipo en este proyecto.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-        # Validar cupo máximo del equipo
-        miembros_activos = MiembroEquipo.objects.filter(equipo=equipo, estado='activo').count()
-        if miembros_activos >= equipo.cupo_maximo:
-            return Response({'detail': 'El equipo ha alcanzado su cupo máximo.'}, status=status.HTTP_400_BAD_REQUEST)
+        if MiembroEquipo.objects.filter(equipo=equipo, estado='activo').count() >= equipo.cupo_maximo:
+            return Response(
+                {'detail': 'El equipo ha alcanzado su cupo máximo.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-        # Validar parámetro del sistema max_estudiantes_equipo
-        try:
-            parametro = ParametroSistema.objects.get(clave='max_estudiantes_equipo')
-            max_estudiantes = int(parametro.valor)
-            if miembros_activos >= max_estudiantes:
-                return Response({'detail': 'Se ha superado el límite máximo de estudiantes por equipo configurado en el sistema.'}, status=status.HTTP_400_BAD_REQUEST)
-        except ParametroSistema.DoesNotExist:
-            # Si no existe el parámetro, continuar con la validación del cupo del equipo
-            pass
-
-        # Crear la membresía
         miembro = MiembroEquipo.objects.create(equipo=equipo, usuario=estudiante)
 
-        # Registrar en bitácora
         try:
             BitacoraSistema.objects.create(
                 accion=BitacoraSistema.Accion.CREATE,
                 modulo='miembros_equipo',
-                descripcion=f'Estudiante {estudiante.id} asignado al equipo {equipo.id}'
+                descripcion=f'Estudiante {estudiante.id} asignado al equipo {equipo.id}',
             )
         except Exception:
-            # Si falla la bitácora, no romper el endpoint
             pass
 
-        # Preparar respuesta
-        data = {
+        return Response({
             'id': miembro.id,
             'equipo_id': miembro.equipo.id,
             'estudiante_id': miembro.usuario.id,
             'nombre_estudiante': f"{miembro.usuario.nombre} {miembro.usuario.apellido}".strip(),
-            'fecha_ingreso': miembro.fecha_asignacion
-        }
+            'fecha_ingreso': miembro.fecha_asignacion,
+        }, status=status.HTTP_201_CREATED)
 
-        return Response(data, status=status.HTTP_201_CREATED)
+
+# BE-04: DELETE /api/equipos/<equipo_id>/miembros/<usuario_id>/
+class RetirarMiembroView(generics.GenericAPIView):
+    authentication_classes = [UsuarioJWTAuthentication]
+
+    def delete(self, request, equipo_id, usuario_id):
+        miembro = get_object_or_404(
+            MiembroEquipo,
+            equipo_id=equipo_id,
+            usuario_id=usuario_id,
+            estado='activo',
+        )
+        miembro.estado = 'retirado'
+        miembro.save()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# BE-05: GET /api/cursos/<curso_id>/estudiantes/?proyecto_id=<int>
+class EstudiantesDisponiblesView(generics.ListAPIView):
+    authentication_classes = [UsuarioJWTAuthentication]
+    serializer_class = UsuarioResumenSerializer
+
+    def get_queryset(self):
+        curso_id = self.kwargs['curso_id']
+        proyecto_id = self.request.query_params.get('proyecto_id')
+
+        if not proyecto_id:
+            raise ValidationError("Se requiere el parámetro proyecto_id.")
+
+        proyecto = get_object_or_404(Proyecto, pk=proyecto_id, id_curso_id=curso_id)
+
+        ya_asignados = MiembroEquipo.objects.filter(
+            equipo__proyecto=proyecto,
+            estado='activo',
+        ).values_list('usuario_id', flat=True)
+
+        return Usuario.objects.filter(
+            tipo_rol='estudiante',
+            estado='activo',
+        ).exclude(id__in=ya_asignados)
