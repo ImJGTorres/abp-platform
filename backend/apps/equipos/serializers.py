@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from apps.configuracion.models import ParametroSistema
+from apps.usuarios.models import Usuario
 
 from .models import Equipo, MiembroEquipo
 
@@ -131,6 +132,15 @@ class EquipoDetalleSerializer(serializers.ModelSerializer):
 
     def get_cantidad_entregables(self, obj):
         return 0  # placeholder hasta que se implemente el modelo Entregable
+
+
+# Serializer para listar usuarios (estudiantes) con información resumida.
+# Retorna solo campos básicos: id, nombre, apellido, correo y codigo_estudiante.
+# Utilizado para mostrar estudiantes disponibles para asignación.
+class UsuarioResumenSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Usuario
+        fields = ['id', 'nombre', 'apellido', 'correo', 'codigo_estudiante']
 
 
 class EstudianteDisponibleSerializer(serializers.Serializer):
