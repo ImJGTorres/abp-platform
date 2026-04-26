@@ -134,6 +134,9 @@ class EquipoDetalleSerializer(serializers.ModelSerializer):
         return 0  # placeholder hasta que se implemente el modelo Entregable
 
 
+# Serializer para listar usuarios (estudiantes) con información resumida.
+# Retorna solo campos básicos: id, nombre, apellido, correo y codigo_estudiante.
+# Utilizado para mostrar estudiantes disponibles para asignación.
 class UsuarioResumenSerializer(serializers.ModelSerializer):
     class Meta:
         model = Usuario

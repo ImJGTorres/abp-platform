@@ -141,7 +141,9 @@ class AsignarEstudiantesView(APIView):
 
 
 
-# BE-03: GET /api/equipos/<equipo_id>/miembros/
+# GET /api/equipos/<equipo_id>/miembros/
+# Lista los miembros activos de un equipo específico.
+# Incluye el rol interno y fecha de asignación a través del serializer.
 class MiembroListView(generics.ListAPIView):
     authentication_classes = [UsuarioJWTAuthentication]
     serializer_class = MiembroEquipoSerializer
@@ -155,6 +157,12 @@ class MiembroListView(generics.ListAPIView):
         ).select_related('usuario')
 
     def post(self, request, equipo_id):
+        """
+        Asignar un estudiante a un equipo.
+        Valida que el estudiante exista, no esté ya en el equipo,
+        no pertenezca a otro equipo del mismo proyecto y que el cupo no esté lleno.
+        Retorna 201 con la membresía creada.
+        """
         equipo = get_object_or_404(Equipo, pk=equipo_id)
 
         estudiante_id = request.data.get('estudiante_id')
@@ -191,6 +199,7 @@ class MiembroListView(generics.ListAPIView):
 
         miembro = MiembroEquipo.objects.create(equipo=equipo, usuario=estudiante)
 
+        # Registro en bitácora de la asignación del estudiante al equipo
         try:
             BitacoraSistema.objects.create(
                 accion=BitacoraSistema.Accion.CREATE,
@@ -209,11 +218,17 @@ class MiembroListView(generics.ListAPIView):
         }, status=status.HTTP_201_CREATED)
 
 
-# BE-04: DELETE /api/equipos/<equipo_id>/miembros/<usuario_id>/
+# DELETE /api/equipos/<equipo_id>/miembros/<usuario_id>/
+# Retira un estudiante del equipo marcando la membresía como 'retirado' (soft-delete).
+# No elimina el registro histórico, solo cambia su estado y libera el cupo.
 class RetirarMiembroView(generics.GenericAPIView):
     authentication_classes = [UsuarioJWTAuthentication]
 
     def delete(self, request, equipo_id, usuario_id):
+        """
+        Busca la membresía activa del estudiante en el equipo y la marca como 'retirado'.
+        Si no existe una membresía activa, retorna 404 automáticamente.
+        """
         miembro = get_object_or_404(
             MiembroEquipo,
             equipo_id=equipo_id,
@@ -225,12 +240,20 @@ class RetirarMiembroView(generics.GenericAPIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-# BE-05: GET /api/cursos/<curso_id>/estudiantes/?proyecto_id=<int>
+# GET /api/cursos/<curso_id>/estudiantes/?proyecto_id=<int>
+# Lista los estudiantes activos que aún no han sido asignados a ningún equipo
+# del proyecto especificado. Requiere el parámetro proyecto_id para validar
+# que el proyecto pertenece al curso y para filtrar estudiantes ya asignados.
 class EstudiantesDisponiblesView(generics.ListAPIView):
     authentication_classes = [UsuarioJWTAuthentication]
     serializer_class = UsuarioResumenSerializer
 
     def get_queryset(self):
+        """
+        Obtiene la lista de estudiantes no asignados activamente a ningún equipo
+        del proyecto indicado. Valida que el parámetro proyecto_id sea proporcionado y que el
+        proyecto pertenezca al curso especificado en la URL.
+        """
         curso_id = self.kwargs['curso_id']
         proyecto_id = self.request.query_params.get('proyecto_id')
 
