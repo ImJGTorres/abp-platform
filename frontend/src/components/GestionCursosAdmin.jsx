@@ -12,6 +12,7 @@ function ModalCurso({ curso, periodos, docentes, onGuardar, onCancelar }) {
         id_periodo_academico: curso?.id_periodo_academico ?? '',
         id_docente: curso?.id_docente ?? '',
         cantidad_max_estudiantes: curso?.cantidad_max_estudiantes ?? 30,
+        estado: curso?.estado ?? 'borrador',
     })
     const [errores, setErrores] = useState({})
     const [guardando, setGuardando] = useState(false)
@@ -43,6 +44,7 @@ function ModalCurso({ curso, periodos, docentes, onGuardar, onCancelar }) {
                 id_periodo_academico: parseInt(form.id_periodo_academico),
                 id_docente: parseInt(form.id_docente),
                 cantidad_max_estudiantes: parseInt(form.cantidad_max_estudiantes),
+                ...(esEdicion && { estado: form.estado }),
             }
             let resultado
             if (esEdicion) {
@@ -114,6 +116,18 @@ function ModalCurso({ curso, periodos, docentes, onGuardar, onCancelar }) {
                             </select>
                             {errores.id_docente && <p className="text-[12px] text-[#ba1a1a] pl-1">{errores.id_docente}</p>}
                         </div>
+
+                        {esEdicion && (
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-[13px] font-semibold text-[#191c1d] pl-1">Estado</label>
+                                <select value={form.estado} onChange={e => set('estado', e.target.value)}
+                                    className={`${inputCls('estado')} appearance-none`}>
+                                    <option value="borrador">Borrador</option>
+                                    <option value="activo">Activo</option>
+                                    <option value="cerrado">Cerrado</option>
+                                </select>
+                            </div>
+                        )}
 
                         <div className="flex flex-col gap-1.5 sm:col-span-2">
                             <label className="text-[13px] font-semibold text-[#191c1d] pl-1">Descripción (opcional)</label>
