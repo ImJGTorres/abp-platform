@@ -152,6 +152,8 @@ class MiembroEquipoSerializer(serializers.ModelSerializer):
 
 # ── Serializers de lectura (vistas de gestión y asignación) ──────────────────
 
+# Serializer que retorna los miembros de un equipo incluyendo rol_interno y descripción de responsabilidades
+# junto con los datos básicos del miembro para las vistas de gestión
 class MiembroDetalleSerializer(serializers.ModelSerializer):
     nombre_completo = serializers.SerializerMethodField()
     iniciales       = serializers.SerializerMethodField()
@@ -231,3 +233,37 @@ class EstudianteDisponibleSerializer(serializers.Serializer):
         n = obj.nombre[:1].upper()   if obj.nombre   else ''
         a = obj.apellido[:1].upper() if obj.apellido else ''
         return n + a
+
+
+ROL_INTERNO_CHOICES = [
+    ('lider', 'Líder'),
+    ('desarrollador', 'Desarrollador'),
+    ('disenador', 'Diseñador'),
+    ('tester', 'Tester'),
+    ('analista', 'Analista'),
+]
+
+
+# Serializer para actualizar el rol interno y responsabilidades de un miembro
+# Valida que solo exista un Líder por equipo (validación de líder único)
+# Usado por ActualizarRolView para PATCH sobre la membresía
+class ActualizarRolSerializer(serializers.ModelSerializer):
+    rol_interno = serializers.ChoiceField(choices=ROL_INTERNO_CHOICES)
+    
+    class Meta:
+        model = MiembroEquipo
+        fields = ['rol_interno', 'descripcion_responsabilidades']
+
+    def validate(self, data):
+        rol = data.get('rol_interno', '')
+        if rol == 'lider':
+            lider_existente = MiembroEquipo.objects.filter(
+                equipo=self.instance.equipo,
+                rol_interno='lider',
+                estado='activo',
+            ).exclude(pk=self.instance.pk)
+            if lider_existente.exists():
+                raise serializers.ValidationError(
+                    "El equipo ya tiene un Líder asignado."
+                )
+        return data
