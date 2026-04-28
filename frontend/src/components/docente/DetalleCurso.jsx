@@ -1,6 +1,15 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { cursosApi } from '../../services/docenteApi'
+import ModalDetalleEquipo from './ModalDetalleEquipo'
+
+const AVATAR_COLORS = ['#d32f2f', '#1976d2', '#388e3c', '#7b1fa2', '#f57c00', '#0097a7', '#5d4037', '#37474f']
+const TEAM_COLORS   = ['#1976d2', '#388e3c', '#f57c00', '#7b1fa2', '#d32f2f', '#0097a7']
+
+function IconEye()   { return <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5z"/><circle cx="8" cy="8" r="2"/></svg> }
+function IconEdit()  { return <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M11 2l3 3-9 9H2v-3l9-9z"/></svg> }
+function IconTrash() { return <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M2 4h12M5 4V3a1 1 0 011-1h4a1 1 0 011 1v1M6 7v5M10 7v5M3 4l1 9a1 1 0 001 1h6a1 1 0 001-1l1-9"/></svg> }
+function IconPlus()  { return <svg className="w-3 h-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M8 3v10M3 8h10"/></svg> }
 
 // ── Modal crear/editar proyecto ───────────────────────────────────────────────────
 
@@ -36,7 +45,7 @@ function ModalProyecto({ cursoId, proyecto, onGuardar, onCancelar }) {
                 nombre: form.nombre,
                 descripcion: form.descripcion,
                 fecha_inicio: form.fecha_inicio,
-                fecha_fin: form.fecha_fin,
+                fecha_fin_estimada: form.fecha_fin,
             }
 
             if (esEdicion) {
@@ -162,6 +171,8 @@ export default function DetalleCurso() {
     const [loading, setLoading] = useState(true)
     const [modalNuevoProyecto, setModalNuevoProyecto] = useState(false)
     const [proyectoEditando, setProyectoEditando] = useState(null)
+    const [eliminando, setEliminando] = useState(null)
+    const [proyectoViendo, setProyectoViendo] = useState(null)
 
     useEffect(() => {
         cargarDatos()
@@ -208,9 +219,9 @@ export default function DetalleCurso() {
                     nombre: p.nombre,
                     descripcion: p.descripcion,
                     fecha_inicio: p.fecha_inicio,
-                    fecha_fin: p.fecha_fin,
+                    fecha_fin: p.fecha_fin_estimada,
                     estado: p.estado ?? 'activo',
-                    cantidad_equipos: p.cantidad_equipos ?? 0,
+                    equipo: p.equipo ?? null,
                 }))
 
                 setProyectos(proyectosAdaptados)
@@ -228,10 +239,27 @@ export default function DetalleCurso() {
         }
     }
 
-    function handleGuardarProyecto(data) {
+    function handleGuardarProyecto() {
         setModalNuevoProyecto(false)
         setProyectoEditando(null)
         cargarDatos()
+    }
+
+    async function handleEliminar(p) {
+        if (!window.confirm(`¿Eliminar el proyecto "${p.nombre}"? Esta acción no se puede deshacer.`)) return
+        setEliminando(p.id)
+        try {
+            await cursosApi.eliminarProyecto(id, p.id)
+            cargarDatos()
+        } catch (err) {
+            alert(err?.data?.detail ?? 'No se pudo eliminar el proyecto.')
+        } finally {
+            setEliminando(null)
+        }
+    }
+
+    function handleAgregar() {
+        navigate(`/docente/cursos/${id}/estudiantes`)
     }
 
     function formatearFecha(fecha) {
@@ -359,44 +387,106 @@ export default function DetalleCurso() {
                 </div>
             ) : (
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {proyectos.map(p => {
+                    {proyectos.map((p, index) => {
                         const info = estadoInfo(p.estado)
+                        const miembros = p.equipo?.miembros ?? []
                         return (
                             <div key={p.id}
-                                className="bg-white rounded-2xl border border-[#e1e3e4] p-5 hover:shadow-md hover:border-[#d1d3d4] transition-all group">
+                                className="bg-white rounded-2xl border border-[#e1e3e4] p-5 hover:shadow-md hover:border-[#d1d3d4] transition-all group flex flex-col gap-4">
 
-                                <div className="flex items-start justify-between gap-3 mb-3">
-                                    <h3 className="text-[15px] font-semibold text-[#191c1d] leading-snug group-hover:text-[#d32f2f] transition-colors">
-                                        {p.nombre}
-                                    </h3>
-                                    <div className={`flex-shrink-0 w-2 h-2 rounded-full ${info.dot} mt-1.5`} />
+                                {/* Header */}
+                                <div className="flex items-start gap-3">
+                                    <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-[15px] font-bold flex-shrink-0"
+                                        style={{ backgroundColor: TEAM_COLORS[index % TEAM_COLORS.length] }}>
+                                        {p.nombre[0].toUpperCase()}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <h3 className="text-[15px] font-bold text-[#191c1d] leading-tight truncate group-hover:text-[#d32f2f] transition-colors">
+                                            {p.nombre}
+                                        </h3>
+                                        {p.descripcion && <p className="text-[12px] text-[#9ba7ae] mt-0.5 line-clamp-1">{p.descripcion}</p>}
+                                    </div>
+                                    <span className={`flex-shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold ${info.bg} ${info.text}`}>
+                                        <div className={`w-1.5 h-1.5 rounded-full ${info.dot}`} />
+                                        {info.label}
+                                    </span>
                                 </div>
 
-                                {p.descripcion && (
-                                    <p className="text-[13px] text-[#5b403d] leading-relaxed mb-4 line-clamp-2">{p.descripcion}</p>
+                                {/* Miembros */}
+                                {miembros.length > 0 ? (
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <div className="flex -space-x-1.5">
+                                                {miembros.slice(0, 4).map((m, mi) => (
+                                                    <div key={m.id} title={m.nombre_completo}
+                                                        style={{ backgroundColor: AVATAR_COLORS[mi % AVATAR_COLORS.length] }}
+                                                        className="w-7 h-7 rounded-full border-2 border-white flex items-center justify-center text-white text-[9px] font-bold flex-shrink-0">
+                                                        {m.iniciales}
+                                                    </div>
+                                                ))}
+                                                {miembros.length > 4 && (
+                                                    <div className="w-7 h-7 rounded-full border-2 border-white bg-[#f0f2f3] flex items-center justify-center text-[9px] font-semibold text-[#4c616c]">
+                                                        +{miembros.length - 4}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <span className="text-[12px] text-[#9ba7ae]">
+                                                {p.equipo.cantidad_miembros ?? miembros.length}/{p.equipo.cupo_maximo ?? '—'} miembros
+                                            </span>
+                                        </div>
+                                        {p.equipo?.lider && (
+                                            <span className="text-[11px] font-semibold text-[#92400e] bg-[#fef9c3] px-2 py-0.5 rounded-md whitespace-nowrap">
+                                                👑 {p.equipo.lider.nombre?.split(' ')[0]}
+                                            </span>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-7 h-7 rounded-full border-2 border-dashed border-[#d1d3d4] flex items-center justify-center">
+                                            <svg className="w-3 h-3 text-[#9ba7ae]" viewBox="0 0 16 16" fill="currentColor">
+                                                <path d="M8 8a3 3 0 100-6 3 3 0 000 6zm-6 6s-1 0-1-1 1-4 7-4 7 3 7 4-1 1-1 1H2z"/>
+                                            </svg>
+                                        </div>
+                                        <span className="text-[12px] text-[#9ba7ae]">Sin miembros aún</span>
+                                    </div>
                                 )}
 
-                                <div className="flex items-center gap-2 mb-3 text-[12px] text-[#9ba7ae]">
+                                {/* Fechas */}
+                                <div className="flex items-center gap-1.5 text-[12px] text-[#9ba7ae]">
                                     <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
                                         <rect x="2" y="3" width="12" height="11" rx="1.5" />
                                         <path d="M2 6h12M5 2v2M11 2v2" />
                                     </svg>
-                                    <span>{formatearFecha(p.fecha_inicio)} - {formatearFecha(p.fecha_fin)}</span>
+                                    <span>{formatearFecha(p.fecha_inicio)} — {formatearFecha(p.fecha_fin)}</span>
                                 </div>
 
-                                <div className="flex items-center justify-between">
-                                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold ${info.bg} ${info.text}`}>
-                                        <div className={`w-1.5 h-1.5 rounded-full ${info.dot}`} />
-                                        {info.label}
-                                    </span>
-                                    <div className="flex gap-1">
+                                {/* Acciones */}
+                                <div className="flex items-center justify-between pt-2 border-t border-[#f0f2f3]">
+                                    <button
+                                        onClick={handleAgregar}
+                                        className="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-[#d32f2f] text-white text-[12px] font-semibold hover:bg-[#af101a] transition-colors">
+                                        <IconPlus />
+                                        Agregar
+                                    </button>
+                                    <div className="flex items-center gap-0.5">
+                                        <button
+                                            onClick={() => setProyectoViendo({ proyecto: p, idx: index })}
+                                            className="w-7 h-7 rounded-lg text-[#4c616c] hover:bg-[#f0f2f3] flex items-center justify-center transition-colors"
+                                            title="Ver equipo">
+                                            <IconEye />
+                                        </button>
                                         <button
                                             onClick={() => setProyectoEditando(p)}
-                                            className="w-6 h-6 rounded-lg hover:bg-[#f0f2f3] flex items-center justify-center transition-colors"
-                                            title="Editar">
-                                            <svg className="w-3.5 h-3.5 text-[#4c616c]" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-                                                <path d="M11 2l3 3-9 9H2v-3l9-9z" />
-                                            </svg>
+                                            className="w-7 h-7 rounded-lg text-[#4c616c] hover:bg-[#f0f2f3] flex items-center justify-center transition-colors"
+                                            title="Editar proyecto">
+                                            <IconEdit />
+                                        </button>
+                                        <button
+                                            onClick={() => handleEliminar(p)}
+                                            disabled={eliminando === p.id}
+                                            className="w-7 h-7 rounded-lg text-[#ba1a1a] hover:bg-[#ffdad6] flex items-center justify-center transition-colors disabled:opacity-50"
+                                            title="Eliminar proyecto">
+                                            <IconTrash />
                                         </button>
                                     </div>
                                 </div>
@@ -421,6 +511,17 @@ export default function DetalleCurso() {
                     proyecto={proyectoEditando}
                     onGuardar={handleGuardarProyecto}
                     onCancelar={() => setProyectoEditando(null)}
+                />
+            )}
+
+            {proyectoViendo && (
+                <ModalDetalleEquipo
+                    titulo={proyectoViendo.proyecto.nombre}
+                    subtitulo={proyectoViendo.proyecto.descripcion}
+                    colorIndex={proyectoViendo.idx}
+                    equipo={proyectoViendo.proyecto.equipo}
+                    onClose={() => setProyectoViendo(null)}
+                    onAgregar={() => { setProyectoViendo(null); handleAgregar() }}
                 />
             )}
         </div>

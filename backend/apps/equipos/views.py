@@ -11,13 +11,16 @@ from apps.usuarios.models import Usuario
 from apps.bitacora.models import BitacoraSistema
 from .models import Equipo, MiembroEquipo
 from .serializers import (
-    EquipoDetalleSerializer, EstudianteDisponibleSerializer,
+    EquipoSerializer, EquipoDetalleSerializer, EstudianteDisponibleSerializer,
     MiembroEquipoSerializer, UsuarioResumenSerializer,
 )
 
 
 class EquiposPorProyectoView(APIView):
-    """GET /api/proyectos/<proyecto_id>/equipos/"""
+    """
+    GET  /api/proyectos/<proyecto_id>/equipos/  — Lista los equipos del proyecto.
+    POST /api/proyectos/<proyecto_id>/equipos/  — Crea un nuevo equipo en el proyecto.
+    """
     permission_classes = [IsAuthenticated]
 
     def get(self, request, proyecto_id):
@@ -40,6 +43,19 @@ class EquiposPorProyectoView(APIView):
             'cantidad_equipos':     len(equipos_data),
             'cantidad_estudiantes': sum(e['cantidad_miembros'] for e in equipos_data),
         })
+
+    def post(self, request, proyecto_id):
+        try:
+            proyecto = Proyecto.objects.select_related('id_curso').get(pk=proyecto_id)
+        except Proyecto.DoesNotExist:
+            return Response({'detail': 'Proyecto no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = EquipoSerializer(data=request.data, context={'request': request})
+        if serializer.is_valid():
+            equipo = serializer.save(proyecto=proyecto)
+            equipo_con_miembros = Equipo.objects.prefetch_related('miembros__usuario').get(pk=equipo.pk)
+            return Response(EquipoDetalleSerializer(equipo_con_miembros).data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class EstudiantesEquipoView(APIView):
@@ -241,19 +257,76 @@ class RetirarMiembroView(generics.GenericAPIView):
 
 
 # GET /api/cursos/<curso_id>/estudiantes/?proyecto_id=<int>
-# Lista los estudiantes activos que aún no han sido asignados a ningún equipo
-# del proyecto especificado. Requiere el parámetro proyecto_id para validar
-# que el proyecto pertenece al curso y para filtrar estudiantes ya asignados.
+# Sin proyecto_id: retorna {disponibles, en_equipo} con estado de asignación en el curso.
+# Con proyecto_id: retorna lista plana de estudiantes sin equipo en ese proyecto.
+class EstudiantesCursoView(APIView):
+    authentication_classes = [UsuarioJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, curso_id):
+        proyecto_id = request.query_params.get('proyecto_id')
+
+        if proyecto_id:
+            proyecto = get_object_or_404(Proyecto, pk=proyecto_id, id_curso_id=curso_id)
+            ya_asignados = MiembroEquipo.objects.filter(
+                equipo__proyecto=proyecto,
+                estado='activo',
+            ).values_list('usuario_id', flat=True)
+            estudiantes = Usuario.objects.filter(
+                tipo_rol='estudiante',
+                estado='activo',
+            ).exclude(id__in=ya_asignados).order_by('nombre', 'apellido')
+            return Response(UsuarioResumenSerializer(estudiantes, many=True).data)
+
+        # Sin proyecto_id: todos los estudiantes con su estado en el curso
+        membresías = MiembroEquipo.objects.filter(
+            equipo__proyecto__id_curso_id=curso_id,
+            estado='activo',
+        ).select_related('usuario', 'equipo', 'equipo__proyecto')
+
+        usuario_equipos = {}
+        for m in membresías:
+            uid = m.usuario_id
+            if uid not in usuario_equipos:
+                usuario_equipos[uid] = []
+            usuario_equipos[uid].append({
+                'equipo_id':       m.equipo.id,
+                'equipo_nombre':   m.equipo.nombre,
+                'proyecto_id':     m.equipo.proyecto.id,
+                'proyecto_nombre': m.equipo.proyecto.nombre,
+            })
+
+        todos = Usuario.objects.filter(
+            tipo_rol='estudiante',
+            estado='activo',
+        ).order_by('nombre', 'apellido')
+
+        disponibles = []
+        en_equipo = []
+
+        for est in todos:
+            data = {
+                'id':               est.id,
+                'nombre':           est.nombre,
+                'apellido':         est.apellido,
+                'correo':           est.correo,
+                'codigo_estudiante': est.codigo_estudiante or '',
+            }
+            if est.id in usuario_equipos:
+                data['equipos'] = usuario_equipos[est.id]
+                en_equipo.append(data)
+            else:
+                disponibles.append(data)
+
+        return Response({'disponibles': disponibles, 'en_equipo': en_equipo})
+
+
+# Kept for backwards compatibility — use EstudiantesCursoView instead.
 class EstudiantesDisponiblesView(generics.ListAPIView):
     authentication_classes = [UsuarioJWTAuthentication]
     serializer_class = UsuarioResumenSerializer
 
     def get_queryset(self):
-        """
-        Obtiene la lista de estudiantes no asignados activamente a ningún equipo
-        del proyecto indicado. Valida que el parámetro proyecto_id sea proporcionado y que el
-        proyecto pertenezca al curso especificado en la URL.
-        """
         curso_id = self.kwargs['curso_id']
         proyecto_id = self.request.query_params.get('proyecto_id')
 

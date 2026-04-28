@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from apps.configuracion.models import PeriodoAcademico
+from apps.equipos.serializers import EquipoDetalleSerializer
 from .models import Curso, Proyecto
 
 
@@ -45,18 +46,11 @@ class CursoSerializer(serializers.ModelSerializer):
         return obj.id_periodo_academico.nombre
 
     def get_total_proyectos(self, obj):
-        try:
-            _ = obj.proyecto
-            return 1
-        except Exception:
-            return 0
+        return obj.proyectos.count()
 
     def get_total_equipos(self, obj):
-        try:
-            # len() usa el prefetch cache; .count() emitiría una query extra
-            return len(obj.proyecto.equipos.all())
-        except Exception:
-            return 0
+        # Sum of equipos across all proyectos
+        return sum(len(p.equipos.all()) for p in obj.proyectos.all())
 
     def validate_id_periodo_academico(self, periodo):
         if periodo.estado != PeriodoAcademico.Estado.ACTIVO:
@@ -94,6 +88,7 @@ class CursoUpdateSerializer(serializers.ModelSerializer):
 
 
 class ProyectoSerializer(serializers.ModelSerializer):
+    equipo = serializers.SerializerMethodField()
 
     class Meta:
         model = Proyecto
@@ -106,8 +101,15 @@ class ProyectoSerializer(serializers.ModelSerializer):
             'fecha_inicio',
             'fecha_fin_estimada',
             'fecha_creacion',
+            'equipo',
         ]
         read_only_fields = ['fecha_creacion']
+
+    def get_equipo(self, obj):
+        equipo = obj.equipos.filter(estado='activo').first()
+        if not equipo:
+            return None
+        return EquipoDetalleSerializer(equipo).data
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
@@ -135,10 +137,8 @@ class ProyectoSerializer(serializers.ModelSerializer):
                 'Solo el docente propietario del curso puede crear un proyecto en él.'
             )
 
-        # Un curso solo puede tener un proyecto (OneToOne); verificar en creación
-        if self.instance is None and hasattr(curso, 'proyecto'):
-            raise serializers.ValidationError(
-                'Este curso ya tiene un proyecto asignado.'
-            )
+        # Un curso puede tener múltiples proyectos; en creación verificamos que no exista ninguno si se desea restringir
+        # Mientras tanto se permite crear varios; si se quiere limitar, cambiar a validación de cantidad.
+        # Actualmente no hay restricción de número máximo de proyectos por curso.
 
         return curso

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { NavLink, Outlet, useNavigate, Link } from 'react-router-dom'
+import { NavLink, Outlet, useNavigate, Link, useLocation } from 'react-router-dom'
 import { authApi, session, buildMediaUrl } from '../../services/api'
 
 // ── Íconos SVG inline ─────────────────────────────────────────────────────────
@@ -48,6 +48,28 @@ function IconProfile() {
     )
 }
 
+function IconUsers() {
+    return (
+        <svg viewBox="0 0 20 20" fill="none" className="w-5 h-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="7" cy="7" r="3" />
+            <path d="M1 17a6 6 0 0112 0" />
+            <path d="M13 5a3 3 0 110 6" opacity="0.7" />
+            <path d="M16 17a5 5 0 00-3-4.6" opacity="0.7" />
+        </svg>
+    )
+}
+
+function IconTeam() {
+    return (
+        <svg viewBox="0 0 20 20" fill="none" className="w-5 h-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="2" y="3" width="7" height="7" rx="1.5" />
+            <rect x="11" y="3" width="7" height="7" rx="1.5" />
+            <rect x="2" y="12" width="7" height="5" rx="1.5" />
+            <rect x="11" y="12" width="7" height="5" rx="1.5" />
+        </svg>
+    )
+}
+
 // ── Navegación ────────────────────────────────────────────────────────────
 
 const NAV_ITEMS = [
@@ -65,10 +87,14 @@ function navLinkClass({ isActive }) {
 
 export default function DocenteLayout() {
     const navigate = useNavigate()
+    const location = useLocation()
     const [user, setUser] = useState(() => session.getUser())
     const [collapsed, setCollapsed] = useState(false)
     const [loggingOut, setLoggingOut] = useState(false)
     const [userMenuOpen, setUserMenuOpen] = useState(false)
+
+    const cursoMatch = location.pathname.match(/^\/docente\/cursos\/(\d+)/)
+    const cursoId = cursoMatch?.[1] ?? null
 
     useEffect(() => {
         const refresh = () => setUser(session.getUser())
@@ -124,11 +150,38 @@ export default function DocenteLayout() {
                         </p>
                     )}
                     {NAV_ITEMS.map(({ label, to, icon }) => (
-                        <NavLink key={to} to={to} className={navLinkClass} title={collapsed ? label : undefined}>
+                        <NavLink key={to} to={to} end className={navLinkClass} title={collapsed ? label : undefined}>
                             <span className="flex-shrink-0">{icon}</span>
                             {!collapsed && <span>{label}</span>}
                         </NavLink>
                     ))}
+
+                    {/* Sub-menú contextual del curso */}
+                    {cursoId && (
+                        <>
+                            {!collapsed && (
+                                <p className="text-[10px] font-semibold text-[#9ba7ae] tracking-[0.8px] uppercase px-3 pb-1.5 pt-3">
+                                    Este curso
+                                </p>
+                            )}
+                            {collapsed && <div className="my-1 mx-3 border-t border-[#e1e3e4]" />}
+                            <NavLink
+                                to={`/docente/cursos/${cursoId}/estudiantes`}
+                                className={navLinkClass}
+                                title={collapsed ? 'Estudiantes' : undefined}>
+                                <span className="flex-shrink-0"><IconUsers /></span>
+                                {!collapsed && <span>Estudiantes</span>}
+                            </NavLink>
+                            <NavLink
+                                to={`/docente/cursos/${cursoId}`}
+                                end
+                                className={navLinkClass}
+                                title={collapsed ? 'Equipos' : undefined}>
+                                <span className="flex-shrink-0"><IconTeam /></span>
+                                {!collapsed && <span>Equipos</span>}
+                            </NavLink>
+                        </>
+                    )}
                 </nav>
 
                 {/* Usuario + Logout */}
