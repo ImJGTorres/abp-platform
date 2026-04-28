@@ -1,5 +1,6 @@
 from django.urls import path
 from .views import (
+    ActualizarRolView,
     EquiposPorProyectoView,
     EstudiantesEquipoView,
     AsignarEstudiantesView,
@@ -17,4 +18,8 @@ urlpatterns = [
     # DELETE /api/equipos/<equipo_id>/miembros/<usuario_id>/
     # Retirar estudiante del equipo (soft-delete: marca como retirado y libera cupo).
     path('equipos/<int:equipo_id>/miembros/<int:usuario_id>/', RetirarMiembroView.as_view(), name='miembro-retirar'),
+    # PATCH /api/equipos/<equipo_id>/miembros/<usuario_id>/rol/
+    # Actualizar rol interno y descripción del propio estudiante en el equipo.
+    # Valida que solo el propio estudiante pueda modificar su rol y que no haya líder duplicado.
+    path('equipos/<int:equipo_id>/miembros/<int:usuario_id>/rol/', ActualizarRolView.as_view(), name='miembro-rol'),
 ]

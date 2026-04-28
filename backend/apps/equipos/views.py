@@ -11,7 +11,7 @@ from apps.usuarios.models import Usuario
 from apps.bitacora.models import BitacoraSistema
 from .models import Equipo, MiembroEquipo
 from .serializers import (
-    EquipoDetalleSerializer, EstudianteDisponibleSerializer,
+    ActualizarRolSerializer, EquipoDetalleSerializer, EstudianteDisponibleSerializer,
     MiembroEquipoSerializer, UsuarioResumenSerializer,
 )
 
@@ -143,7 +143,8 @@ class AsignarEstudiantesView(APIView):
 
 # GET /api/equipos/<equipo_id>/miembros/
 # Lista los miembros activos de un equipo específico.
-# Incluye el rol interno y fecha de asignación a través del serializer.
+# Incluye el rol interno y fecha de asignación a través del serializer (MiembroEquipoSerializer).
+# Retorna para cada miembro sus datos básicos más rol_interno y descripcion_responsabilidades
 class MiembroListView(generics.ListAPIView):
     authentication_classes = [UsuarioJWTAuthentication]
     serializer_class = MiembroEquipoSerializer
@@ -238,6 +239,37 @@ class RetirarMiembroView(generics.GenericAPIView):
         miembro.estado = 'retirado'
         miembro.save()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# PATCH /api/equipos/<equipo_id>/miembros/<usuario_id>/rol/
+# Permite al propio estudiante actualizar su rol interno y descripción de responsabilidades.
+# Verifica que el usuario autenticado sea el dueño de la membresía (propio estudiante).
+# Valida que no exista ya un Líder en el equipo (salvo que sea el mismo usuario reasignándose).
+# Retorna 200 con la membresía actualizada o 400 si ya existe un Líder en el equipo.
+class ActualizarRolView(generics.UpdateAPIView):
+    authentication_classes = [UsuarioJWTAuthentication]
+    serializer_class = ActualizarRolSerializer
+    http_method_names = ['patch']
+
+    def get_object(self):
+        return get_object_or_404(
+            MiembroEquipo,
+            equipo_id=self.kwargs['equipo_id'],
+            usuario_id=self.kwargs['usuario_id'],
+            estado='activo',
+        )
+
+    def patch(self, request, *args, **kwargs):
+        miembro = self.get_object()
+        if request.user.id != miembro.usuario_id:
+            return Response(
+                {'detail': 'Solo puedes actualizar tu propio rol.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        serializer = self.get_serializer(miembro, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 # GET /api/cursos/<curso_id>/estudiantes/?proyecto_id=<int>
