@@ -29,12 +29,8 @@ export const cursosApi = {
         return data
     },
 
-    async crear({ nombre, codigo, descripcion, periodo_id }) {
-        const response = await request('/api/cursos/', {
-            method: 'POST',
-            body: JSON.stringify({ nombre, codigo, descripcion, periodo_id }),
-        })
-
+    async obtener(id) {
+        const response = await request(`/api/cursos/${id}/`)
         const data = await parseJSON(response)
         if (!response.ok) throw { status: response.status, data }
         return data
