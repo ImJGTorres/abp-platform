@@ -54,10 +54,10 @@ class Proyecto(models.Model):
         EN_EJECUCION = 'en_ejecucion', 'En Ejecución'
         FINALIZADO = 'finalizado', 'Finalizado'
 
-    id_curso = models.OneToOneField(
+    id_curso = models.ForeignKey(
         Curso,
         on_delete=models.PROTECT,
-        related_name='proyecto',
+        related_name='proyectos',
     )
     nombre = models.CharField(max_length=200)
     descripcion = models.TextField(null=True, blank=True)

@@ -4,6 +4,10 @@ from apps.configuracion.models import PeriodoAcademico
 from .models import Curso, Proyecto
 
 
+# ---------------------------------------------------------------------------
+# Curso
+# ---------------------------------------------------------------------------
+
 class CursoSerializer(serializers.ModelSerializer):
     docente_nombre = serializers.SerializerMethodField()
     periodo_nombre = serializers.SerializerMethodField()
@@ -45,18 +49,12 @@ class CursoSerializer(serializers.ModelSerializer):
         return obj.id_periodo_academico.nombre
 
     def get_total_proyectos(self, obj):
-        try:
-            _ = obj.proyecto
-            return 1
-        except Exception:
-            return 0
+        # len() aprovecha el prefetch cache de 'proyectos'
+        return len(obj.proyectos.all())
 
     def get_total_equipos(self, obj):
-        try:
-            # len() usa el prefetch cache; .count() emitiría una query extra
-            return len(obj.proyecto.equipos.all())
-        except Exception:
-            return 0
+        # Suma equipos de todos los proyectos; len() usa prefetch 'proyectos__equipos'
+        return sum(len(p.equipos.all()) for p in obj.proyectos.all())
 
     def validate_id_periodo_academico(self, periodo):
         if periodo.estado != PeriodoAcademico.Estado.ACTIVO:
@@ -93,7 +91,24 @@ class CursoUpdateSerializer(serializers.ModelSerializer):
         return CursoSerializer(instance, context=self.context).data
 
 
+# ---------------------------------------------------------------------------
+# Proyecto
+# ---------------------------------------------------------------------------
+
+def _validate_fechas(attrs, instance=None):
+    """Valida que fecha_fin_estimada >= fecha_inicio."""
+    fecha_inicio = attrs.get('fecha_inicio') or getattr(instance, 'fecha_inicio', None)
+    fecha_fin = attrs.get('fecha_fin_estimada') or getattr(instance, 'fecha_fin_estimada', None)
+    if fecha_inicio and fecha_fin and fecha_fin < fecha_inicio:
+        raise serializers.ValidationError(
+            {'fecha_fin_estimada': 'La fecha fin estimada no puede ser anterior a la fecha de inicio.'}
+        )
+
+
 class ProyectoSerializer(serializers.ModelSerializer):
+    """Serializer de lectura. id_curso se incluye como FK numérica."""
+
+    total_equipos = serializers.SerializerMethodField()
 
     class Meta:
         model = Proyecto
@@ -106,39 +121,49 @@ class ProyectoSerializer(serializers.ModelSerializer):
             'fecha_inicio',
             'fecha_fin_estimada',
             'fecha_creacion',
+            'total_equipos',
         ]
-        read_only_fields = ['fecha_creacion']
+        read_only_fields = fields  # completamente de lectura; escritura via Create/Update
+
+    def get_total_equipos(self, obj):
+        return len(obj.equipos.all())
+
+
+class ProyectoCreateSerializer(serializers.ModelSerializer):
+    """
+    Serializer de creación. El id_curso lo inyecta la vista desde la URL.
+    El docente solo envía: nombre, descripcion, fecha_inicio, fecha_fin_estimada.
+    El estado arranca siempre en 'planificado' (default del modelo).
+    """
+
+    class Meta:
+        model = Proyecto
+        fields = ['nombre', 'descripcion', 'fecha_inicio', 'fecha_fin_estimada']
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
-
-        fecha_inicio = attrs.get('fecha_inicio')
-        fecha_fin_estimada = attrs.get('fecha_fin_estimada')
-        if fecha_inicio and fecha_fin_estimada and fecha_fin_estimada < fecha_inicio:
-            raise serializers.ValidationError(
-                {'fecha_fin_estimada': 'La fecha fin estimada no puede ser anterior a la fecha de inicio.'}
-            )
-
+        _validate_fechas(attrs)
         return attrs
 
-    def validate_id_curso(self, curso):
-        request = self.context.get('request')
-        if request is None:
-            return curso
+    def to_representation(self, instance):
+        return ProyectoSerializer(instance, context=self.context).data
 
-        usuario = getattr(request, 'user', None)
-        if usuario is None or not usuario.is_authenticated:
-            raise serializers.ValidationError('Se requiere autenticación.')
 
-        if curso.id_docente_id != usuario.pk:
-            raise serializers.ValidationError(
-                'Solo el docente propietario del curso puede crear un proyecto en él.'
-            )
+class ProyectoUpdateSerializer(serializers.ModelSerializer):
+    """
+    Serializer de actualización (PUT/PATCH).
+    Permite cambiar nombre, descripcion, estado y fechas.
+    id_curso no es modificable.
+    """
 
-        # Un curso solo puede tener un proyecto (OneToOne); verificar en creación
-        if self.instance is None and hasattr(curso, 'proyecto'):
-            raise serializers.ValidationError(
-                'Este curso ya tiene un proyecto asignado.'
-            )
+    class Meta:
+        model = Proyecto
+        fields = ['nombre', 'descripcion', 'estado', 'fecha_inicio', 'fecha_fin_estimada']
 
-        return curso
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        _validate_fechas(attrs, instance=self.instance)
+        return attrs
+
+    def to_representation(self, instance):
+        return ProyectoSerializer(instance, context=self.context).data

@@ -57,6 +57,9 @@ urlpatterns = [
     path('api/permisos/', PermisosAgrupadosView.as_view(), name='permisos-agrupados'),
     path('api/bitacora/', include('apps.bitacora.urls')),  # Endpoint para consultar bitácora del sistema
     path('api/cursos/', include('apps.cursos.urls')),
+    # /api/proyectos/<pk>/ debe ir ANTES del include general 'api/' para que Django
+    # lo resuelva primero; el include de equipos ya registra /api/proyectos/<id>/equipos/
+    path('api/proyectos/', include('apps.cursos.proyecto_urls')),
     path('api/', include('apps.equipos.urls')),
 
     # SPA: Servir index.html para cualquier ruta que no sea API ni static
