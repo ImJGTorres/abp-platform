@@ -45,6 +45,10 @@ class Equipo(models.Model):
 # Relaciona usuarios con equipos y define su rol interno.
 # Un usuario puede pertenecer a varios equipos (en diferentes proyectos) pero solo un equipo por proyecto.
 class MiembroEquipo(models.Model):
+    # El historial de movimientos se preserva mediante soft-delete:
+    # estado='retirado' conserva el registro original. Cada reasignación
+    # crea un nuevo MiembroEquipo en el equipo destino.
+
     # Equipo al que pertenece este miembro.
     # related_name='miembros' permite acceder a los miembros desde un equipo: equipo.miembros.all()
     equipo = models.ForeignKey(

@@ -5,6 +5,9 @@ from .views import (
     AsignarEstudiantesView,
     MiembroListView,
     RetirarMiembroView,
+    EditarEquipoView,
+    MoverMiembroView,
+    DisolverEquipoView,
 )
 
 urlpatterns = [
@@ -17,4 +20,10 @@ urlpatterns = [
     # DELETE /api/equipos/<equipo_id>/miembros/<usuario_id>/
     # Retirar estudiante del equipo (soft-delete: marca como retirado y libera cupo).
     path('equipos/<int:equipo_id>/miembros/<int:usuario_id>/', RetirarMiembroView.as_view(), name='miembro-retirar'),
+    # PUT/PATCH /api/equipos/<equipo_id>/  — editar nombre, descripción y cupo del equipo.
+    path('equipos/<int:equipo_id>/', EditarEquipoView.as_view(), name='equipo-editar'),
+    # POST /api/equipos/<equipo_id>/miembros/mover/  — reubicar estudiante a otro equipo del mismo proyecto.
+    path('equipos/<int:equipo_id>/miembros/mover/', MoverMiembroView.as_view(), name='miembro-mover'),
+    # DELETE /api/equipos/<equipo_id>/disolver/  — disolver equipo (soft-delete).
+    path('equipos/<int:equipo_id>/disolver/', DisolverEquipoView.as_view(), name='equipo-disolver'),
 ]

@@ -143,6 +143,36 @@ class UsuarioResumenSerializer(serializers.ModelSerializer):
         fields = ['id', 'nombre', 'apellido', 'correo', 'codigo_estudiante']
 
 
+class EditarEquipoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Equipo
+        fields = ['nombre', 'descripcion', 'cupo_maximo']
+
+    def validate(self, data):
+        equipo = self.instance
+
+        nombre = data.get('nombre', equipo.nombre)
+        if Equipo.objects.filter(
+            nombre=nombre,
+            proyecto=equipo.proyecto
+        ).exclude(pk=equipo.pk).exists():
+            raise serializers.ValidationError(
+                {"nombre": "Ya existe un equipo con ese nombre en el proyecto."}
+            )
+
+        nuevo_cupo = data.get('cupo_maximo', equipo.cupo_maximo)
+        miembros_activos = MiembroEquipo.objects.filter(
+            equipo=equipo,
+            estado='activo'
+        ).count()
+        if nuevo_cupo < miembros_activos:
+            raise serializers.ValidationError(
+                {"cupo_maximo": f"El cupo no puede ser menor al número de miembros activos ({miembros_activos})."}
+            )
+
+        return data
+
+
 class EstudianteDisponibleSerializer(serializers.Serializer):
     id       = serializers.IntegerField()
     nombre   = serializers.CharField()

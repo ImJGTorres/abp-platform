@@ -4,13 +4,16 @@ from rest_framework import generics, status
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
+from django.db import transaction
 
 from apps.usuarios.authentication import UsuarioJWTAuthentication
 from apps.cursos.models import Proyecto
 from apps.usuarios.models import Usuario
 from apps.bitacora.models import BitacoraSistema
+from apps.bitacora.utils import registrar_evento
 from .models import Equipo, MiembroEquipo
 from .serializers import (
+    EditarEquipoSerializer,
     EquipoDetalleSerializer, EstudianteDisponibleSerializer,
     MiembroEquipoSerializer, UsuarioResumenSerializer,
 )
@@ -271,3 +274,127 @@ class EstudiantesDisponiblesView(generics.ListAPIView):
             tipo_rol='estudiante',
             estado='activo',
         ).exclude(id__in=ya_asignados)
+
+
+# PUT/PATCH /api/equipos/<equipo_id>/
+# Edita nombre, descripción y cupo máximo de un equipo.
+# Valida unicidad de nombre dentro del proyecto y que el nuevo cupo no sea menor a miembros activos.
+class EditarEquipoView(generics.UpdateAPIView):
+    authentication_classes = [UsuarioJWTAuthentication]
+    serializer_class = EditarEquipoSerializer
+    queryset = Equipo.objects.all()
+    lookup_url_kwarg = 'equipo_id'
+    http_method_names = ['put', 'patch']
+
+    def perform_update(self, serializer):
+        equipo = serializer.save()
+        registrar_evento(
+            request=self.request,
+            accion=BitacoraSistema.Accion.UPDATE,
+            modulo='equipos',
+            descripcion=f"Equipo '{equipo.nombre}' (id={equipo.id}) editado.",
+        )
+
+
+# POST /api/equipos/<equipo_id>/miembros/mover/
+# Reasigna un estudiante de equipo_origen a equipo_destino dentro del mismo proyecto.
+# Marca la membresía origen como 'retirado' y crea (o reactiva) la membresía destino.
+class MoverMiembroView(generics.GenericAPIView):
+    authentication_classes = [UsuarioJWTAuthentication]
+
+    def post(self, request, equipo_id):
+        usuario_id = request.data.get('usuario_id')
+        equipo_destino_id = request.data.get('equipo_destino_id')
+
+        if not usuario_id or not equipo_destino_id:
+            return Response(
+                {"detail": "Se requieren usuario_id y equipo_destino_id."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        equipo_origen = get_object_or_404(Equipo, pk=equipo_id)
+        equipo_destino = get_object_or_404(Equipo, pk=equipo_destino_id)
+
+        if equipo_origen.proyecto_id != equipo_destino.proyecto_id:
+            return Response(
+                {"detail": "Los equipos deben pertenecer al mismo proyecto."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        miembro = get_object_or_404(
+            MiembroEquipo,
+            equipo=equipo_origen,
+            usuario_id=usuario_id,
+            estado='activo',
+        )
+
+        miembros_destino = MiembroEquipo.objects.filter(
+            equipo=equipo_destino,
+            estado='activo',
+        ).count()
+        if miembros_destino >= equipo_destino.cupo_maximo:
+            return Response(
+                {"detail": f"El equipo destino ha alcanzado su cupo máximo de {equipo_destino.cupo_maximo} integrantes."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        with transaction.atomic():
+            miembro.estado = 'retirado'
+            miembro.save()
+
+            # update_or_create maneja el caso donde ya existe un registro retirado
+            # para este usuario en el equipo destino (evita violación de unique constraint).
+            nueva_membresia, _ = MiembroEquipo.objects.update_or_create(
+                equipo=equipo_destino,
+                usuario_id=usuario_id,
+                defaults={'estado': 'activo'},
+            )
+
+        registrar_evento(
+            request=request,
+            accion=BitacoraSistema.Accion.UPDATE,
+            modulo='equipos',
+            descripcion=f"Usuario id={usuario_id} movido de equipo '{equipo_origen.nombre}' a '{equipo_destino.nombre}'.",
+        )
+
+        return Response(
+            MiembroEquipoSerializer(nueva_membresia).data,
+            status=status.HTTP_200_OK,
+        )
+
+
+# DELETE /api/equipos/<equipo_id>/disolver/
+# Disuelve un equipo: marca todos sus miembros activos como 'retirado'
+# y el equipo como 'inactivo' (soft-delete, nunca .delete()).
+class DisolverEquipoView(generics.GenericAPIView):
+    authentication_classes = [UsuarioJWTAuthentication]
+
+    def delete(self, request, equipo_id):
+        equipo = get_object_or_404(Equipo, pk=equipo_id)
+
+        # Bloqueo por entregables — verificar solo si el modelo existe.
+        # Cuando se implemente la app de entregables, descomentar:
+        # from apps.entregables.models import Entregable
+        # if Entregable.objects.filter(equipo=equipo).exists():
+        #     return Response(
+        #         {"detail": "No se puede disolver un equipo con entregables registrados."},
+        #         status=status.HTTP_409_CONFLICT,
+        #     )
+
+        with transaction.atomic():
+            MiembroEquipo.objects.filter(
+                equipo=equipo,
+                estado='activo',
+            ).update(estado='retirado')
+
+            equipo.estado = 'inactivo'
+            equipo.save()
+
+        registrar_evento(
+            request=request,
+            accion=BitacoraSistema.Accion.DELETE,
+            modulo='equipos',
+            descripcion=f"Equipo '{equipo.nombre}' (id={equipo.id}) disuelto.",
+        )
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
