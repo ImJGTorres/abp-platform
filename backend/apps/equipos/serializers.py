@@ -34,6 +34,76 @@ class EquipoSerializer(serializers.ModelSerializer):
         return value
 
 
+class EquipoCreateSerializer(serializers.ModelSerializer):
+    capacidad_maxima = serializers.IntegerField(required=True)
+
+    class Meta:
+        model = Equipo
+        fields = ['nombre', 'capacidad_maxima']
+
+    def validate_capacidad_maxima(self, value):
+        try:
+            parametro = ParametroSistema.objects.get(clave='max_estudiantes_por_equipo')
+            max_valor = int(parametro.valor)
+        except ParametroSistema.DoesNotExist:
+            raise serializers.ValidationError(
+                "No se encontró el parámetro max_estudiantes_por_equipo en la configuración del sistema."
+            )
+        if value > max_valor:
+            raise serializers.ValidationError(
+                f"El cupo máximo no puede superar {max_valor} estudiantes por equipo."
+            )
+        return value
+
+    def create(self, validated_data):
+        capacidad = validated_data.pop('capacidad_maxima')
+        proyecto = self.context['proyecto']
+        return Equipo.objects.create(proyecto=proyecto, nombre=validated_data['nombre'], cupo_maximo=capacidad)
+
+
+class EquipoUpdateSerializer(serializers.ModelSerializer):
+    capacidad_maxima = serializers.IntegerField(required=False)
+
+    class Meta:
+        model = Equipo
+        fields = ['nombre', 'capacidad_maxima']
+
+    def validate_capacidad_maxima(self, value):
+        if value is not None:
+            try:
+                parametro = ParametroSistema.objects.get(clave='max_estudiantes_por_equipo')
+                max_valor = int(parametro.valor)
+            except ParametroSistema.DoesNotExist:
+                raise serializers.ValidationError(
+                    "No se encontró el parámetro max_estudiantes_por_equipo en la configuración del sistema."
+                )
+            if value > max_valor:
+                raise serializers.ValidationError(
+                    f"El cupo máximo no puede superar {max_valor} estudiantes por equipo."
+                )
+        return value
+
+    def update(self, instance, validated_data):
+        if 'nombre' in validated_data:
+            instance.nombre = validated_data['nombre']
+        if 'capacidad_maxima' in validated_data:
+            instance.cupo_maximo = validated_data['capacidad_maxima']
+        instance.save()
+        return instance
+
+
+class EquipoListSerializer(serializers.ModelSerializer):
+    capacidad_maxima = serializers.IntegerField(source='cupo_maximo', read_only=True)
+    numero_miembros = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Equipo
+        fields = ['id', 'nombre', 'capacidad_maxima', 'numero_miembros']
+
+    def get_numero_miembros(self, obj):
+        return obj.miembros.filter(estado='activo').count()
+
+
 # Serializador para crear y validar membresías de usuarios en equipos.
 # Valida que el usuario no pertenezca ya a otro equipo del mismo proyecto
 # y que el equipo no haya excedido su cupo máximo.

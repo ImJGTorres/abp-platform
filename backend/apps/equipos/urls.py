@@ -5,6 +5,8 @@ from .views import (
     AsignarEstudiantesView,
     MiembroListView,
     RetirarMiembroView,
+    ProyectoEquiposView, 
+    EquipoUpdateView
 )
 
 urlpatterns = [
@@ -17,4 +19,6 @@ urlpatterns = [
     # DELETE /api/equipos/<equipo_id>/miembros/<usuario_id>/
     # Retirar estudiante del equipo (soft-delete: marca como retirado y libera cupo).
     path('equipos/<int:equipo_id>/miembros/<int:usuario_id>/', RetirarMiembroView.as_view(), name='miembro-retirar'),
+    path('proyectos/<int:proyecto_id>/equipos/', ProyectoEquiposView.as_view(), name='proyecto-equipos'),
+    path('equipos/<int:equipo_id>/',             EquipoUpdateView.as_view(),    name='equipo-update'),
 ]
