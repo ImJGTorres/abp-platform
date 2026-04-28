@@ -3,36 +3,44 @@ from .views import (
     ActualizarRolView,
     AsignarEstudiantesView,
     EquiposPorProyectoView,
-    EquipoUpdateView,
+    EditarEquipoView,
     EstudiantesEquipoView,
     MiembroListView,
     RetirarMiembroView,
-    EditarEquipoView,
     MoverMiembroView,
     DisolverEquipoView,
 )
 
+"""
+HU-013 — Gestión de equipos y membresías
+Endpoints implementados:
+
+Editar equipo — PUT /api/equipos/<equipo_id>/
+Reubicar estudiante — POST /api/equipos/<equipo_id>/miembros/mover/
+Disolver equipo — DELETE /api/equipos/<equipo_id>/disolver/
+Registro de cambios en bitácora para todas las operaciones CRUD
+Historial de cambios en membresías preservado mediante soft-delete
+"""
+
 urlpatterns = [
+    # GET/POST — Listar y crear equipos de un proyecto
     path('proyectos/<int:proyecto_id>/equipos/', EquiposPorProyectoView.as_view(), name='equipos-por-proyecto'),
+    # GET — Obtener estudiantes del equipo (activos, en otros equipos, disponibles)
     path('equipos/<int:equipo_id>/estudiantes/', EstudiantesEquipoView.as_view(), name='estudiantes-equipo'),
+    # POST — Asignación masiva de estudiantes al equipo
     path('equipos/<int:equipo_id>/asignar/', AsignarEstudiantesView.as_view(), name='asignar-estudiantes'),
-    # GET /api/equipos/<equipo_id>/miembros/
-    # Listar miembros activos del equipo con su rol interno y fecha de asignación.
+    # GET — Listar miembros activos del equipo
     path('equipos/<int:equipo_id>/miembros/', MiembroListView.as_view(), name='miembro-list'),
-    # DELETE /api/equipos/<equipo_id>/miembros/<usuario_id>/
-    # Retirar estudiante del equipo (soft-delete: marca como retirado y libera cupo).
+    # DELETE — Retirar estudiante del equipo (soft-delete)
     path('equipos/<int:equipo_id>/miembros/<int:usuario_id>/', RetirarMiembroView.as_view(), name='miembro-retirar'),
-    # PUT/PATCH /api/equipos/<equipo_id>/  — editar nombre, descripción y cupo del equipo.
+    # PATCH — Actualizar rol interno de un miembro
+    path('equipos/<int:equipo_id>/miembros/<int:usuario_id>/rol/', ActualizarRolView.as_view(), name='miembro-rol'),
+    # PUT/PATCH — Editar nombre, descripción y cupo máximo del equipo
     path('equipos/<int:equipo_id>/', EditarEquipoView.as_view(), name='equipo-editar'),
-    # POST /api/equipos/<equipo_id>/miembros/mover/  — reubicar estudiante a otro equipo del mismo proyecto.
+    # POST — Reubicar un estudiante de este equipo a otro del mismo proyecto
     path('equipos/<int:equipo_id>/miembros/mover/', MoverMiembroView.as_view(), name='miembro-mover'),
-    # DELETE /api/equipos/<equipo_id>/disolver/  — disolver equipo (soft-delete).
+    # DELETE — Disolver equipo (soft-delete)
     path('equipos/<int:equipo_id>/disolver/', DisolverEquipoView.as_view(), name='equipo-disolver'),
-    path('proyectos/<int:proyecto_id>/equipos/', EquiposPorProyectoView.as_view(),  name='equipos-por-proyecto'),
-    path('equipos/<int:equipo_id>/',             EquipoUpdateView.as_view(),         name='equipo-update'),
-    path('equipos/<int:equipo_id>/estudiantes/', EstudiantesEquipoView.as_view(),    name='estudiantes-equipo'),
-    path('equipos/<int:equipo_id>/asignar/',     AsignarEstudiantesView.as_view(),   name='asignar-estudiantes'),
-    path('equipos/<int:equipo_id>/miembros/',    MiembroListView.as_view(),          name='miembro-list'),
-    path('equipos/<int:equipo_id>/miembros/<int:usuario_id>/',       RetirarMiembroView.as_view(),  name='miembro-retirar'),
-    path('equipos/<int:equipo_id>/miembros/<int:usuario_id>/rol/',   ActualizarRolView.as_view(),   name='miembro-rol'),
 ]
+
+

@@ -105,8 +105,8 @@ class EquipoListSerializer(serializers.ModelSerializer):
 
 
 # Serializador para crear y validar membresías de usuarios en equipos.
-# Valida que el usuario no pertenezca ya a otro equipo del mismo proyecto
-# y que el equipo no haya excedido su cupo máximo.
+# Valida que el usuario no pertenezca ya a otro equipo del mismo proyecto.
+# Valida que el equipo no haya excedido su cupo máximo.
 # Requiere que la vista pase context={'equipo': equipo_instance} al instanciar este serializer.
 class MiembroEquipoSerializer(serializers.ModelSerializer):
     # El equipo se inyecta desde la vista, no se permite enviarlo en el request.
@@ -122,8 +122,7 @@ class MiembroEquipoSerializer(serializers.ModelSerializer):
         usuario = data['usuario']
         proyecto = equipo.proyecto
 
-        # Validación de negocio: un estudiante no puede pertenecer a dos equipos del mismo proyecto.
-        # Busca membresías activas del usuario en equipos del mismo proyecto, excluyendo el equipo actual.
+        # Validación: un estudiante no puede pertenecer a dos equipos del mismo proyecto.
         ya_en_proyecto = MiembroEquipo.objects.filter(
             usuario=usuario,
             estado='activo',
@@ -135,8 +134,7 @@ class MiembroEquipoSerializer(serializers.ModelSerializer):
                 "El estudiante ya pertenece a otro equipo en este proyecto."
             )
 
-        # Validación de negocio: el equipo no puede exceder su cupo máximo de integrantes.
-        # Cuenta los miembros activos actuales del equipo.
+        # Validación de cupo: el equipo no puede exceder su cupo máximo.
         miembros_activos = MiembroEquipo.objects.filter(
             equipo=equipo,
             estado='activo',
@@ -223,6 +221,12 @@ class UsuarioResumenSerializer(serializers.ModelSerializer):
 
 
 class EditarEquipoSerializer(serializers.ModelSerializer):
+    """
+    Serializador para editar equipo
+    Valida:
+    1. Unicidad de nombre dentro del proyecto.
+    2. Que el nuevo cupo no sea menor al número de miembros activos actuales.
+    """
     class Meta:
         model = Equipo
         fields = ['nombre', 'descripcion', 'cupo_maximo']
@@ -231,6 +235,7 @@ class EditarEquipoSerializer(serializers.ModelSerializer):
         equipo = self.instance
 
         nombre = data.get('nombre', equipo.nombre)
+        # Validar que el nombre sea único dentro del proyecto
         if Equipo.objects.filter(
             nombre=nombre,
             proyecto=equipo.proyecto
@@ -240,10 +245,12 @@ class EditarEquipoSerializer(serializers.ModelSerializer):
             )
 
         nuevo_cupo = data.get('cupo_maximo', equipo.cupo_maximo)
+        # Contar solo miembros activos; los retirados no afectan límite de cupo
         miembros_activos = MiembroEquipo.objects.filter(
             equipo=equipo,
             estado='activo'
         ).count()
+        # Validar que el cupo no sea menor a los miembros actuales
         if nuevo_cupo < miembros_activos:
             raise serializers.ValidationError(
                 {"cupo_maximo": f"El cupo no puede ser menor al número de miembros activos ({miembros_activos})."}
