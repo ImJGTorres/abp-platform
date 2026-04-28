@@ -25,6 +25,7 @@ from django.views.generic import TemplateView
 
 from apps.usuarios.views import CambiarContrasenaView, LoginView, OlvidarContrasenaView, RecuperarContrasenaView
 from apps.roles.views import PermisosAgrupadosView
+from apps.cursos.urls import proyectos_urlpatterns, raps_urlpatterns
 
 urlpatterns = [
     path('django-admin/', admin.site.urls),
@@ -58,7 +59,9 @@ urlpatterns = [
     path('api/bitacora/', include('apps.bitacora.urls')),  # Endpoint para consultar bitácora del sistema
     path('api/', include('apps.equipos.urls')),
     path('api/cursos/', include('apps.cursos.urls')),
-    path('api/proyectos/', include('apps.cursos.proyecto_urls')),
+    path('api/proyectos/', include(proyectos_urlpatterns)),
+    path('api/raps/', include(raps_urlpatterns)),
+    path('api/', include('apps.equipos.urls')),
 
     # SPA: Servir index.html para cualquier ruta que no sea API ni static
     # Excluye /api/ y /static/ usando lookahead negativo en regex

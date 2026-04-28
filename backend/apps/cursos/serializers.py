@@ -214,3 +214,24 @@ class ProyectoUpdateSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         return ProyectoSerializer(instance, context=self.context).data
+
+
+# ---------------------------------------------------------------------------
+# ResultadoAprendizaje (RAP)
+# ---------------------------------------------------------------------------
+
+from .models import ResultadoAprendizaje
+
+
+class RapSerializer(serializers.ModelSerializer):
+    proyecto = serializers.PrimaryKeyRelatedField(read_only=True)
+
+    class Meta:
+        model = ResultadoAprendizaje
+        fields = ['id', 'proyecto', 'descripcion', 'competencia_asociada']
+
+
+class RapCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ResultadoAprendizaje
+        fields = ['descripcion', 'competencia_asociada']
