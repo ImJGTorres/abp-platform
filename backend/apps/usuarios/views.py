@@ -13,6 +13,7 @@ from django.utils import timezone
 from decouple import config as env_config
 
 from rest_framework import generics, status
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.parsers import MultiPartParser
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 
@@ -201,11 +202,25 @@ class UsuarioUpdateView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+class UsuarioPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
+
 class UsuarioCreateView(generics.ListCreateAPIView):
     queryset             = Usuario.objects.all().order_by('-fecha_creacion')
     serializer_class     = UsuarioSerializer
     authentication_classes = [UsuarioJWTAuthentication]
     permission_classes   = [EsAdministrador]
+    pagination_class     = UsuarioPagination
+
+    def get_queryset(self):
+        qs = Usuario.objects.all().order_by('-fecha_creacion')
+        tipo_rol = self.request.query_params.get('tipo_rol')
+        if tipo_rol:
+            qs = qs.filter(tipo_rol=tipo_rol)
+        return qs
 
     def get_serializer_class(self):
         if self.request.method == 'GET':

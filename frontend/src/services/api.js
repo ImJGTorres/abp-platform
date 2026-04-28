@@ -235,8 +235,12 @@ export const usuariosApi = {
     return data
   },
 
-  async listar() {
-    const response = await request('/api/usuarios/')
+  async listar({ page = 1, tipo_rol = '' } = {}) {
+    const params = new URLSearchParams()
+    if (page > 1) params.set('page', String(page))
+    if (tipo_rol) params.set('tipo_rol', tipo_rol)
+    const qs = params.toString()
+    const response = await request(`/api/usuarios/${qs ? `?${qs}` : ''}`)
     const data = await parseJSON(response)
     if (!response.ok) throw { status: response.status, data }
     return data
@@ -500,6 +504,93 @@ export const bitacoraApi = {
     if (page > 1) params.set('page', String(page))
     const qs = params.toString()
     const response = await request(`/api/bitacora/${qs ? `?${qs}` : ''}`)
+    const data = await parseJSON(response)
+    if (!response.ok) throw { status: response.status, data }
+    return data
+  },
+}
+
+// Cursos — administrador
+// GET  /api/cursos/         → lista todos los cursos
+// POST /api/cursos/         → crea un curso
+// GET  /api/cursos/:id/     → detalle
+// PATCH /api/cursos/:id/    → edita
+// DELETE /api/cursos/:id/   → elimina
+// GET  /api/cursos/docentes/ → lista docentes activos
+// POST /api/cursos/carga-masiva/ → carga Excel
+
+export const cursosAdminApi = {
+  async listar({ page = 1 } = {}) {
+    const params = new URLSearchParams()
+    if (page > 1) params.set('page', String(page))
+    const qs = params.toString()
+    const response = await request(`/api/cursos/${qs ? `?${qs}` : ''}`)
+    const data = await parseJSON(response)
+    if (!response.ok) throw { status: response.status, data }
+    return data
+  },
+
+  async obtener(id) {
+    const response = await request(`/api/cursos/${id}/`)
+    const data = await parseJSON(response)
+    if (!response.ok) throw { status: response.status, data }
+    return data
+  },
+
+  async crear(campos) {
+    const response = await request('/api/cursos/', {
+      method: 'POST',
+      body: JSON.stringify(campos),
+    })
+    const data = await parseJSON(response)
+    if (!response.ok) throw { status: response.status, data }
+    return data
+  },
+
+  async editar(id, campos) {
+    const response = await request(`/api/cursos/${id}/`, {
+      method: 'PATCH',
+      body: JSON.stringify(campos),
+    })
+    const data = await parseJSON(response)
+    if (!response.ok) throw { status: response.status, data }
+    return data
+  },
+
+  async eliminar(id) {
+    const response = await request(`/api/cursos/${id}/`, { method: 'DELETE' })
+    if (!response.ok) {
+      const data = await parseJSON(response)
+      throw { status: response.status, data }
+    }
+  },
+
+  async listarDocentes() {
+    const response = await request('/api/cursos/docentes/')
+    const data = await parseJSON(response)
+    if (!response.ok) throw { status: response.status, data }
+    return data
+  },
+
+  async cargaMasiva(archivo) {
+    const formData = new FormData()
+    formData.append('archivo', archivo)
+
+    const token = session.getAccess()
+    const headers = {}
+    if (token) headers['Authorization'] = `Bearer ${token}`
+
+    let response
+    try {
+      response = await fetch(`${BASE_URL}/api/cursos/carga-masiva/`, {
+        method: 'POST',
+        headers,
+        body: formData,
+      })
+    } catch {
+      throw { type: 'network', message: 'Sin conexión con el servidor' }
+    }
+
     const data = await parseJSON(response)
     if (!response.ok) throw { status: response.status, data }
     return data
