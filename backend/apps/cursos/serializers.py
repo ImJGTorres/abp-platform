@@ -1,7 +1,11 @@
 from rest_framework import serializers
 
 from apps.configuracion.models import PeriodoAcademico
+<<<<<<< HEAD
 from apps.usuarios.models import Usuario
+=======
+from apps.equipos.serializers import EquipoDetalleSerializer
+>>>>>>> feature/HU-011-frontend
 from .models import Curso, Proyecto
 
 
@@ -45,6 +49,7 @@ class CursoSerializer(serializers.ModelSerializer):
         return obj.proyectos.count()
 
     def get_total_equipos(self, obj):
+<<<<<<< HEAD
         from apps.equipos.models import Equipo
         return Equipo.objects.filter(proyecto__id_curso=obj).count()
 
@@ -75,6 +80,10 @@ class CursoAdminCreateSerializer(serializers.ModelSerializer):
             'id_docente',
             'cantidad_max_estudiantes',
         ]
+=======
+        # Sum of equipos across all proyectos
+        return sum(len(p.equipos.all()) for p in obj.proyectos.all())
+>>>>>>> feature/HU-011-frontend
 
     def validate_id_periodo_academico(self, periodo):
         if periodo.estado != PeriodoAcademico.Estado.ACTIVO:
@@ -128,8 +137,12 @@ class CursoUpdateSerializer(serializers.ModelSerializer):
 
 
 class ProyectoSerializer(serializers.ModelSerializer):
+<<<<<<< HEAD
     fecha_fin = serializers.DateField(source='fecha_fin_estimada')
     cantidad_equipos = serializers.SerializerMethodField()
+=======
+    equipo = serializers.SerializerMethodField()
+>>>>>>> feature/HU-011-frontend
 
     class Meta:
         model = Proyecto
@@ -143,11 +156,18 @@ class ProyectoSerializer(serializers.ModelSerializer):
             'fecha_fin',
             'cantidad_equipos',
             'fecha_creacion',
+            'equipo',
         ]
         read_only_fields = ['id', 'id_curso', 'fecha_creacion']
 
     def get_cantidad_equipos(self, obj):
         return obj.equipos.count()
+
+    def get_equipo(self, obj):
+        equipo = obj.equipos.filter(estado='activo').first()
+        if not equipo:
+            return None
+        return EquipoDetalleSerializer(equipo).data
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
@@ -157,4 +177,29 @@ class ProyectoSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {'fecha_fin': 'La fecha de fin debe ser posterior a la fecha de inicio.'}
             )
+<<<<<<< HEAD
         return attrs
+=======
+
+        return attrs
+
+    def validate_id_curso(self, curso):
+        request = self.context.get('request')
+        if request is None:
+            return curso
+
+        usuario = getattr(request, 'user', None)
+        if usuario is None or not usuario.is_authenticated:
+            raise serializers.ValidationError('Se requiere autenticación.')
+
+        if curso.id_docente_id != usuario.pk:
+            raise serializers.ValidationError(
+                'Solo el docente propietario del curso puede crear un proyecto en él.'
+            )
+
+        # Un curso puede tener múltiples proyectos; en creación verificamos que no exista ninguno si se desea restringir
+        # Mientras tanto se permite crear varios; si se quiere limitar, cambiar a validación de cantidad.
+        # Actualmente no hay restricción de número máximo de proyectos por curso.
+
+        return curso
+>>>>>>> feature/HU-011-frontend

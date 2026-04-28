@@ -66,10 +66,10 @@ export const cursosApi = {
         return data
     },
 
-    async crearProyecto(cursoId, { nombre, descripcion, fecha_inicio, fecha_fin }) {
+    async crearProyecto(cursoId, { nombre, descripcion, fecha_inicio, fecha_fin_estimada }) {
         const response = await request(`/api/cursos/${cursoId}/proyectos/`, {
             method: 'POST',
-            body: JSON.stringify({ nombre, descripcion, fecha_inicio, fecha_fin }),
+            body: JSON.stringify({ nombre, descripcion, fecha_inicio, fecha_fin_estimada }),
         })
         const data = await parseJSON(response)
         if (!response.ok) throw { status: response.status, data }
@@ -86,16 +86,33 @@ export const cursosApi = {
         return data
     },
 
+    async eliminarProyecto(cursoId, proyectoId) {
+        const response = await request(`/api/cursos/${cursoId}/proyectos/${proyectoId}/`, {
+            method: 'DELETE',
+        })
+        if (!response.ok) {
+            const data = await parseJSON(response)
+            throw { status: response.status, data }
+        }
+    },
+
 }
 
 // ─── Equipos ──────────────────────────────────────────────────────────────────
-// GET /api/proyectos/:proyectoId/equipos/
-// GET /api/equipos/:equipoId/estudiantes/
-// POST /api/equipos/:equipoId/asignar/
 export const equiposApi = {
 
     async obtenerPorProyecto(proyectoId) {
         const response = await request(`/api/proyectos/${proyectoId}/equipos/`)
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+
+    async crearEquipo(proyectoId, { nombre, descripcion, cupo_maximo }) {
+        const response = await request(`/api/proyectos/${proyectoId}/equipos/`, {
+            method: 'POST',
+            body: JSON.stringify({ nombre, descripcion, cupo_maximo }),
+        })
         const data = await parseJSON(response)
         if (!response.ok) throw { status: response.status, data }
         return data
@@ -113,6 +130,18 @@ export const equiposApi = {
             method: 'POST',
             body: JSON.stringify({ usuarios }),
         })
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+
+}
+
+// ─── Estudiantes del curso ─────────────────────────────────────────────────
+export const estudiantesApi = {
+
+    async listarPorCurso(cursoId) {
+        const response = await request(`/api/cursos/${cursoId}/estudiantes/`)
         const data = await parseJSON(response)
         if (!response.ok) throw { status: response.status, data }
         return data

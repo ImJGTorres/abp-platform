@@ -155,10 +155,14 @@ class MiembroEquipoSerializer(serializers.ModelSerializer):
 class MiembroDetalleSerializer(serializers.ModelSerializer):
     nombre_completo = serializers.SerializerMethodField()
     iniciales       = serializers.SerializerMethodField()
+    correo          = serializers.SerializerMethodField()
 
     class Meta:
         model  = MiembroEquipo
-        fields = ['id', 'usuario_id', 'nombre_completo', 'iniciales', 'rol_interno', 'estado']
+        fields = [
+            'id', 'usuario_id', 'nombre_completo', 'iniciales',
+            'correo', 'rol_interno', 'estado', 'fecha_asignacion',
+        ]
 
     def get_nombre_completo(self, obj):
         return f"{obj.usuario.nombre} {obj.usuario.apellido}".strip()
@@ -167,6 +171,9 @@ class MiembroDetalleSerializer(serializers.ModelSerializer):
         n = obj.usuario.nombre[:1].upper()   if obj.usuario.nombre   else ''
         a = obj.usuario.apellido[:1].upper() if obj.usuario.apellido else ''
         return n + a
+
+    def get_correo(self, obj):
+        return obj.usuario.correo
 
 
 class EquipoDetalleSerializer(serializers.ModelSerializer):

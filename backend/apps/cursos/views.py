@@ -1,5 +1,9 @@
+<<<<<<< HEAD
 import io
 
+=======
+from django.core.exceptions import ObjectDoesNotExist
+>>>>>>> feature/HU-011-frontend
 from django.shortcuts import get_object_or_404
 
 from rest_framework import generics, status
@@ -10,8 +14,14 @@ from rest_framework.views import APIView
 from apps.bitacora.models import BitacoraSistema
 from apps.bitacora.utils import registrar_evento
 from apps.configuracion.models import PeriodoAcademico
+<<<<<<< HEAD
 from apps.usuarios.models import Usuario
 from apps.usuarios.serializers import UsuarioSerializer
+=======
+from .models import Curso, Proyecto
+from .permissions import EsDocente
+from .serializers import CursoSerializer, CursoUpdateSerializer, ProyectoSerializer
+>>>>>>> feature/HU-011-frontend
 
 from .models import Curso, Proyecto
 from .permissions import EsAdministrador, EsDocente, EsDocenteOAdministrador
@@ -47,6 +57,10 @@ class CursoListCreateView(generics.ListCreateAPIView):
         qs = (
             Curso.objects
             .select_related('id_docente', 'id_periodo_academico')
+<<<<<<< HEAD
+=======
+            .prefetch_related('proyectos__equipos')
+>>>>>>> feature/HU-011-frontend
             .order_by('-fecha_creacion')
         )
         if getattr(user, 'tipo_rol', None) == 'docente':
@@ -70,10 +84,22 @@ class CursoDetailView(generics.RetrieveUpdateDestroyAPIView):
     DELETE — admin únicamente.
     """
 
+<<<<<<< HEAD
     def get_permissions(self):
         if self.request.method == 'DELETE':
             return [EsAdministrador()]
         return [EsDocenteOAdministrador()]
+=======
+    permission_classes = [EsDocente]
+
+    def get_queryset(self):
+        return (
+            Curso.objects
+            .filter(id_docente=self.request.user)
+            .select_related('id_docente', 'id_periodo_academico')
+            .prefetch_related('proyectos__equipos')
+        )
+>>>>>>> feature/HU-011-frontend
 
     def get_serializer_class(self):
         if self.request.method in ('PUT', 'PATCH'):
@@ -100,16 +126,20 @@ class CursoDetailView(generics.RetrieveUpdateDestroyAPIView):
                 {'detail': 'No se puede eliminar el curso porque tiene proyectos vinculados.'},
                 status=status.HTTP_409_CONFLICT,
             )
+<<<<<<< HEAD
         registrar_evento(
             request=request,
             accion=BitacoraSistema.Accion.DELETE,
             modulo='cursos',
             descripcion=f'Curso eliminado: ID={instance.id}, codigo={instance.codigo}',
         )
+=======
+>>>>>>> feature/HU-011-frontend
         self.perform_destroy(instance)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+<<<<<<< HEAD
 # ── Proyectos anidados bajo curso ─────────────────────────────────────────────
 
 class ProyectoListCreateView(generics.ListCreateAPIView):
@@ -257,3 +287,51 @@ class DocenteListView(generics.ListAPIView):
 
     def get_queryset(self):
         return Usuario.objects.filter(tipo_rol='docente', estado='activo').order_by('nombre')
+=======
+class ProyectoListCreateView(generics.ListCreateAPIView):
+    """
+    GET    /api/cursos/<curso_id>/proyectos/ — Lista todos los proyectos del curso.
+    POST   /api/cursos/<curso_id>/proyectos/ — Crea un nuevo proyecto para el curso.
+    """
+
+    serializer_class = ProyectoSerializer
+    permission_classes = [EsDocente]
+
+    def get_curso(self):
+        return get_object_or_404(
+            Curso.objects.filter(id_docente=self.request.user),
+            pk=self.kwargs.get('curso_id')
+        )
+
+    def get_queryset(self):
+        curso = self.get_curso()
+        return curso.proyectos.all().prefetch_related(
+            'equipos__miembros__usuario'
+        ).order_by('-fecha_creacion')
+
+    def perform_create(self, serializer):
+        curso = self.get_curso()
+        serializer.save(id_curso=curso)
+
+
+class ProyectoRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
+    """
+    GET    /api/cursos/<curso_id>/proyectos/<proyecto_id>/ — Detalle de un proyecto.
+    PUT    /api/cursos/<curso_id>/proyectos/<proyecto_id>/ — Actualiza el proyecto.
+    PATCH  /api/cursos/<curso_id>/proyectos/<proyecto_id>/ — Actualización parcial.
+    DELETE /api/cursos/<curso_id>/proyectos/<proyecto_id>/ — Elimina el proyecto.
+    """
+
+    serializer_class = ProyectoSerializer
+    permission_classes = [EsDocente]
+
+    def get_curso(self):
+        return get_object_or_404(
+            Curso.objects.filter(id_docente=self.request.user),
+            pk=self.kwargs.get('curso_id')
+        )
+
+    def get_queryset(self):
+        curso = self.get_curso()
+        return curso.proyectos.all()
+>>>>>>> feature/HU-011-frontend
