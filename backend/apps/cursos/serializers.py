@@ -1,13 +1,14 @@
 from rest_framework import serializers
 
 from apps.configuracion.models import PeriodoAcademico
-<<<<<<< HEAD
 from apps.usuarios.models import Usuario
-=======
 from apps.equipos.serializers import EquipoDetalleSerializer
->>>>>>> feature/HU-011-frontend
 from .models import Curso, Proyecto
 
+
+# ---------------------------------------------------------------------------
+# Curso
+# ---------------------------------------------------------------------------
 
 class CursoSerializer(serializers.ModelSerializer):
     """Serializer de lectura para cursos (docente y admin)."""
@@ -46,12 +47,10 @@ class CursoSerializer(serializers.ModelSerializer):
         return obj.id_periodo_academico.nombre
 
     def get_total_proyectos(self, obj):
-        return obj.proyectos.count()
+        return len(obj.proyectos.all())
 
     def get_total_equipos(self, obj):
-<<<<<<< HEAD
-        from apps.equipos.models import Equipo
-        return Equipo.objects.filter(proyecto__id_curso=obj).count()
+        return sum(len(p.equipos.all()) for p in obj.proyectos.all())
 
     def get_cantidad_estudiantes_actual(self, obj):
         from apps.equipos.models import MiembroEquipo
@@ -80,10 +79,6 @@ class CursoAdminCreateSerializer(serializers.ModelSerializer):
             'id_docente',
             'cantidad_max_estudiantes',
         ]
-=======
-        # Sum of equipos across all proyectos
-        return sum(len(p.equipos.all()) for p in obj.proyectos.all())
->>>>>>> feature/HU-011-frontend
 
     def validate_id_periodo_academico(self, periodo):
         if periodo.estado != PeriodoAcademico.Estado.ACTIVO:
@@ -136,13 +131,25 @@ class CursoUpdateSerializer(serializers.ModelSerializer):
         return CursoSerializer(instance, context=self.context).data
 
 
+# ---------------------------------------------------------------------------
+# Proyecto
+# ---------------------------------------------------------------------------
+
+def _validate_fechas(attrs, instance=None):
+    """Valida que fecha_fin_estimada >= fecha_inicio."""
+    fecha_inicio = attrs.get('fecha_inicio') or getattr(instance, 'fecha_inicio', None)
+    fecha_fin = attrs.get('fecha_fin_estimada') or getattr(instance, 'fecha_fin_estimada', None)
+    if fecha_inicio and fecha_fin and fecha_fin < fecha_inicio:
+        raise serializers.ValidationError(
+            {'fecha_fin_estimada': 'La fecha fin estimada no puede ser anterior a la fecha de inicio.'}
+        )
+
+
 class ProyectoSerializer(serializers.ModelSerializer):
-<<<<<<< HEAD
+    """Serializer de lectura. id_curso se incluye como FK numérica."""
     fecha_fin = serializers.DateField(source='fecha_fin_estimada')
     cantidad_equipos = serializers.SerializerMethodField()
-=======
     equipo = serializers.SerializerMethodField()
->>>>>>> feature/HU-011-frontend
 
     class Meta:
         model = Proyecto
@@ -155,13 +162,13 @@ class ProyectoSerializer(serializers.ModelSerializer):
             'fecha_inicio',
             'fecha_fin',
             'cantidad_equipos',
-            'fecha_creacion',
             'equipo',
+            'fecha_creacion',
         ]
-        read_only_fields = ['id', 'id_curso', 'fecha_creacion']
+        read_only_fields = fields
 
     def get_cantidad_equipos(self, obj):
-        return obj.equipos.count()
+        return len(obj.equipos.all())
 
     def get_equipo(self, obj):
         equipo = obj.equipos.filter(estado='activo').first()
@@ -169,37 +176,41 @@ class ProyectoSerializer(serializers.ModelSerializer):
             return None
         return EquipoDetalleSerializer(equipo).data
 
+
+class ProyectoCreateSerializer(serializers.ModelSerializer):
+    """
+    Serializer de creación. El id_curso lo inyecta la vista desde la URL.
+    El docente solo envía: nombre, descripcion, fecha_inicio, fecha_fin_estimada.
+    """
+
+    class Meta:
+        model = Proyecto
+        fields = ['nombre', 'descripcion', 'fecha_inicio', 'fecha_fin_estimada']
+
     def validate(self, attrs):
         attrs = super().validate(attrs)
-        fecha_inicio = attrs.get('fecha_inicio')
-        fecha_fin_estimada = attrs.get('fecha_fin_estimada')
-        if fecha_inicio and fecha_fin_estimada and fecha_fin_estimada < fecha_inicio:
-            raise serializers.ValidationError(
-                {'fecha_fin': 'La fecha de fin debe ser posterior a la fecha de inicio.'}
-            )
-<<<<<<< HEAD
-        return attrs
-=======
-
+        _validate_fechas(attrs)
         return attrs
 
-    def validate_id_curso(self, curso):
-        request = self.context.get('request')
-        if request is None:
-            return curso
+    def to_representation(self, instance):
+        return ProyectoSerializer(instance, context=self.context).data
 
-        usuario = getattr(request, 'user', None)
-        if usuario is None or not usuario.is_authenticated:
-            raise serializers.ValidationError('Se requiere autenticación.')
 
-        if curso.id_docente_id != usuario.pk:
-            raise serializers.ValidationError(
-                'Solo el docente propietario del curso puede crear un proyecto en él.'
-            )
+class ProyectoUpdateSerializer(serializers.ModelSerializer):
+    """
+    Serializer de actualización (PUT/PATCH).
+    Permite cambiar nombre, descripcion, estado y fechas.
+    id_curso no es modificable.
+    """
 
-        # Un curso puede tener múltiples proyectos; en creación verificamos que no exista ninguno si se desea restringir
-        # Mientras tanto se permite crear varios; si se quiere limitar, cambiar a validación de cantidad.
-        # Actualmente no hay restricción de número máximo de proyectos por curso.
+    class Meta:
+        model = Proyecto
+        fields = ['nombre', 'descripcion', 'estado', 'fecha_inicio', 'fecha_fin_estimada']
 
-        return curso
->>>>>>> feature/HU-011-frontend
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        _validate_fechas(attrs, instance=self.instance)
+        return attrs
+
+    def to_representation(self, instance):
+        return ProyectoSerializer(instance, context=self.context).data

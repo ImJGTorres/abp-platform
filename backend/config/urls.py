@@ -58,7 +58,7 @@ urlpatterns = [
     path('api/bitacora/', include('apps.bitacora.urls')),  # Endpoint para consultar bitácora del sistema
     path('api/', include('apps.equipos.urls')),
     path('api/cursos/', include('apps.cursos.urls')),
-    path('api/', include('apps.equipos.urls')),
+    path('api/proyectos/', include('apps.cursos.proyecto_urls')),
 
     # SPA: Servir index.html para cualquier ruta que no sea API ni static
     # Excluye /api/ y /static/ usando lookahead negativo en regex

@@ -1,28 +1,20 @@
-<<<<<<< HEAD
 import io
 
-=======
-from django.core.exceptions import ObjectDoesNotExist
->>>>>>> feature/HU-011-frontend
 from django.shortcuts import get_object_or_404
 
 from rest_framework import generics, status
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.parsers import MultiPartParser
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.bitacora.models import BitacoraSistema
 from apps.bitacora.utils import registrar_evento
 from apps.configuracion.models import PeriodoAcademico
-<<<<<<< HEAD
+from apps.equipos.models import MiembroEquipo
 from apps.usuarios.models import Usuario
 from apps.usuarios.serializers import UsuarioSerializer
-=======
-from .models import Curso, Proyecto
-from .permissions import EsDocente
-from .serializers import CursoSerializer, CursoUpdateSerializer, ProyectoSerializer
->>>>>>> feature/HU-011-frontend
-
 from .models import Curso, Proyecto
 from .permissions import EsAdministrador, EsDocente, EsDocenteOAdministrador
 from .serializers import (
@@ -30,11 +22,15 @@ from .serializers import (
     CursoAdminUpdateSerializer,
     CursoSerializer,
     CursoUpdateSerializer,
+    ProyectoCreateSerializer,
     ProyectoSerializer,
+    ProyectoUpdateSerializer,
 )
 
 
-# ── Cursos ────────────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# Cursos
+# ---------------------------------------------------------------------------
 
 class CursoListCreateView(generics.ListCreateAPIView):
     """
@@ -57,10 +53,7 @@ class CursoListCreateView(generics.ListCreateAPIView):
         qs = (
             Curso.objects
             .select_related('id_docente', 'id_periodo_academico')
-<<<<<<< HEAD
-=======
             .prefetch_related('proyectos__equipos')
->>>>>>> feature/HU-011-frontend
             .order_by('-fecha_creacion')
         )
         if getattr(user, 'tipo_rol', None) == 'docente':
@@ -84,22 +77,10 @@ class CursoDetailView(generics.RetrieveUpdateDestroyAPIView):
     DELETE — admin únicamente.
     """
 
-<<<<<<< HEAD
     def get_permissions(self):
         if self.request.method == 'DELETE':
             return [EsAdministrador()]
         return [EsDocenteOAdministrador()]
-=======
-    permission_classes = [EsDocente]
-
-    def get_queryset(self):
-        return (
-            Curso.objects
-            .filter(id_docente=self.request.user)
-            .select_related('id_docente', 'id_periodo_academico')
-            .prefetch_related('proyectos__equipos')
-        )
->>>>>>> feature/HU-011-frontend
 
     def get_serializer_class(self):
         if self.request.method in ('PUT', 'PATCH'):
@@ -114,6 +95,7 @@ class CursoDetailView(generics.RetrieveUpdateDestroyAPIView):
         qs = (
             Curso.objects
             .select_related('id_docente', 'id_periodo_academico')
+            .prefetch_related('proyectos__equipos')
         )
         if getattr(user, 'tipo_rol', None) == 'docente':
             qs = qs.filter(id_docente=user)
@@ -126,47 +108,73 @@ class CursoDetailView(generics.RetrieveUpdateDestroyAPIView):
                 {'detail': 'No se puede eliminar el curso porque tiene proyectos vinculados.'},
                 status=status.HTTP_409_CONFLICT,
             )
-<<<<<<< HEAD
         registrar_evento(
             request=request,
             accion=BitacoraSistema.Accion.DELETE,
             modulo='cursos',
             descripcion=f'Curso eliminado: ID={instance.id}, codigo={instance.codigo}',
         )
-=======
->>>>>>> feature/HU-011-frontend
         self.perform_destroy(instance)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-<<<<<<< HEAD
-# ── Proyectos anidados bajo curso ─────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# Proyectos
+# ---------------------------------------------------------------------------
 
 class ProyectoListCreateView(generics.ListCreateAPIView):
     """
-    GET  — docente (propio curso) o admin: lista proyectos del curso.
-    POST — docente únicamente: crea un proyecto en su curso.
+    GET  /api/cursos/<curso_id>/proyectos/ — Lista proyectos del curso.
+         Accesible para el docente propietario, admin y estudiantes activos del curso.
+    POST /api/cursos/<curso_id>/proyectos/ — Crea un proyecto (solo el docente propietario).
     """
-    serializer_class = ProyectoSerializer
 
     def get_permissions(self):
         if self.request.method == 'POST':
             return [EsDocente()]
-        return [EsDocenteOAdministrador()]
+        return [IsAuthenticated()]
+
+    def get_serializer_class(self):
+        if self.request.method == 'POST':
+            return ProyectoCreateSerializer
+        return ProyectoSerializer
 
     def _get_curso(self):
-        user = self.request.user
-        qs = Curso.objects.all()
-        if getattr(user, 'tipo_rol', None) == 'docente':
-            qs = qs.filter(id_docente=user)
-        return get_object_or_404(qs, pk=self.kwargs['curso_pk'])
+        return get_object_or_404(Curso, pk=self.kwargs['curso_id'])
+
+    def _check_acceso_curso(self, curso):
+        usuario = self.request.user
+        tipo_rol = getattr(usuario, 'tipo_rol', None)
+        if tipo_rol == 'administrador':
+            return
+        if tipo_rol == 'docente':
+            if curso.id_docente_id != usuario.pk:
+                raise PermissionDenied('No eres el docente propietario de este curso.')
+        elif tipo_rol == 'estudiante':
+            tiene_equipo = MiembroEquipo.objects.filter(
+                equipo__proyecto__id_curso=curso,
+                usuario=usuario,
+                estado='activo',
+            ).exists()
+            if not tiene_equipo:
+                raise PermissionDenied('No perteneces a ningún equipo de este curso.')
+        else:
+            raise PermissionDenied('Acceso no permitido.')
 
     def get_queryset(self):
         curso = self._get_curso()
-        return Proyecto.objects.filter(id_curso=curso).prefetch_related('equipos').order_by('-fecha_creacion')
+        self._check_acceso_curso(curso)
+        return (
+            Proyecto.objects
+            .filter(id_curso=curso)
+            .prefetch_related('equipos')
+            .order_by('fecha_inicio')
+        )
 
     def perform_create(self, serializer):
         curso = self._get_curso()
+        if curso.id_docente_id != self.request.user.pk:
+            raise PermissionDenied('No eres el docente propietario de este curso.')
         proyecto = serializer.save(id_curso=curso)
         registrar_evento(
             request=self.request,
@@ -177,18 +185,33 @@ class ProyectoListCreateView(generics.ListCreateAPIView):
 
 
 class ProyectoDetailView(generics.RetrieveUpdateAPIView):
-    """PATCH/PUT — docente: edita su proyecto."""
-    serializer_class = ProyectoSerializer
+    """
+    GET   /api/proyectos/<pk>/ — Detalle del proyecto.
+    PUT   /api/proyectos/<pk>/ — Actualiza nombre, descripción, estado y fechas.
+    PATCH /api/proyectos/<pk>/ — Actualización parcial.
+
+    Solo el docente propietario del curso al que pertenece el proyecto puede modificarlo.
+    """
+
     permission_classes = [EsDocente]
 
     def get_queryset(self):
-        return Proyecto.objects.filter(
-            id_curso__id=self.kwargs['curso_pk'],
-            id_curso__id_docente=self.request.user,
-        ).prefetch_related('equipos')
+        return (
+            Proyecto.objects
+            .filter(id_curso__id_docente=self.request.user)
+            .select_related('id_curso')
+            .prefetch_related('equipos')
+        )
+
+    def get_serializer_class(self):
+        if self.request.method in ('PUT', 'PATCH'):
+            return ProyectoUpdateSerializer
+        return ProyectoSerializer
 
 
-# ── Carga masiva de cursos (admin) ────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# Carga masiva de cursos (admin)
+# ---------------------------------------------------------------------------
 
 class CursoCargaMasivaView(APIView):
     """POST /api/cursos/carga-masiva/ — importa cursos desde Excel."""
@@ -214,7 +237,6 @@ class CursoCargaMasivaView(APIView):
         omitidos = 0
         errores = []
 
-        # Buscar período activo
         periodo_activo = PeriodoAcademico.objects.filter(estado=PeriodoAcademico.Estado.ACTIVO).first()
         if not periodo_activo:
             return Response({'detail': 'No hay un período académico activo.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -237,7 +259,6 @@ class CursoCargaMasivaView(APIView):
                 omitidos += 1
                 continue
 
-            # Buscar docente
             docente = None
             if correo_docente:
                 docente = Usuario.objects.filter(correo=correo_docente, tipo_rol='docente').first()
@@ -251,7 +272,6 @@ class CursoCargaMasivaView(APIView):
                 omitidos += 1
                 continue
 
-            # Verificar unicidad código+periodo
             if Curso.objects.filter(codigo=codigo, id_periodo_academico=periodo_activo).exists():
                 errores.append({'fila': i, 'codigo': codigo, 'motivo': 'código ya existe en este período'})
                 omitidos += 1
@@ -278,7 +298,9 @@ class CursoCargaMasivaView(APIView):
         return Response({'creados': creados, 'omitidos': omitidos, 'errores': errores}, status=status.HTTP_200_OK)
 
 
-# ── Listado de docentes (para selector en formulario admin) ───────────────────
+# ---------------------------------------------------------------------------
+# Listado de docentes (para selector en formulario admin)
+# ---------------------------------------------------------------------------
 
 class DocenteListView(generics.ListAPIView):
     """GET /api/cursos/docentes/ — lista usuarios con rol docente."""
@@ -287,51 +309,3 @@ class DocenteListView(generics.ListAPIView):
 
     def get_queryset(self):
         return Usuario.objects.filter(tipo_rol='docente', estado='activo').order_by('nombre')
-=======
-class ProyectoListCreateView(generics.ListCreateAPIView):
-    """
-    GET    /api/cursos/<curso_id>/proyectos/ — Lista todos los proyectos del curso.
-    POST   /api/cursos/<curso_id>/proyectos/ — Crea un nuevo proyecto para el curso.
-    """
-
-    serializer_class = ProyectoSerializer
-    permission_classes = [EsDocente]
-
-    def get_curso(self):
-        return get_object_or_404(
-            Curso.objects.filter(id_docente=self.request.user),
-            pk=self.kwargs.get('curso_id')
-        )
-
-    def get_queryset(self):
-        curso = self.get_curso()
-        return curso.proyectos.all().prefetch_related(
-            'equipos__miembros__usuario'
-        ).order_by('-fecha_creacion')
-
-    def perform_create(self, serializer):
-        curso = self.get_curso()
-        serializer.save(id_curso=curso)
-
-
-class ProyectoRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
-    """
-    GET    /api/cursos/<curso_id>/proyectos/<proyecto_id>/ — Detalle de un proyecto.
-    PUT    /api/cursos/<curso_id>/proyectos/<proyecto_id>/ — Actualiza el proyecto.
-    PATCH  /api/cursos/<curso_id>/proyectos/<proyecto_id>/ — Actualización parcial.
-    DELETE /api/cursos/<curso_id>/proyectos/<proyecto_id>/ — Elimina el proyecto.
-    """
-
-    serializer_class = ProyectoSerializer
-    permission_classes = [EsDocente]
-
-    def get_curso(self):
-        return get_object_or_404(
-            Curso.objects.filter(id_docente=self.request.user),
-            pk=self.kwargs.get('curso_id')
-        )
-
-    def get_queryset(self):
-        curso = self.get_curso()
-        return curso.proyectos.all()
->>>>>>> feature/HU-011-frontend
