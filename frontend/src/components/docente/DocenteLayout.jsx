@@ -51,8 +51,6 @@ function IconProfile() {
     )
 }
 
-<<<<<<< HEAD
-=======
 function IconUsers() {
     return (
         <svg viewBox="0 0 20 20" fill="none" className="w-5 h-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
@@ -77,7 +75,6 @@ function IconTeam() {
 
 // ── Navegación ────────────────────────────────────────────────────────────
 
->>>>>>> feature/HU-011-frontend
 const NAV_ITEMS = [
     { label: 'Mis cursos', to: '/docente/cursos', icon: <IconBook /> },
 ]
@@ -194,73 +191,10 @@ export default function DocenteLayout() {
                 <div className="fixed inset-0 bg-black/40 z-30 lg:hidden" onClick={() => setMobileOpen(false)} />
             )}
 
-<<<<<<< HEAD
             {/* ── Sidebar desktop ──────────────────────────────────────────── */}
             <aside className={`hidden lg:flex ${sidebarW} flex-shrink-0 flex-col bg-white border-r border-[#e1e3e4] transition-[width] duration-200 ease-in-out z-20 relative`}>
                 <SidebarContent collapsed={collapsed} user={user} userMenuOpen={userMenuOpen}
                     setUserMenuOpen={setUserMenuOpen} loggingOut={loggingOut} handleLogout={handleLogout} onNavClick={undefined} />
-=======
-                {/* Marca */}
-                <div className="flex items-center gap-2.5 px-4 h-[60px] border-b border-[#e1e3e4] flex-shrink-0">
-                    <div className="flex-shrink-0 w-8 h-8 bg-[#d32f2f] rounded-lg flex items-center justify-center shadow-sm">
-                        <svg viewBox="0 0 24 24" className="w-8 h-6 text-white" fill="currentColor">
-                            <path d="M12 2L2 7l10 5 10-5-10-5z" />
-                            <path d="M6 10v4c0 2.5 3.5 4 6 4s6-1.5 6-4v-4l-6 3-6-3z" opacity="0.9" />
-                            <path d="M22 7v6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                            <circle cx="22" cy="14" r="1" fill="currentColor" />
-                        </svg>
-                    </div>
-                    {!collapsed && (
-                        <span className="text-[15px] font-extrabold text-[#191c1d] tracking-tight whitespace-nowrap">
-                            Projex ABP
-                        </span>
-                    )}
-                </div>
-
-                {/* Navegación */}
-                <nav className="flex-1 overflow-y-auto py-3 px-2 flex flex-col gap-0.5">
-                    {!collapsed && (
-                        <p className="text-[10px] font-semibold text-[#9ba7ae] tracking-[0.8px] uppercase px-3 pb-1.5 pt-1">
-                            Docente
-                        </p>
-                    )}
-                    {NAV_ITEMS.map(({ label, to, icon }) => (
-                        <NavLink key={to} to={to} end className={navLinkClass} title={collapsed ? label : undefined}>
-                            <span className="flex-shrink-0">{icon}</span>
-                            {!collapsed && <span>{label}</span>}
-                        </NavLink>
-                    ))}
-
-                    {/* Sub-menú contextual del curso */}
-                    {cursoId && (
-                        <>
-                            {!collapsed && (
-                                <p className="text-[10px] font-semibold text-[#9ba7ae] tracking-[0.8px] uppercase px-3 pb-1.5 pt-3">
-                                    Este curso
-                                </p>
-                            )}
-                            {collapsed && <div className="my-1 mx-3 border-t border-[#e1e3e4]" />}
-                            <NavLink
-                                to={`/docente/cursos/${cursoId}/estudiantes`}
-                                className={navLinkClass}
-                                title={collapsed ? 'Estudiantes' : undefined}>
-                                <span className="flex-shrink-0"><IconUsers /></span>
-                                {!collapsed && <span>Estudiantes</span>}
-                            </NavLink>
-                            <NavLink
-                                to={`/docente/cursos/${cursoId}`}
-                                end
-                                className={navLinkClass}
-                                title={collapsed ? 'Equipos' : undefined}>
-                                <span className="flex-shrink-0"><IconTeam /></span>
-                                {!collapsed && <span>Equipos</span>}
-                            </NavLink>
-                        </>
-                    )}
-                </nav>
-
-                {/* Usuario + Logout */}
->>>>>>> feature/HU-011-frontend
                 <div className="border-t border-[#e1e3e4] p-2 flex-shrink-0">
                     <button onClick={() => setCollapsed(c => !c)}
                         className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-[#9ba7ae] hover:bg-[#f0f2f3] hover:text-[#4c616c] transition-colors text-[12px] font-medium"

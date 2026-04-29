@@ -4,18 +4,12 @@ import { cursosApi } from '../../services/docenteApi'
 import ModalDetalleEquipo from './ModalDetalleEquipo'
 
 const AVATAR_COLORS = ['#d32f2f', '#1976d2', '#388e3c', '#7b1fa2', '#f57c00', '#0097a7', '#5d4037', '#37474f']
-const TEAM_COLORS   = ['#1976d2', '#388e3c', '#f57c00', '#7b1fa2', '#d32f2f', '#0097a7']
+const TEAM_COLORS = ['#1976d2', '#388e3c', '#f57c00', '#7b1fa2', '#d32f2f', '#0097a7']
 
-function IconEye()   { return <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5z"/><circle cx="8" cy="8" r="2"/></svg> }
-function IconEdit()  { return <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M11 2l3 3-9 9H2v-3l9-9z"/></svg> }
-function IconTrash() { return <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M2 4h12M5 4V3a1 1 0 011-1h4a1 1 0 011 1v1M6 7v5M10 7v5M3 4l1 9a1 1 0 001 1h6a1 1 0 001-1l1-9"/></svg> }
-function IconPlus()  { return <svg className="w-3 h-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M8 3v10M3 8h10"/></svg> }
-
-const ESTADO_PROYECTO = {
-    planificado: { label: 'Planificado', bg: 'bg-[#e3f2fd]', text: 'text-[#1565c0]', dot: 'bg-[#1565c0]' },
-    en_ejecucion: { label: 'En ejecución', bg: 'bg-[#e8f5e9]', text: 'text-[#2e7d32]', dot: 'bg-[#2e7d32]' },
-    finalizado: { label: 'Finalizado', bg: 'bg-[#f0f2f3]', text: 'text-[#9ba7ae]', dot: 'bg-[#9ba7ae]' },
-}
+function IconEye() { return <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5z" /><circle cx="8" cy="8" r="2" /></svg> }
+function IconEdit() { return <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M11 2l3 3-9 9H2v-3l9-9z" /></svg> }
+function IconTrash() { return <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M2 4h12M5 4V3a1 1 0 011-1h4a1 1 0 011 1v1M6 7v5M10 7v5M3 4l1 9a1 1 0 001 1h6a1 1 0 001-1l1-9" /></svg> }
+function IconPlus() { return <svg className="w-3 h-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M8 3v10M3 8h10" /></svg> }
 
 function ModalProyecto({ cursoId, proyecto, onGuardar, onCancelar }) {
     const esEdicion = !!proyecto
@@ -46,17 +40,14 @@ function ModalProyecto({ cursoId, proyecto, onGuardar, onCancelar }) {
 
         setGuardando(true)
         try {
-<<<<<<< HEAD
-            const data = { nombre: form.nombre, descripcion: form.descripcion, fecha_inicio: form.fecha_inicio, fecha_fin: form.fecha_fin, estado: form.estado, }
-=======
             const data = {
                 nombre: form.nombre,
                 descripcion: form.descripcion,
                 fecha_inicio: form.fecha_inicio,
                 fecha_fin_estimada: form.fecha_fin,
+                estado: form.estado,
             }
 
->>>>>>> feature/HU-011-frontend
             if (esEdicion) {
                 await cursosApi.editarProyecto(cursoId, proyecto.id, data)
             } else {
@@ -160,14 +151,6 @@ export default function DetalleCurso() {
     async function cargarDatos() {
         setLoading(true)
         try {
-<<<<<<< HEAD
-            const [cursoData, proyectosData] = await Promise.all([
-                cursosApi.obtener(id),
-                cursosApi.obtenerProyectos(id).catch(() => []),
-            ])
-            setCurso(cursoData)
-            setProyectos(proyectosData.results ?? proyectosData)
-=======
             // Cargar curso
             const cursosData = await cursosApi.listar()
             const cursosBackend = cursosData.results ?? cursosData
@@ -186,12 +169,14 @@ export default function DetalleCurso() {
                 nombre: cursoData.nombre,
                 codigo: cursoData.codigo,
                 periodo: cursoData.periodo?.nombre || 'Sin periodo',
+                periodo_nombre: cursoData.periodo?.nombre || 'Sin periodo',
                 descripcion: cursoData.descripcion,
                 estado: cursoData.estado,
                 cantidad_estudiantes_actual: cursoData.cantidad_estudiantes_actual ?? 0,
                 cantidad_max_estudiantes: cursoData.cantidad_max_estudiantes ?? 30,
                 cantidad_equipos: cursoData.cantidad_equipos ?? 0,
                 docente: cursoData.docente,
+                docente_nombre: cursoData.docente?.nombre,
             }
 
             setCurso(cursoAdaptado)
@@ -217,7 +202,6 @@ export default function DetalleCurso() {
                 setProyectos([])
             }
 
->>>>>>> feature/HU-011-frontend
         } catch (error) {
             console.error('Error cargando datos:', error)
             setCurso(null)
@@ -226,8 +210,6 @@ export default function DetalleCurso() {
         }
     }
 
-<<<<<<< HEAD
-=======
     function handleGuardarProyecto() {
         setModalNuevoProyecto(false)
         setProyectoEditando(null)
@@ -261,11 +243,13 @@ export default function DetalleCurso() {
         const mapeo = {
             activo: { label: 'Activo', bg: 'bg-[#e8f5e9]', text: 'text-[#2e7d32]', dot: 'bg-[#2e7d32]' },
             inactivo: { label: 'Inactivo', bg: 'bg-[#f0f2f3]', text: 'text-[#9ba7ae]', dot: 'bg-[#9ba7ae]' },
+            planificado: { label: 'Planificado', bg: 'bg-[#e3f2fd]', text: 'text-[#1565c0]', dot: 'bg-[#1565c0]' },
+            en_ejecucion: { label: 'En ejecución', bg: 'bg-[#e8f5e9]', text: 'text-[#2e7d32]', dot: 'bg-[#2e7d32]' },
+            finalizado: { label: 'Finalizado', bg: 'bg-[#f0f2f3]', text: 'text-[#9ba7ae]', dot: 'bg-[#9ba7ae]' },
         }
         return mapeo[estado] ?? mapeo.activo
     }
 
->>>>>>> feature/HU-011-frontend
     if (loading) {
         return (
             <div className="flex-1 flex items-center justify-center">
@@ -355,18 +339,6 @@ export default function DetalleCurso() {
                     </button>
                 </div>
             ) : (
-<<<<<<< HEAD
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {proyectos.map(p => {
-                        const info = ESTADO_PROYECTO[p.estado] ?? ESTADO_PROYECTO.planificado
-                        return (
-                            <div key={p.id} className="bg-white rounded-2xl border border-[#e1e3e4] p-5 hover:shadow-md hover:border-[#d1d3d4] transition-all flex flex-col gap-3">
-                                {/* Header */}
-                                <div className="flex items-start justify-between gap-2">
-                                    <h3 className="text-[15px] font-semibold text-[#191c1d] leading-snug">{p.nombre}</h3>
-                                    <span className={`flex-shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-semibold ${info.bg} ${info.text}`}>
-                                        <span className={`w-1.5 h-1.5 rounded-full ${info.dot}`} />
-=======
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     {proyectos.map((p, index) => {
                         const info = estadoInfo(p.estado)
@@ -389,15 +361,10 @@ export default function DetalleCurso() {
                                     </div>
                                     <span className={`flex-shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold ${info.bg} ${info.text}`}>
                                         <div className={`w-1.5 h-1.5 rounded-full ${info.dot}`} />
->>>>>>> feature/HU-011-frontend
                                         {info.label}
                                     </span>
                                 </div>
 
-<<<<<<< HEAD
-                                {p.descripcion && (
-                                    <p className="text-[13px] text-[#5b403d] leading-relaxed line-clamp-2">{p.descripcion}</p>
-=======
                                 {/* Miembros */}
                                 {miembros.length > 0 ? (
                                     <div className="flex items-center justify-between">
@@ -430,12 +397,11 @@ export default function DetalleCurso() {
                                     <div className="flex items-center gap-2">
                                         <div className="w-7 h-7 rounded-full border-2 border-dashed border-[#d1d3d4] flex items-center justify-center">
                                             <svg className="w-3 h-3 text-[#9ba7ae]" viewBox="0 0 16 16" fill="currentColor">
-                                                <path d="M8 8a3 3 0 100-6 3 3 0 000 6zm-6 6s-1 0-1-1 1-4 7-4 7 3 7 4-1 1-1 1H2z"/>
+                                                <path d="M8 8a3 3 0 100-6 3 3 0 000 6zm-6 6s-1 0-1-1 1-4 7-4 7 3 7 4-1 1-1 1H2z" />
                                             </svg>
                                         </div>
                                         <span className="text-[12px] text-[#9ba7ae]">Sin miembros aún</span>
                                     </div>
->>>>>>> feature/HU-011-frontend
                                 )}
 
                                 {/* Fechas */}
@@ -443,28 +409,7 @@ export default function DetalleCurso() {
                                     <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
                                         <rect x="2" y="3" width="12" height="11" rx="1.5" /><path d="M2 6h12M5 2v2M11 2v2" />
                                     </svg>
-<<<<<<< HEAD
                                     <span>{formatFecha(p.fecha_inicio)} — {formatFecha(p.fecha_fin)}</span>
-                                </div>
-
-                                {/* Footer */}
-                                <div className="flex items-center justify-between pt-3 border-t border-[#f0f2f3] mt-auto">
-                                    <span className="text-[12px] text-[#5b403d] font-medium">
-                                        {p.cantidad_equipos} equipo{p.cantidad_equipos !== 1 ? 's' : ''}
-                                    </span>
-                                    <div className="flex gap-1">
-                                        <button onClick={() => setProyectoEditando(p)}
-                                            className="w-7 h-7 rounded-lg hover:bg-[#f0f2f3] flex items-center justify-center transition-colors" title="Editar proyecto">
-                                            <svg className="w-3.5 h-3.5 text-[#4c616c]" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M11 2l3 3-9 9H2v-3l9-9z" /></svg>
-                                        </button>
-                                        <button onClick={() => navigate(`/docente/proyectos/${p.id}/equipos`)}
-                                            className="h-7 px-2.5 rounded-lg bg-[#f0f2f3] hover:bg-[#d32f2f] hover:text-white text-[#4c616c] text-[11px] font-semibold transition-colors flex items-center gap-1">
-                                            <svg className="w-3 h-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                                                <path d="M11 7a3 3 0 11-6 0 3 3 0 016 0z" /><path d="M3 14a5 5 0 0110 0" />
-                                            </svg>
-                                            Equipos
-=======
-                                    <span>{formatearFecha(p.fecha_inicio)} — {formatearFecha(p.fecha_fin)}</span>
                                 </div>
 
                                 {/* Acciones */}
@@ -494,7 +439,6 @@ export default function DetalleCurso() {
                                             className="w-7 h-7 rounded-lg text-[#ba1a1a] hover:bg-[#ffdad6] flex items-center justify-center transition-colors disabled:opacity-50"
                                             title="Eliminar proyecto">
                                             <IconTrash />
->>>>>>> feature/HU-011-frontend
                                         </button>
                                     </div>
                                 </div>
@@ -506,10 +450,10 @@ export default function DetalleCurso() {
 
             {/* Modales */}
             {modalNuevoProyecto && (
-                <ModalProyecto cursoId={id} onGuardar={() => { setModalNuevoProyecto(false); cargarDatos() }} onCancelar={() => setModalNuevoProyecto(false)} />
+                <ModalProyecto cursoId={id} onGuardar={handleGuardarProyecto} onCancelar={() => setModalNuevoProyecto(false)} />
             )}
             {proyectoEditando && (
-                <ModalProyecto cursoId={id} proyecto={proyectoEditando} onGuardar={() => { setProyectoEditando(null); cargarDatos() }} onCancelar={() => setProyectoEditando(null)} />
+                <ModalProyecto cursoId={id} proyecto={proyectoEditando} onGuardar={handleGuardarProyecto} onCancelar={() => setProyectoEditando(null)} />
             )}
 
             {proyectoViendo && (
