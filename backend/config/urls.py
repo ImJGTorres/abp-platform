@@ -58,7 +58,13 @@ urlpatterns = [
     path('api/bitacora/', include('apps.bitacora.urls')),  # Endpoint para consultar bitácora del sistema
     path('api/', include('apps.equipos.urls')),
     path('api/cursos/', include('apps.cursos.urls')),
+    # Rutas anidadas de proyectos y sus objetivos:
+    #   /api/proyectos/<pk>/               → detalle/edición del proyecto
+    #   /api/proyectos/<proyecto_id>/objetivos/ → lista/creación de objetivos
     path('api/proyectos/', include('apps.cursos.proyecto_urls')),
+    # Ruta standalone de objetivos individuales:
+    #   /api/objetivos/<pk>/  → detalle, edición y borrado con reordenamiento
+    path('api/objetivos/', include('apps.cursos.objetivo_urls')),
 
     # SPA: Servir index.html para cualquier ruta que no sea API ni static
     # Excluye /api/ y /static/ usando lookahead negativo en regex
