@@ -217,10 +217,11 @@ export default function ResetContrasena() {
                 {/* Marca */}
                 <div className="flex flex-col items-center gap-2 w-full">
                     <div className="relative flex items-center justify-center w-14 h-14 bg-[#d32f2f] rounded-2xl shadow-lg">
-                        <svg viewBox="0 0 28 24" className="w-7 h-6 text-white" fill="currentColor">
-                            <path d="M14 0L28 8v8l-14 8L0 16V8L14 0z" opacity=".3" />
-                            <path d="M14 3l11 6.5v7L14 23 3 16.5v-7L14 3z" opacity=".5" />
-                            <path d="M14 7l7 4v4l-7 4-7-4v-4l7-4z" />
+                        <svg viewBox="0 0 24 24" className="w-10 h-9 text-white" fill="currentColor">
+                            <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                            <path d="M6 10v4c0 2.5 3.5 4 6 4s6-1.5 6-4v-4l-6 3-6-3z" opacity="0.9" />
+                            <path d="M22 7v6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                            <circle cx="22" cy="14" r="1" fill="currentColor" />
                         </svg>
                     </div>
                     <h1 className="text-[32px] font-extrabold text-[#191c1d] tracking-tight text-center"
@@ -306,8 +307,6 @@ export default function ResetContrasena() {
                         </div>
                     )}
                 </div>
-
-                <p className="text-[11px] text-[#5b403d] text-center">© 2026 Academic Management System.</p>
             </div>
         </div>
     )
