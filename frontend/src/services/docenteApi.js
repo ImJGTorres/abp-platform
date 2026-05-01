@@ -29,12 +29,8 @@ export const cursosApi = {
         return data
     },
 
-    async crear({ nombre, codigo, descripcion, periodo_id }) {
-        const response = await request('/api/cursos/', {
-            method: 'POST',
-            body: JSON.stringify({ nombre, codigo, descripcion, periodo_id }),
-        })
-
+    async obtener(id) {
+        const response = await request(`/api/cursos/${id}/`)
         const data = await parseJSON(response)
         if (!response.ok) throw { status: response.status, data }
         return data
@@ -70,10 +66,10 @@ export const cursosApi = {
         return data
     },
 
-    async crearProyecto(cursoId, { nombre, descripcion, fecha_inicio, fecha_fin }) {
+    async crearProyecto(cursoId, { nombre, descripcion, fecha_inicio, fecha_fin_estimada }) {
         const response = await request(`/api/cursos/${cursoId}/proyectos/`, {
             method: 'POST',
-            body: JSON.stringify({ nombre, descripcion, fecha_inicio, fecha_fin }),
+            body: JSON.stringify({ nombre, descripcion, fecha_inicio, fecha_fin_estimada }),
         })
         const data = await parseJSON(response)
         if (!response.ok) throw { status: response.status, data }
@@ -90,16 +86,113 @@ export const cursosApi = {
         return data
     },
 
+    async eliminarProyecto(cursoId, proyectoId) {
+        const response = await request(`/api/cursos/${cursoId}/proyectos/${proyectoId}/`, {
+            method: 'DELETE',
+        })
+        if (!response.ok) {
+            const data = await parseJSON(response)
+            throw { status: response.status, data }
+        }
+    },
+
+}
+// ─── Proyectos (Objetivos y RAPs) ─────────────────────────────────────────────
+export const proyectosApi = {
+
+    // ── Objetivos ──
+    async listarObjetivos(proyectoId) {
+        const response = await request(`/api/proyectos/${proyectoId}/objetivos/`)
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+
+    async crearObjetivo(proyectoId, { descripcion, tipo, orden }) {
+        const response = await request(`/api/proyectos/${proyectoId}/objetivos/`, {
+            method: 'POST',
+            body: JSON.stringify({ descripcion, tipo, orden }),
+        })
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+
+    async editarObjetivo(proyectoId, objetivoId, campos) {
+        const response = await request(`/api/proyectos/${proyectoId}/objetivos/${objetivoId}/`, {
+            method: 'PUT',
+            body: JSON.stringify(campos),
+        })
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+
+    async eliminarObjetivo(proyectoId, objetivoId) {
+        const response = await request(`/api/proyectos/${proyectoId}/objetivos/${objetivoId}/`, {
+            method: 'DELETE',
+        })
+        if (!response.ok) {
+            const data = await parseJSON(response)
+            throw { status: response.status, data }
+        }
+    },
+
+    // ── RAPs ──
+    async listarRAPs(proyectoId) {
+        const response = await request(`/api/proyectos/${proyectoId}/raps/`)
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+
+    async crearRAP(proyectoId, { nombre, descripcion, porcentaje_evaluacion, orden }) {
+        const response = await request(`/api/proyectos/${proyectoId}/raps/`, {
+            method: 'POST',
+            body: JSON.stringify({ nombre, descripcion, porcentaje_evaluacion, orden }),
+        })
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+
+    async editarRAP(proyectoId, rapId, campos) {
+        const response = await request(`/api/proyectos/${proyectoId}/raps/${rapId}/`, {
+            method: 'PUT',
+            body: JSON.stringify(campos),
+        })
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+
+    async eliminarRAP(proyectoId, rapId) {
+        const response = await request(`/api/proyectos/${proyectoId}/raps/${rapId}/`, {
+            method: 'DELETE',
+        })
+        if (!response.ok) {
+            const data = await parseJSON(response)
+            throw { status: response.status, data }
+        }
+    },
 }
 
+
 // ─── Equipos ──────────────────────────────────────────────────────────────────
-// GET /api/proyectos/:proyectoId/equipos/
-// GET /api/equipos/:equipoId/estudiantes/
-// POST /api/equipos/:equipoId/asignar/
 export const equiposApi = {
 
     async obtenerPorProyecto(proyectoId) {
         const response = await request(`/api/proyectos/${proyectoId}/equipos/`)
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+
+    async crearEquipo(proyectoId, { nombre, descripcion, cupo_maximo }) {
+        const response = await request(`/api/proyectos/${proyectoId}/equipos/`, {
+            method: 'POST',
+            body: JSON.stringify({ nombre, descripcion, cupo_maximo }),
+        })
         const data = await parseJSON(response)
         if (!response.ok) throw { status: response.status, data }
         return data
@@ -122,4 +215,15 @@ export const equiposApi = {
         return data
     },
 
+}
+
+// ─── Estudiantes del curso ─────────────────────────────────────────────────
+export const estudiantesApi = {
+
+    async listarPorCurso(cursoId) {
+        const response = await request(`/api/cursos/${cursoId}/estudiantes/`)
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
 }

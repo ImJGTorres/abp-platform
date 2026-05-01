@@ -295,11 +295,10 @@ class PeriodoAcademicoViewSet(viewsets.ModelViewSet):
     # Se usa para validar si se pueden modificar las fechas (retorna True si hay proyectos en_curso)
     def _has_active_projects(self, periodo):
         from apps.cursos.models import Proyecto
-        cursos = Curso.objects.filter(id_periodo_academico=periodo)
-        for curso in cursos:
-            if hasattr(curso, 'proyecto') and curso.proyecto.estado == Proyecto.Estado.EN_EJECUCION:
-                return True
-        return False
+        return Proyecto.objects.filter(
+            id_curso__id_periodo_academico=periodo,
+            estado=Proyecto.Estado.EN_EJECUCION,
+        ).exists()
 
     def _get_active_projects_count(self, periodo):
         from apps.cursos.models import Proyecto

@@ -17,7 +17,7 @@ export default function RegistroUsuarioForm() {
     const [verConfirmar, setVerConfirmar] = useState(false);
 
     return (
-        <div className="max-w-lg mx-auto bg-white rounded-xl border border-gray-200 p-8 shadow-sm">
+        <div className="w-full bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
             <h2 className="text-lg font-semibold text-gray-900 mb-1">Registrar usuario</h2>
 
             {/* Confirmación de éxito  */}

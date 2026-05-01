@@ -2,19 +2,19 @@ import { useState } from "react";
 import { usuariosApi } from "../services/api";
 
 const ROLES = [
-  { value: "estudiante",    label: "Estudiante"      },
-  { value: "docente",       label: "Docente"         },
-  { value: "director",      label: "Director"        },
-  { value: "lider_equipo",  label: "Líder de equipo" },
-  { value: "administrador", label: "Administrador"   },
+    { value: "estudiante", label: "Estudiante" },
+    { value: "docente", label: "Docente" },
+    { value: "director", label: "Director" },
+    { value: "lider_equipo", label: "Líder de equipo" },
+    { value: "administrador", label: "Administrador" },
 ];
 
 export default function CargaMasivaEstudiantes() {
-    const [archivo,   setArchivo]   = useState(null);
-    const [rol,       setRol]       = useState("");
-    const [loading,   setLoading]   = useState(false);
+    const [archivo, setArchivo] = useState(null);
+    const [rol, setRol] = useState("");
+    const [loading, setLoading] = useState(false);
     const [resultado, setResultado] = useState(null);
-    const [error,     setError]     = useState("");
+    const [error, setError] = useState("");
 
     const handleArchivo = (e) => {
         const file = e.target.files?.[0] ?? null;
@@ -54,7 +54,7 @@ export default function CargaMasivaEstudiantes() {
         "focus:outline-none focus:ring-2 focus:ring-red-100 focus:border-red-400 bg-white";
 
     return (
-        <div className="max-w-lg mx-auto bg-white rounded-xl border border-gray-200 p-8 shadow-sm">
+        <div className="w-full bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
             <h2 className="text-lg font-semibold text-gray-900 mb-1">
                 Carga masiva desde Excel
             </h2>
