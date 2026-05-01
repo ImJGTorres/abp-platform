@@ -5,7 +5,6 @@ from .views import (
     EquiposPorProyectoView,
     EditarEquipoView,
     EstudiantesEquipoView,
-    MiembroListView,
     RetirarMiembroView,
     MoverMiembroView,
     DisolverEquipoView,
@@ -29,8 +28,6 @@ urlpatterns = [
     path('equipos/<int:equipo_id>/estudiantes/', EstudiantesEquipoView.as_view(), name='estudiantes-equipo'),
     # POST — Asignación masiva de estudiantes al equipo
     path('equipos/<int:equipo_id>/asignar/', AsignarEstudiantesView.as_view(), name='asignar-estudiantes'),
-    # GET — Listar miembros activos del equipo
-    path('equipos/<int:equipo_id>/miembros/', MiembroListView.as_view(), name='miembro-list'),
     # DELETE — Retirar estudiante del equipo (soft-delete)
     path('equipos/<int:equipo_id>/miembros/<int:usuario_id>/', RetirarMiembroView.as_view(), name='miembro-retirar'),
     # PATCH — Actualizar rol interno de un miembro
@@ -42,5 +39,3 @@ urlpatterns = [
     # DELETE — Disolver equipo (soft-delete)
     path('equipos/<int:equipo_id>/disolver/', DisolverEquipoView.as_view(), name='equipo-disolver'),
 ]
-
-
