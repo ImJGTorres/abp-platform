@@ -6,6 +6,7 @@ from .views import (
     CursoDetailView,
     CursoListCreateView,
     DocenteListView,
+    HitoDetailView,
     ProyectoListCreateView,
     RapDetailView,
     RapListCreateView,
@@ -28,4 +29,10 @@ proyectos_urlpatterns = [
 
 raps_urlpatterns = [
     path('<int:id>/', RapDetailView.as_view(), name='rap-detail'),
+]
+
+# Exportado para incluirse bajo /api/hitos/ en config/urls.py
+hitos_urlpatterns = [
+    # GET/PUT/PATCH/DELETE  /api/hitos/<pk>/
+    path('<int:pk>/', HitoDetailView.as_view(), name='hito-detail'),
 ]

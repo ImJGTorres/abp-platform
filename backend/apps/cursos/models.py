@@ -132,6 +132,40 @@ class ObjetivoProyecto(models.Model):
         return f'[{self.get_tipo_display()}] Objetivo {self.orden} — {self.id_proyecto}'
 
 
+class HitoProyecto(models.Model):
+
+    class Tipo(models.TextChoices):
+        HITO = 'hito', 'Hito'
+        ENTREGA = 'entrega', 'Entrega'
+        REVISION = 'revision', 'Revisión'
+
+    class Estado(models.TextChoices):
+        PENDIENTE = 'pendiente', 'Pendiente'
+        EN_PROGRESO = 'en_progreso', 'En Progreso'
+        COMPLETADO = 'completado', 'Completado'
+        CANCELADO = 'cancelado', 'Cancelado'
+
+    id_proyecto = models.ForeignKey(
+        Proyecto,
+        on_delete=models.CASCADE,
+        related_name='hitos',
+    )
+    nombre = models.CharField(max_length=200)
+    descripcion = models.TextField(null=True, blank=True)
+    fecha_inicio = models.DateField()
+    fecha_fin = models.DateField()
+    tipo = models.CharField(max_length=10, choices=Tipo.choices, default=Tipo.HITO)
+    estado = models.CharField(max_length=12, choices=Estado.choices, default=Estado.PENDIENTE)
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'hito_proyecto'
+        ordering = ['fecha_inicio', 'fecha_fin']
+
+    def __str__(self):
+        return f'{self.nombre} ({self.get_tipo_display()}) — {self.id_proyecto}'
+
+
 class ResultadoAprendizaje(models.Model):
     proyecto = models.ForeignKey(
         Proyecto,
