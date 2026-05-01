@@ -24,6 +24,7 @@ import EstudiantesCurso from '../components/docente/EstudiantesCurso'
 import ObjetivosProyecto from '../components/docente/ObjetivosProyecto'
 import RAPsProyecto from '../components/docente/RAPsProyecto'
 import ProyectoLayout from '../components/docente/ProyectoLayout'
+import CronogramaProyecto from '../components/docente/CronogramaProyecto'
 
 function PanelDirector() { return <div className="p-10">Director</div> }
 function PanelEstudiante() { return <div className="p-10">Estudiante</div> }
@@ -93,6 +94,7 @@ export default function AppRouter() {
           <Route element={<ProyectoLayout />}>
             <Route path="/docente/proyectos/:proyectoId/objetivos" element={<ObjetivosProyecto />} />
             <Route path="/docente/proyectos/:proyectoId/raps" element={<RAPsProyecto />} />
+            <Route path="/docente/proyectos/:proyectoId/cronograma" element={<CronogramaProyecto />} />
           </Route>
         </Route>
 

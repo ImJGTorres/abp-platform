@@ -175,6 +175,44 @@ export const proyectosApi = {
             throw { status: response.status, data }
         }
     },
+
+    // ── Hitos (Cronograma) ──
+    async listarHitos(proyectoId) {
+        const response = await request(`/api/proyectos/${proyectoId}/hitos/`)
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+
+    async crearHito(proyectoId, { nombre, descripcion, fecha_limite, rap_id, orden }) {
+        const response = await request(`/api/proyectos/${proyectoId}/hitos/`, {
+            method: 'POST',
+            body: JSON.stringify({ nombre, descripcion, fecha_limite, rap_id, orden }),
+        })
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+
+    async editarHito(proyectoId, hitoId, campos) {
+        const response = await request(`/api/proyectos/${proyectoId}/hitos/${hitoId}/`, {
+            method: 'PUT',
+            body: JSON.stringify(campos),
+        })
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+
+    async eliminarHito(proyectoId, hitoId) {
+        const response = await request(`/api/proyectos/${proyectoId}/hitos/${hitoId}/`, {
+            method: 'DELETE',
+        })
+        if (!response.ok) {
+            const data = await parseJSON(response)
+            throw { status: response.status, data }
+        }
+    },
 }
 
 
