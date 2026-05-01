@@ -5,6 +5,7 @@ from .views import (
     AsignarEstudiantesView,
     MiembroListView,
     RetirarMiembroView,
+    ActualizarRolMiembroView,
 )
 
 urlpatterns = [
@@ -17,4 +18,7 @@ urlpatterns = [
     # DELETE /api/equipos/<equipo_id>/miembros/<usuario_id>/
     # Retirar estudiante del equipo (soft-delete: marca como retirado y libera cupo).
     path('equipos/<int:equipo_id>/miembros/<int:usuario_id>/', RetirarMiembroView.as_view(), name='miembro-retirar'),
+    # PATCH /api/miembros/<miembro_id>/
+    # Actualizar rol_interno de un miembro (lider, desarrollador, analista, disenador, tester, "").
+    path('miembros/<int:miembro_id>/', ActualizarRolMiembroView.as_view(), name='miembro-actualizar-rol'),
 ]

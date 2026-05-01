@@ -20,6 +20,9 @@ import DetalleCurso from '../components/docente/DetalleCurso'
 import GestionEquipos from '../components/docente/GestionEquipos'
 import AsignarEstudiantes from '../components/docente/AsignarEstudiantes'
 import EstudiantesCurso from '../components/docente/EstudiantesCurso'
+import EquipoProyecto from '../components/docente/EquipoProyecto'
+import ReorganizarEquipos from '../components/docente/ReorganizarEquipos'
+import CronogramaHitos from '../components/docente/CronogramaHitos'
 
 
 // ── Paneles de otros roles (pendientes de implementar) ────────────────────────
@@ -87,6 +90,9 @@ export default function AppRouter() {
             <Route path="/docente/cursos" element={<GestionCursos />} />
             <Route path="/docente/cursos/:id" element={<DetalleCurso />} />
             <Route path="/docente/cursos/:id/estudiantes" element={<EstudiantesCurso />} />
+            <Route path="/docente/cursos/:cursoId/proyectos/:proyectoId/equipo" element={<EquipoProyecto />} />
+            <Route path="/docente/cursos/:cursoId/proyectos/:proyectoId/reorganizar" element={<ReorganizarEquipos />} />
+            <Route path="/docente/cursos/:cursoId/proyectos/:proyectoId/cronograma" element={<CronogramaHitos />} />
             <Route path="/docente/proyectos/:proyectoId/equipos" element={<GestionEquipos />} />
             <Route path="/docente/equipos/:equipoId/asignar" element={<AsignarEstudiantes />} />
           </Route>
