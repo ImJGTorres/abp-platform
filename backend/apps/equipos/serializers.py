@@ -95,13 +95,18 @@ class EquipoUpdateSerializer(serializers.ModelSerializer):
 class EquipoListSerializer(serializers.ModelSerializer):
     capacidad_maxima = serializers.IntegerField(source='cupo_maximo', read_only=True)
     numero_miembros = serializers.SerializerMethodField()
+    cupo_disponible = serializers.SerializerMethodField()
 
     class Meta:
         model = Equipo
-        fields = ['id', 'nombre', 'capacidad_maxima', 'numero_miembros']
+        fields = ['id', 'nombre', 'capacidad_maxima', 'numero_miembros', 'cupo_disponible']
 
     def get_numero_miembros(self, obj):
         return obj.miembros.filter(estado='activo').count()
+
+    def get_cupo_disponible(self, obj):
+        activos = obj.miembros.filter(estado='activo').count()
+        return max(0, obj.cupo_maximo - activos)
 
 
 # Serializador para crear y validar membresías de usuarios en equipos.
@@ -179,6 +184,7 @@ class MiembroDetalleSerializer(serializers.ModelSerializer):
 class EquipoDetalleSerializer(serializers.ModelSerializer):
     miembros             = serializers.SerializerMethodField()
     cantidad_miembros    = serializers.SerializerMethodField()
+    cupo_disponible      = serializers.SerializerMethodField()
     lider                = serializers.SerializerMethodField()
     cantidad_entregables = serializers.SerializerMethodField()
 
@@ -186,7 +192,7 @@ class EquipoDetalleSerializer(serializers.ModelSerializer):
         model  = Equipo
         fields = [
             'id', 'nombre', 'descripcion', 'estado', 'cupo_maximo',
-            'miembros', 'cantidad_miembros', 'lider', 'cantidad_entregables',
+            'miembros', 'cantidad_miembros', 'cupo_disponible', 'lider', 'cantidad_entregables',
         ]
 
     def get_miembros(self, obj):
@@ -195,6 +201,10 @@ class EquipoDetalleSerializer(serializers.ModelSerializer):
 
     def get_cantidad_miembros(self, obj):
         return obj.miembros.filter(estado='activo').count()
+
+    def get_cupo_disponible(self, obj):
+        activos = obj.miembros.filter(estado='activo').count()
+        return max(0, obj.cupo_maximo - activos)
 
     def get_lider(self, obj):
         lider = obj.miembros.filter(
