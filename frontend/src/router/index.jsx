@@ -21,6 +21,9 @@ import DetalleCurso from '../components/docente/DetalleCurso'
 import GestionEquipos from '../components/docente/GestionEquipos'
 import AsignarEstudiantes from '../components/docente/AsignarEstudiantes'
 import EstudiantesCurso from '../components/docente/EstudiantesCurso'
+import ObjetivosProyecto from '../components/docente/ObjetivosProyecto'
+import RAPsProyecto from '../components/docente/RAPsProyecto'
+import ProyectoLayout from '../components/docente/ProyectoLayout'
 
 function PanelDirector() { return <div className="p-10">Director</div> }
 function PanelEstudiante() { return <div className="p-10">Estudiante</div> }
@@ -85,6 +88,11 @@ export default function AppRouter() {
             <Route path="/docente/cursos/:id/estudiantes" element={<EstudiantesCurso />} />
             <Route path="/docente/proyectos/:proyectoId/equipos" element={<GestionEquipos />} />
             <Route path="/docente/equipos/:equipoId/asignar" element={<AsignarEstudiantes />} />
+          </Route>
+
+          <Route element={<ProyectoLayout />}>
+            <Route path="/docente/proyectos/:proyectoId/objetivos" element={<ObjetivosProyecto />} />
+            <Route path="/docente/proyectos/:proyectoId/raps" element={<RAPsProyecto />} />
           </Route>
         </Route>
 

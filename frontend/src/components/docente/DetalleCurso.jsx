@@ -354,9 +354,12 @@ export default function DetalleCurso() {
                                         {p.nombre[0].toUpperCase()}
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <h3 className="text-[15px] font-bold text-[#191c1d] leading-tight truncate group-hover:text-[#d32f2f] transition-colors">
+                                        <Link
+                                            to={`/docente/proyectos/${p.id}/objetivos`}
+                                            state={{ nombre: p.nombre, periodo: curso.periodo_nombre, cursoId: id, cursoNombre: curso.nombre }}
+                                            className="text-[15px] font-bold text-[#191c1d] leading-tight truncate group-hover:text-[#d32f2f] transition-colors block hover:text-[#d32f2f]">
                                             {p.nombre}
-                                        </h3>
+                                        </Link>
                                         {p.descripcion && <p className="text-[12px] text-[#9ba7ae] mt-0.5 line-clamp-1">{p.descripcion}</p>}
                                     </div>
                                     <span className={`flex-shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold ${info.bg} ${info.text}`}>
