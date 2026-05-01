@@ -45,12 +45,29 @@ class Equipo(models.Model):
 # Relaciona usuarios con equipos y define su rol interno.
 # Un usuario puede pertenecer a varios equipos (en diferentes proyectos) pero solo un equipo por proyecto.
 class MiembroEquipo(models.Model):
-    # Equipo al que pertenece este miembro.
-    # related_name='miembros' permite acceder a los miembros desde un equipo: equipo.miembros.all()
+    # El historial de movimientos se preserva mediante soft-delete:
+    # cuando un estudiante es retirado de un equipo, el registro se mantiene
+    # con estado='retirado' para conservar el historial completo.
+    # Cada vez que un estudiante es asignado a un equipo (incluyendo reasignaciones),
+    # se crea un nuevo registro MiembroEquipo para el equipo destino.
+    # Esto permite auditar el recorrido completo de cada estudiante
+    # a lo largo de múltiples equipos sin perder datos históricos.
+
     equipo = models.ForeignKey(
         'equipos.Equipo',
         on_delete=models.CASCADE,
         related_name='miembros',
+    )
+    usuario = models.ForeignKey(
+        'usuarios.Usuario',
+        on_delete=models.CASCADE,
+        related_name='membresías',
+    )
+    fecha_asignacion = models.DateTimeField(auto_now_add=True)
+    estado = models.CharField(
+        max_length=10,
+        choices=[('activo', 'Activo'), ('retirado', 'Retirado')],
+        default='activo',
     )
     # Usuario miembro del equipo.
     # related_name='membresías' permite acceder a las membresías desde un usuario: usuario.membresías.all()
@@ -62,6 +79,7 @@ class MiembroEquipo(models.Model):
     # Fecha automática cuando el miembro se asigna al equipo.
     fecha_asignacion = models.DateTimeField(auto_now_add=True)
     # Estado de la membresía: activo (vigente) o retirado (ya no participa).
+    # Cambiar a 'retirado' permite preservar el registro original en lugar de eliminarlo.
     estado = models.CharField(
         max_length=10,
         choices=[('activo', 'Activo'), ('retirado', 'Retirado')],
