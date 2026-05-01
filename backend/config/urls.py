@@ -25,6 +25,7 @@ from django.views.generic import TemplateView
 
 from apps.usuarios.views import CambiarContrasenaView, LoginView, OlvidarContrasenaView, RecuperarContrasenaView
 from apps.roles.views import PermisosAgrupadosView
+from apps.cursos.urls import proyectos_urlpatterns, raps_urlpatterns
 
 urlpatterns = [
     path('django-admin/', admin.site.urls),
@@ -62,6 +63,7 @@ urlpatterns = [
     #   /api/proyectos/<pk>/               → detalle/edición del proyecto
     #   /api/proyectos/<proyecto_id>/objetivos/ → lista/creación de objetivos
     path('api/proyectos/', include('apps.cursos.proyecto_urls')),
+    path('api/raps/', include(raps_urlpatterns)),
     # Ruta standalone de objetivos individuales:
     #   /api/objetivos/<pk>/  → detalle, edición y borrado con reordenamiento
     path('api/objetivos/', include('apps.cursos.objetivo_urls')),

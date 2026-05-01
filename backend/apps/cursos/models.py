@@ -130,3 +130,20 @@ class ObjetivoProyecto(models.Model):
 
     def __str__(self):
         return f'[{self.get_tipo_display()}] Objetivo {self.orden} — {self.id_proyecto}'
+
+
+class ResultadoAprendizaje(models.Model):
+    proyecto = models.ForeignKey(
+        Proyecto,
+        on_delete=models.CASCADE,
+        related_name='raps',
+    )
+    descripcion = models.TextField()
+    competencia_asociada = models.CharField(max_length=200, null=True, blank=True)
+
+    class Meta:
+        db_table = 'resultado_aprendizaje'
+        ordering = ['id']
+
+    def __str__(self):
+        return self.descripcion[:60]

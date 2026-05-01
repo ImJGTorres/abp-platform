@@ -15,7 +15,8 @@ from apps.configuracion.models import PeriodoAcademico
 from apps.equipos.models import MiembroEquipo
 from apps.usuarios.models import Usuario
 from apps.usuarios.serializers import UsuarioSerializer
-from .models import Curso, ObjetivoProyecto, Proyecto
+from apps.usuarios.authentication import UsuarioJWTAuthentication
+from .models import Curso, ObjetivoProyecto, Proyecto, ResultadoAprendizaje
 from .permissions import EsAdministrador, EsDocente, EsDocenteOAdministrador
 from .serializers import (
     CursoAdminCreateSerializer,
@@ -27,6 +28,8 @@ from .serializers import (
     ProyectoCreateSerializer,
     ProyectoSerializer,
     ProyectoUpdateSerializer,
+    RapCreateSerializer,
+    RapSerializer,
 )
 
 
@@ -531,4 +534,83 @@ class ObjetivoDetailView(generics.RetrieveUpdateDestroyAPIView):
                 f'eliminado del proyecto ID={proyecto.id}'
             ),
         )
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# ---------------------------------------------------------------------------
+# RAPs (Resultados de Aprendizaje)
+# ---------------------------------------------------------------------------
+
+class RapListCreateView(APIView):
+    """
+    GET  /api/proyectos/<id_proyecto>/raps/ — lista RAPs del proyecto (usuario autenticado).
+    POST /api/proyectos/<id_proyecto>/raps/ — crea RAP (solo docente propietario).
+    """
+    authentication_classes = [UsuarioJWTAuthentication]
+
+    def _get_proyecto(self, id_proyecto):
+        return get_object_or_404(
+            Proyecto.objects.select_related('id_curso'),
+            pk=id_proyecto,
+        )
+
+    def get(self, request, id_proyecto):
+        proyecto = self._get_proyecto(id_proyecto)
+        raps = ResultadoAprendizaje.objects.filter(proyecto=proyecto)
+        return Response(RapSerializer(raps, many=True).data)
+
+    def post(self, request, id_proyecto):
+        proyecto = self._get_proyecto(id_proyecto)
+        if proyecto.id_curso.id_docente_id != request.user.id:
+            return Response(
+                {'detail': 'Solo el docente propietario puede crear RAPs en este proyecto.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        serializer = RapCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        rap = serializer.save(proyecto=proyecto)
+        return Response(RapSerializer(rap).data, status=status.HTTP_201_CREATED)
+
+
+class RapDetailView(APIView):
+    """
+    PUT    /api/raps/<id>/ — actualiza RAP (solo docente propietario).
+    DELETE /api/raps/<id>/ — elimina RAP si no tiene criterios vinculados.
+    """
+    authentication_classes = [UsuarioJWTAuthentication]
+
+    def _get_rap(self, id):
+        return get_object_or_404(
+            ResultadoAprendizaje.objects.select_related('proyecto__id_curso'),
+            pk=id,
+        )
+
+    def _es_docente_propietario(self, rap, user):
+        return rap.proyecto.id_curso.id_docente_id == user.id
+
+    def put(self, request, id):
+        rap = self._get_rap(id)
+        if not self._es_docente_propietario(rap, request.user):
+            return Response(
+                {'detail': 'Solo el docente propietario puede editar este RAP.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        serializer = RapCreateSerializer(rap, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        rap = serializer.save()
+        return Response(RapSerializer(rap).data)
+
+    def delete(self, request, id):
+        rap = self._get_rap(id)
+        if not self._es_docente_propietario(rap, request.user):
+            return Response(
+                {'detail': 'Solo el docente propietario puede eliminar este RAP.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        if rap.criterios.exists():
+            return Response(
+                {'detail': 'No se puede eliminar un RAP con evaluaciones vinculadas'},
+                status=status.HTTP_409_CONFLICT,
+            )
+        rap.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)

@@ -358,3 +358,24 @@ class ObjetivoUpdateSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         # Devuelve la representación completa del objetivo actualizado.
         return ObjetivoSerializer(instance, context=self.context).data
+
+
+# ---------------------------------------------------------------------------
+# ResultadoAprendizaje (RAP)
+# ---------------------------------------------------------------------------
+
+from .models import ResultadoAprendizaje
+
+
+class RapSerializer(serializers.ModelSerializer):
+    proyecto = serializers.PrimaryKeyRelatedField(read_only=True)
+
+    class Meta:
+        model = ResultadoAprendizaje
+        fields = ['id', 'proyecto', 'descripcion', 'competencia_asociada']
+
+
+class RapCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ResultadoAprendizaje
+        fields = ['descripcion', 'competencia_asociada']
