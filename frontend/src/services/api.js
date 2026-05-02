@@ -576,19 +576,28 @@ export const cursosAdminApi = {
     const formData = new FormData()
     formData.append('archivo', archivo)
 
-    const token = session.getAccess()
-    const headers = {}
-    if (token) headers['Authorization'] = `Bearer ${token}`
+    const authHeaders = () => {
+      const token = session.getAccess()
+      return token ? { Authorization: `Bearer ${token}` } : {}
+    }
 
-    let response
-    try {
-      response = await fetch(`${BASE_URL}/api/cursos/carga-masiva/`, {
+    const doFetch = () =>
+      fetch(`${BASE_URL}/api/cursos/carga-masiva/`, {
         method: 'POST',
-        headers,
+        headers: authHeaders(),
         body: formData,
-      })
-    } catch {
-      throw { type: 'network', message: 'Sin conexión con el servidor' }
+      }).catch(() => { throw { type: 'network', message: 'Sin conexión con el servidor' } })
+
+    let response = await doFetch()
+
+    if (response.status === 401) {
+      const refreshed = await tryRefresh()
+      if (refreshed) {
+        response = await doFetch()
+      } else {
+        window.location.href = '/login'
+        throw { type: 'auth', message: 'Sesión expirada' }
+      }
     }
 
     const data = await parseJSON(response)
