@@ -263,6 +263,18 @@ export const equiposApi = {
         return data
     },
 
+    async moverMiembro(equipoOrigenId, estudianteId, equipoDestinoId) {
+        const payload = { usuario_id: estudianteId, equipo_destino_id: equipoDestinoId }
+        const response = await request(`/api/equipos/${equipoOrigenId}/miembros/mover/`, {
+            method: 'POST',
+            body: JSON.stringify(payload),
+            headers: { 'Content-Type': 'application/json' },
+        })
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+
     async retirarMiembro(equipoId, usuarioId) {
         const response = await request(`/api/equipos/${equipoId}/miembros/${usuarioId}/`, {
             method: 'DELETE',

@@ -346,8 +346,12 @@ class AsignarEstudiantesView(APIView):
                 errores.append({'usuario_id': uid, 'error': 'El equipo ha alcanzado su cupo máximo.'})
                 continue
 
-            # Crear nueva membresía (soft-delete preserva historial)
-            MiembroEquipo.objects.create(equipo=equipo, usuario=usuario)
+            # Crear o reactivar membresía (update_or_create evita duplicados por unique_together)
+            MiembroEquipo.objects.update_or_create(
+                equipo=equipo,
+                usuario=usuario,
+                defaults={'estado': 'activo'},
+            )
             # Registrar asignación en bitácora
             registrar_bitacora(
                 request.user if request.user.is_authenticated else None,

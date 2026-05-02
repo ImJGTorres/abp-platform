@@ -168,7 +168,7 @@ export default function ReorganizarEquipos() {
         setDropTarget(null)
     }
 
-    async function handleDrop(e, destinoEquipoId) {
+     async function handleDrop(e, destinoEquipoId) {
         e.preventDefault()
         setDropTarget(null)
         const drag = dragRef.current
@@ -193,12 +193,15 @@ export default function ReorganizarEquipos() {
         setAviso(null)
         setError(null)
         try {
-            if (origenEquipoId !== null) {
+            if (origenEquipoId === null) {
+                // Sin equipo → Equipo: asignar
+                await equiposApi.asignarEstudiantes(destinoEquipoId, [miembro.usuario_id])
+            } else if (destinoEquipoId === null) {
+                // Equipo → Sin equipo: retirar
                 await equiposApi.retirarMiembro(origenEquipoId, miembro.usuario_id)
-            }
-            if (destinoEquipoId !== null) {
-                const userId = miembro.usuario_id ?? miembro.id
-                await equiposApi.agregarMiembro(destinoEquipoId, userId)
+            } else {
+                // Equipo → Equipo: mover
+                await equiposApi.moverMiembro(origenEquipoId, miembro.usuario_id, destinoEquipoId)
             }
             await cargarDatos()
         } catch (err) {
