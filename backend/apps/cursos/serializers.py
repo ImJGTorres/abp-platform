@@ -3,7 +3,7 @@ from rest_framework import serializers
 from apps.configuracion.models import PeriodoAcademico
 from apps.usuarios.models import Usuario
 from apps.equipos.serializers import EquipoDetalleSerializer
-from .models import Curso, ObjetivoProyecto, Proyecto
+from .models import Curso, HitoProyecto, ObjetivoProyecto, Proyecto
 
 
 # ---------------------------------------------------------------------------
@@ -44,7 +44,7 @@ class CursoSerializer(serializers.ModelSerializer):
         return f'{d.nombre} {d.apellido}'
 
     def get_periodo_nombre(self, obj):
-        return obj.id_periodo_academico.nombre
+        return obj.id_periodo_academico.nombre if obj.id_periodo_academico else ''
 
     def get_total_proyectos(self, obj):
         return len(obj.proyectos.all())
@@ -358,3 +358,97 @@ class ObjetivoUpdateSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         # Devuelve la representación completa del objetivo actualizado.
         return ObjetivoSerializer(instance, context=self.context).data
+
+
+# ---------------------------------------------------------------------------
+# HitoProyecto
+# ---------------------------------------------------------------------------
+
+def _validate_fechas_hito(attrs, instance=None, proyecto=None):
+    """Valida que fecha_fin > fecha_inicio y que ambas caigan dentro del rango del proyecto."""
+    fecha_inicio = attrs.get('fecha_inicio') or getattr(instance, 'fecha_inicio', None)
+    fecha_fin = attrs.get('fecha_fin') or getattr(instance, 'fecha_fin', None)
+
+    if fecha_inicio and fecha_fin and fecha_fin <= fecha_inicio:
+        raise serializers.ValidationError(
+            {'fecha_fin': 'La fecha de fin debe ser posterior a la fecha de inicio.'}
+        )
+
+    if proyecto is None and instance is not None:
+        proyecto = instance.id_proyecto
+
+    if proyecto and fecha_inicio and fecha_inicio < proyecto.fecha_inicio:
+        raise serializers.ValidationError(
+            {'fecha_inicio': 'La fecha de inicio del hito no puede ser anterior a la del proyecto.'}
+        )
+    if proyecto and fecha_fin and fecha_fin > proyecto.fecha_fin_estimada:
+        raise serializers.ValidationError(
+            {'fecha_fin': 'La fecha de fin del hito no puede superar la fecha fin del proyecto.'}
+        )
+
+
+class HitoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = HitoProyecto
+        fields = [
+            'id',
+            'id_proyecto',
+            'nombre',
+            'descripcion',
+            'fecha_inicio',
+            'fecha_fin',
+            'tipo',
+            'estado',
+            'fecha_creacion',
+        ]
+        read_only_fields = fields
+
+
+class HitoCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = HitoProyecto
+        fields = ['nombre', 'descripcion', 'fecha_inicio', 'fecha_fin', 'tipo', 'estado']
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        proyecto = self.context.get('proyecto')
+        _validate_fechas_hito(attrs, proyecto=proyecto)
+        return attrs
+
+    def to_representation(self, instance):
+        return HitoSerializer(instance, context=self.context).data
+
+
+class HitoUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = HitoProyecto
+        fields = ['nombre', 'descripcion', 'fecha_inicio', 'fecha_fin', 'tipo', 'estado']
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        _validate_fechas_hito(attrs, instance=self.instance)
+        return attrs
+
+    def to_representation(self, instance):
+        return HitoSerializer(instance, context=self.context).data
+
+
+# ---------------------------------------------------------------------------
+# ResultadoAprendizaje (RAP)
+# ---------------------------------------------------------------------------
+
+from .models import ResultadoAprendizaje
+
+
+class RapSerializer(serializers.ModelSerializer):
+    proyecto = serializers.PrimaryKeyRelatedField(read_only=True)
+
+    class Meta:
+        model = ResultadoAprendizaje
+        fields = ['id', 'proyecto', 'nombre', 'descripcion', 'competencia_asociada', 'porcentaje_evaluacion']
+
+
+class RapCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ResultadoAprendizaje
+        fields = ['nombre', 'descripcion', 'competencia_asociada', 'porcentaje_evaluacion']

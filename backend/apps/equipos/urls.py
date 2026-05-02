@@ -8,6 +8,7 @@ from .views import (
     RetirarMiembroView,
     MoverMiembroView,
     DisolverEquipoView,
+    ActualizarRolMiembroView,
 )
 
 """
@@ -38,4 +39,7 @@ urlpatterns = [
     path('equipos/<int:equipo_id>/miembros/mover/', MoverMiembroView.as_view(), name='miembro-mover'),
     # DELETE — Disolver equipo (soft-delete)
     path('equipos/<int:equipo_id>/disolver/', DisolverEquipoView.as_view(), name='equipo-disolver'),
+    # PATCH /api/miembros/<miembro_id>/
+    # Actualizar rol_interno de un miembro (lider, desarrollador, analista, disenador, tester, "").
+    path('miembros/<int:miembro_id>/', ActualizarRolMiembroView.as_view(), name='miembro-actualizar-rol'),
 ]

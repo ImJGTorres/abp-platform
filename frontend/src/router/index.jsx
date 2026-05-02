@@ -24,6 +24,10 @@ import EstudiantesCurso from '../components/docente/EstudiantesCurso'
 import ObjetivosProyecto from '../components/docente/ObjetivosProyecto'
 import RAPsProyecto from '../components/docente/RAPsProyecto'
 import ProyectoLayout from '../components/docente/ProyectoLayout'
+import CronogramaProyecto from '../components/docente/CronogramaProyecto'
+import EquipoProyecto from '../components/docente/EquipoProyecto'
+import ReorganizarEquipos from '../components/docente/ReorganizarEquipos'
+import CronogramaHitos from '../components/docente/CronogramaHitos'
 
 function PanelDirector() { return <div className="p-10">Director</div> }
 function PanelEstudiante() { return <div className="p-10">Estudiante</div> }
@@ -86,6 +90,9 @@ export default function AppRouter() {
             <Route path="/docente/cursos" element={<GestionCursos />} />
             <Route path="/docente/cursos/:id" element={<DetalleCurso />} />
             <Route path="/docente/cursos/:id/estudiantes" element={<EstudiantesCurso />} />
+            <Route path="/docente/cursos/:cursoId/proyectos/:proyectoId/equipo" element={<EquipoProyecto />} />
+            <Route path="/docente/cursos/:cursoId/proyectos/:proyectoId/reorganizar" element={<ReorganizarEquipos />} />
+            <Route path="/docente/cursos/:cursoId/proyectos/:proyectoId/cronograma" element={<CronogramaHitos />} />
             <Route path="/docente/proyectos/:proyectoId/equipos" element={<GestionEquipos />} />
             <Route path="/docente/equipos/:equipoId/asignar" element={<AsignarEstudiantes />} />
           </Route>
@@ -93,6 +100,7 @@ export default function AppRouter() {
           <Route element={<ProyectoLayout />}>
             <Route path="/docente/proyectos/:proyectoId/objetivos" element={<ObjetivosProyecto />} />
             <Route path="/docente/proyectos/:proyectoId/raps" element={<RAPsProyecto />} />
+            <Route path="/docente/proyectos/:proyectoId/cronograma" element={<CronogramaProyecto />} />
           </Route>
         </Route>
 

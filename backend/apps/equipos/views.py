@@ -346,8 +346,12 @@ class AsignarEstudiantesView(APIView):
                 errores.append({'usuario_id': uid, 'error': 'El equipo ha alcanzado su cupo máximo.'})
                 continue
 
-            # Crear nueva membresía (soft-delete preserva historial)
-            MiembroEquipo.objects.create(equipo=equipo, usuario=usuario)
+            # Crear o reactivar membresía (update_or_create evita duplicados por unique_together)
+            MiembroEquipo.objects.update_or_create(
+                equipo=equipo,
+                usuario=usuario,
+                defaults={'estado': 'activo'},
+            )
             # Registrar asignación en bitácora
             registrar_bitacora(
                 request.user if request.user.is_authenticated else None,
@@ -465,7 +469,36 @@ class EstudiantesCursoView(APIView):
 
         return Response({'disponibles': disponibles, 'en_equipo': en_equipo})
 
+class ActualizarRolMiembroView(APIView):
+    """
+    PATCH /api/miembros/<miembro_id>/
+    Actualiza el rol_interno de un MiembroEquipo.
+    Si el nuevo rol es 'lider', elimina el rol del lider anterior del mismo equipo.
+    Enviar rol_interno vacío ("") para quitar el rol.
+    """
+    permission_classes = [IsAuthenticated]
 
+    def patch(self, request, miembro_id):
+        miembro = get_object_or_404(MiembroEquipo, pk=miembro_id, estado='activo')
+        nuevo_rol = request.data.get('rol_interno', '')
+
+        roles_validos = {'lider', 'desarrollador', 'analista', 'disenador', 'tester', ''}
+        if nuevo_rol not in roles_validos:
+            return Response({'detail': f'Rol inválido: {nuevo_rol}'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if nuevo_rol == 'lider':
+            MiembroEquipo.objects.filter(
+                equipo=miembro.equipo,
+                rol_interno='lider',
+                estado='activo',
+            ).exclude(pk=miembro_id).update(rol_interno='')
+
+        miembro.rol_interno = nuevo_rol
+        miembro.save(update_fields=['rol_interno'])
+
+        return Response({'id': miembro.id, 'rol_interno': miembro.rol_interno})
+
+# Kept for backwards compatibility — use EstudiantesCursoView instead.
 class EstudiantesDisponiblesView(generics.ListAPIView):
     """GET /api/cursos/<curso_id>/estudiantes/?proyecto_id=<int> (backwards compat)"""
     authentication_classes = [UsuarioJWTAuthentication]

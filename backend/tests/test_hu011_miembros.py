@@ -8,32 +8,39 @@ from rest_framework import status
 from django.urls import reverse
 
 from apps.usuarios.models import Usuario
-from apps.cursos.models import Proyecto
+from apps.cursos.models import Proyecto, Curso
 from apps.equipos.models import Equipo, MiembroEquipo
 from apps.configuracion.models import ParametroSistema
 from apps.bitacora.models import BitacoraSistema
 
 
 @pytest.fixture
-def proyecto_activo(docente_user):
+def proyecto_activo(docente_a):
     """Crea un proyecto activo para testing"""
+    from tests.factories import CursoFactory
+    from datetime import date
+    curso = CursoFactory(
+        nombre="Curso Test",
+        codigo="PT001",
+        id_docente=docente_a,
+        usuario_creo=docente_a
+    )
     return Proyecto.objects.create(
         nombre="Proyecto Test",
-        codigo="PT001",
-        id_curso_id=1,
-        usuario_creo=docente_user,
-        estado=Proyecto.Estado.ACTIVO
+        id_curso=curso,
+        fecha_inicio=date(2026, 2, 1),
+        fecha_fin_estimada=date(2026, 5, 31),
+        estado=Proyecto.Estado.EN_EJECUCION
     )
 
 
 @pytest.fixture
-def equipo_con_capacidad(proyecto_activo, docente_user):
+def equipo_con_capacidad(proyecto_activo, docente_a):
     """Crea un equipo con capacidad disponible"""
     return Equipo.objects.create(
         nombre="Equipo Test",
         proyecto=proyecto_activo,
-        cupo_maximo=3,
-        usuario_creo=docente_user
+        cupo_maximo=3
     )
 
 
@@ -81,7 +88,7 @@ def test_cp02_equipo_lleno(cliente_a, equipo_con_capacidad, estudiante_user, db)
     
     assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert 'detail' in response.json()
-    assert 'cupo mǭximo' in response.json()['detail']
+    assert 'cupo máximo' in response.json()['detail']
 
 
 @pytest.mark.django_db
@@ -93,8 +100,7 @@ def test_cp03_estudiante_ya_en_otro_equipo_mismo_proyecto(cliente_a, proyecto_ac
     equipo_a = Equipo.objects.create(
         nombre="Equipo A",
         proyecto=proyecto_activo,
-        cupo_maximo=2,
-        usuario_creo=cliente_a.handler._force_user  # Get the authenticated user
+        cupo_maximo=2
     )
     MiembroEquipo.objects.create(equipo=equipo_a, usuario=estudiante_user)
     
@@ -102,8 +108,7 @@ def test_cp03_estudiante_ya_en_otro_equipo_mismo_proyecto(cliente_a, proyecto_ac
     equipo_b = Equipo.objects.create(
         nombre="Equipo B",
         proyecto=proyecto_activo,
-        cupo_maximo=2,
-        usuario_creo=cliente_a.handler._force_user
+        cupo_maximo=2
     )
     
     # Intentar asignar el mismo estudiante al segundo equipo

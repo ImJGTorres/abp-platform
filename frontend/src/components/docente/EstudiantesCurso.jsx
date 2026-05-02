@@ -229,19 +229,33 @@ export default function EstudiantesCurso() {
         setError(null)
         setSeleccionados(new Set())
         try {
-            const [estData, proyData] = await Promise.all([
-                estudiantesApi.listarPorCurso(cursoId),
-                cursosApi.obtenerProyectos(cursoId),
-            ])
-            setEstudiantes(estData)
-            const lista = proyData.results ?? proyData
-            setProyectos(lista)
-        } catch {
-            setError('No se pudo cargar la información del curso.')
+            // Cargar proyectos del curso
+            const proyectosData = await cursosApi.obtenerProyectos(cursoId)
+            const proyectosLista = proyectosData.results ?? proyectosData
+            setProyectos(proyectosLista)
+
+            // Determinar proyectoId (usar primer proyecto activo, o el primero)
+            const proyectoActivo = proyectosLista.find(p => p.estado === 'activo') || proyectosLista[0]
+            const proyectoId = proyectoActivo?.id
+
+            let estudiantesData = { disponibles: [], en_equipo: [] }
+
+            if (proyectoId) {
+                // Obtener estudiantes disponibles para ese proyecto (requiere proyecto_id)
+                const disponibles = await estudiantesApi.sinEquipoEnProyecto(cursoId, proyectoId)
+                estudiantesData = { disponibles, en_equipo: [] }
+            }
+            // Si no hay proyectos, se mantienen arrays vacíos (se muestra mensaje)
+
+            setEstudiantes(estudiantesData)
+        } catch (err) {
+            console.error('Error cargando datos:', err)
+            setError(err?.data?.detail ?? err?.message ?? 'No se pudo cargar la información del curso.')
         } finally {
             setLoading(false)
         }
     }
+
 
     function toggleSeleccion(id) {
         setSeleccionados(prev => {

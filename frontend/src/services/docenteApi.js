@@ -118,8 +118,8 @@ export const proyectosApi = {
         return data
     },
 
-    async editarObjetivo(proyectoId, objetivoId, campos) {
-        const response = await request(`/api/proyectos/${proyectoId}/objetivos/${objetivoId}/`, {
+    async editarObjetivo(_proyectoId, objetivoId, campos) {
+        const response = await request(`/api/objetivos/${objetivoId}/`, {
             method: 'PUT',
             body: JSON.stringify(campos),
         })
@@ -128,8 +128,8 @@ export const proyectosApi = {
         return data
     },
 
-    async eliminarObjetivo(proyectoId, objetivoId) {
-        const response = await request(`/api/proyectos/${proyectoId}/objetivos/${objetivoId}/`, {
+    async eliminarObjetivo(_proyectoId, objetivoId) {
+        const response = await request(`/api/objetivos/${objetivoId}/`, {
             method: 'DELETE',
         })
         if (!response.ok) {
@@ -146,18 +146,18 @@ export const proyectosApi = {
         return data
     },
 
-    async crearRAP(proyectoId, { nombre, descripcion, porcentaje_evaluacion, orden }) {
+    async crearRAP(proyectoId, { nombre, descripcion, competencia_asociada, porcentaje_evaluacion, orden }) {
         const response = await request(`/api/proyectos/${proyectoId}/raps/`, {
             method: 'POST',
-            body: JSON.stringify({ nombre, descripcion, porcentaje_evaluacion, orden }),
+            body: JSON.stringify({ nombre, descripcion, competencia_asociada, porcentaje_evaluacion, orden }),
         })
         const data = await parseJSON(response)
         if (!response.ok) throw { status: response.status, data }
         return data
     },
 
-    async editarRAP(proyectoId, rapId, campos) {
-        const response = await request(`/api/proyectos/${proyectoId}/raps/${rapId}/`, {
+    async editarRAP(_proyectoId, rapId, campos) {
+        const response = await request(`/api/raps/${rapId}/`, {
             method: 'PUT',
             body: JSON.stringify(campos),
         })
@@ -166,8 +166,46 @@ export const proyectosApi = {
         return data
     },
 
-    async eliminarRAP(proyectoId, rapId) {
-        const response = await request(`/api/proyectos/${proyectoId}/raps/${rapId}/`, {
+    async eliminarRAP(_proyectoId, rapId) {
+        const response = await request(`/api/raps/${rapId}/`, {
+            method: 'DELETE',
+        })
+        if (!response.ok) {
+            const data = await parseJSON(response)
+            throw { status: response.status, data }
+        }
+    },
+
+    // ── Hitos (Cronograma) ──
+    async listarHitos(proyectoId) {
+        const response = await request(`/api/proyectos/${proyectoId}/hitos/`)
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+
+    async crearHito(proyectoId, { nombre, descripcion, fecha_inicio, fecha_fin }) {
+        const response = await request(`/api/proyectos/${proyectoId}/hitos/`, {
+            method: 'POST',
+            body: JSON.stringify({ nombre, descripcion, fecha_inicio, fecha_fin }),
+        })
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+
+    async editarHito(_proyectoId, hitoId, campos) {
+        const response = await request(`/api/hitos/${hitoId}/`, {
+            method: 'PUT',
+            body: JSON.stringify(campos),
+        })
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+
+    async eliminarHito(_proyectoId, hitoId) {
+        const response = await request(`/api/hitos/${hitoId}/`, {
             method: 'DELETE',
         })
         if (!response.ok) {
@@ -215,6 +253,47 @@ export const equiposApi = {
         return data
     },
 
+    async actualizarRolMiembro(miembroId, rolInterno) {
+        const response = await request(`/api/miembros/${miembroId}/`, {
+            method: 'PATCH',
+            body: JSON.stringify({ rol_interno: rolInterno }),
+        })
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+
+    async moverMiembro(equipoOrigenId, estudianteId, equipoDestinoId) {
+        const payload = { usuario_id: estudianteId, equipo_destino_id: equipoDestinoId }
+        const response = await request(`/api/equipos/${equipoOrigenId}/miembros/mover/`, {
+            method: 'POST',
+            body: JSON.stringify(payload),
+            headers: { 'Content-Type': 'application/json' },
+        })
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+
+    async retirarMiembro(equipoId, usuarioId) {
+        const response = await request(`/api/equipos/${equipoId}/miembros/${usuarioId}/`, {
+            method: 'DELETE',
+        })
+        if (response.status === 204) return
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+    },
+
+    async agregarMiembro(equipoId, estudianteId) {
+        const response = await request(`/api/equipos/${equipoId}/miembros/`, {
+            method: 'POST',
+            body: JSON.stringify({ estudiante_id: estudianteId }),
+        })
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+
 }
 
 // ─── Estudiantes del curso ─────────────────────────────────────────────────
@@ -226,4 +305,12 @@ export const estudiantesApi = {
         if (!response.ok) throw { status: response.status, data }
         return data
     },
+
+    async sinEquipoEnProyecto(cursoId, proyectoId) {
+        const response = await request(`/api/cursos/${cursoId}/estudiantes/?proyecto_id=${proyectoId}`)
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+
 }

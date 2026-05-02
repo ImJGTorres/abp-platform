@@ -15,18 +15,24 @@ from apps.configuracion.models import PeriodoAcademico
 from apps.equipos.models import MiembroEquipo
 from apps.usuarios.models import Usuario
 from apps.usuarios.serializers import UsuarioSerializer
-from .models import Curso, ObjetivoProyecto, Proyecto
+from apps.usuarios.authentication import UsuarioJWTAuthentication
+from .models import Curso, HitoProyecto, ObjetivoProyecto, Proyecto, ResultadoAprendizaje
 from .permissions import EsAdministrador, EsDocente, EsDocenteOAdministrador
 from .serializers import (
     CursoAdminCreateSerializer,
     CursoAdminUpdateSerializer,
     CursoSerializer,
     CursoUpdateSerializer,
+    HitoCreateSerializer,
+    HitoSerializer,
+    HitoUpdateSerializer,
     ObjetivoSerializer,
     ObjetivoUpdateSerializer,
     ProyectoCreateSerializer,
     ProyectoSerializer,
     ProyectoUpdateSerializer,
+    RapCreateSerializer,
+    RapSerializer,
 )
 
 
@@ -217,6 +223,7 @@ class ProyectoDetailView(generics.RetrieveUpdateAPIView):
 
 class CursoCargaMasivaView(APIView):
     """POST /api/cursos/carga-masiva/ — importa cursos desde Excel."""
+    authentication_classes = [UsuarioJWTAuthentication]
     permission_classes = [EsAdministrador]
     parser_classes = [MultiPartParser]
 
@@ -225,7 +232,7 @@ class CursoCargaMasivaView(APIView):
         if not archivo:
             return Response({'detail': 'Se requiere un archivo Excel.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        if not archivo.name.endswith('.xlsx'):
+        if not archivo.name.lower().endswith('.xlsx'):
             return Response({'detail': 'El archivo debe ser formato .xlsx.'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
@@ -531,4 +538,185 @@ class ObjetivoDetailView(generics.RetrieveUpdateDestroyAPIView):
                 f'eliminado del proyecto ID={proyecto.id}'
             ),
         )
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# ---------------------------------------------------------------------------
+# Hitos del cronograma
+# ---------------------------------------------------------------------------
+
+class HitoListCreateView(generics.ListCreateAPIView):
+    """
+    GET  /api/proyectos/<proyecto_id>/hitos/ — Lista hitos ordenados cronológicamente.
+         Accesible para todos los participantes del curso (docente, admin, estudiantes activos).
+    POST /api/proyectos/<proyecto_id>/hitos/ — Crea un hito (solo el docente propietario).
+    """
+
+    def get_permissions(self):
+        if self.request.method == 'POST':
+            return [EsDocente()]
+        return [IsAuthenticated()]
+
+    def get_serializer_class(self):
+        if self.request.method == 'POST':
+            return HitoCreateSerializer
+        return HitoSerializer
+
+    def _get_proyecto(self):
+        return get_object_or_404(
+            Proyecto.objects.select_related('id_curso'),
+            pk=self.kwargs['proyecto_id'],
+        )
+
+    def _check_acceso_proyecto(self, proyecto):
+        usuario = self.request.user
+        tipo_rol = getattr(usuario, 'tipo_rol', None)
+        if tipo_rol == 'administrador':
+            return
+        curso = proyecto.id_curso
+        if tipo_rol == 'docente':
+            if curso.id_docente_id != usuario.pk:
+                raise PermissionDenied('No eres el docente propietario de este proyecto.')
+        elif tipo_rol == 'estudiante':
+            tiene_equipo = MiembroEquipo.objects.filter(
+                equipo__proyecto__id_curso=curso,
+                usuario=usuario,
+                estado='activo',
+            ).exists()
+            if not tiene_equipo:
+                raise PermissionDenied('No perteneces a ningún equipo de este curso.')
+        else:
+            raise PermissionDenied('Acceso no permitido.')
+
+    def get_queryset(self):
+        proyecto = self._get_proyecto()
+        self._check_acceso_proyecto(proyecto)
+        return HitoProyecto.objects.filter(id_proyecto=proyecto)
+
+    def perform_create(self, serializer):
+        proyecto = self._get_proyecto()
+        if proyecto.id_curso.id_docente_id != self.request.user.pk:
+            raise PermissionDenied('No eres el docente propietario de este proyecto.')
+        hito = serializer.save(id_proyecto=proyecto)
+        registrar_evento(
+            request=self.request,
+            accion=BitacoraSistema.Accion.CREATE,
+            modulo='hitos',
+            descripcion=f'Hito creado: ID={hito.id}, nombre={hito.nombre}, proyecto ID={proyecto.id}',
+        )
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        if self.request.method == 'POST':
+            context['proyecto'] = self._get_proyecto()
+        return context
+
+
+class HitoDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """
+    GET    /api/hitos/<pk>/ — Detalle del hito.
+    PUT    /api/hitos/<pk>/ — Actualiza nombre, fechas y estado.
+    PATCH  /api/hitos/<pk>/ — Actualización parcial.
+    DELETE /api/hitos/<pk>/ — Elimina el hito (409 si tiene dependencias).
+
+    Solo el docente propietario del curso del proyecto puede modificar o eliminar.
+    """
+
+    permission_classes = [EsDocente]
+
+    def get_queryset(self):
+        return (
+            HitoProyecto.objects
+            .filter(id_proyecto__id_curso__id_docente=self.request.user)
+            .select_related('id_proyecto__id_curso')
+        )
+
+    def get_serializer_class(self):
+        if self.request.method in ('PUT', 'PATCH'):
+            return HitoUpdateSerializer
+        return HitoSerializer
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        registrar_evento(
+            request=request,
+            accion=BitacoraSistema.Accion.DELETE,
+            modulo='hitos',
+            descripcion=f'Hito eliminado: ID={instance.id}, nombre={instance.nombre}',
+        )
+        self.perform_destroy(instance)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# ---------------------------------------------------------------------------
+# RAPs (Resultados de Aprendizaje)
+# ---------------------------------------------------------------------------
+
+class RapListCreateView(APIView):
+    """
+    GET  /api/proyectos/<id_proyecto>/raps/ — lista RAPs del proyecto (usuario autenticado).
+    POST /api/proyectos/<id_proyecto>/raps/ — crea RAP (solo docente propietario).
+    """
+    authentication_classes = [UsuarioJWTAuthentication]
+
+    def _get_proyecto(self, id_proyecto):
+        return get_object_or_404(
+            Proyecto.objects.select_related('id_curso'),
+            pk=id_proyecto,
+        )
+
+    def get(self, request, id_proyecto):
+        proyecto = self._get_proyecto(id_proyecto)
+        raps = ResultadoAprendizaje.objects.filter(proyecto=proyecto)
+        return Response(RapSerializer(raps, many=True).data)
+
+    def post(self, request, id_proyecto):
+        proyecto = self._get_proyecto(id_proyecto)
+        if proyecto.id_curso.id_docente_id != request.user.id:
+            return Response(
+                {'detail': 'Solo el docente propietario puede crear RAPs en este proyecto.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        serializer = RapCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        rap = serializer.save(proyecto=proyecto)
+        return Response(RapSerializer(rap).data, status=status.HTTP_201_CREATED)
+
+
+class RapDetailView(APIView):
+    """
+    PUT    /api/raps/<id>/ — actualiza RAP (solo docente propietario).
+    DELETE /api/raps/<id>/ — elimina RAP si no tiene criterios vinculados.
+    """
+    authentication_classes = [UsuarioJWTAuthentication]
+
+    def _get_rap(self, id):
+        return get_object_or_404(
+            ResultadoAprendizaje.objects.select_related('proyecto__id_curso'),
+            pk=id,
+        )
+
+    def _es_docente_propietario(self, rap, user):
+        return rap.proyecto.id_curso.id_docente_id == user.id
+
+    def put(self, request, id):
+        rap = self._get_rap(id)
+        if not self._es_docente_propietario(rap, request.user):
+            return Response(
+                {'detail': 'Solo el docente propietario puede editar este RAP.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        serializer = RapCreateSerializer(rap, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        rap = serializer.save()
+        return Response(RapSerializer(rap).data)
+
+    def delete(self, request, id):
+        rap = self._get_rap(id)
+        if not self._es_docente_propietario(rap, request.user):
+            return Response(
+                {'detail': 'Solo el docente propietario puede eliminar este RAP.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        rap.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)

@@ -22,6 +22,32 @@ function IconX() {
     return <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 4l8 8M12 4l-8 8" /></svg>
 }
 
+function ModalConfirmar({ onConfirmar, onCancelar }) {
+    return (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden" onClick={e => e.stopPropagation()}>
+                <div className="p-6 text-center">
+                    <div className="w-12 h-12 rounded-full bg-[#ffdad6] flex items-center justify-center mx-auto mb-4">
+                        <svg className="w-6 h-6 text-[#ba1a1a]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" /></svg>
+                    </div>
+                    <h2 className="text-[17px] font-bold text-[#191c1d] mb-2">Eliminar objetivo</h2>
+                    <p className="text-[13px] text-[#9ba7ae]">Esta acción no se puede deshacer.</p>
+                </div>
+                <div className="flex gap-2 p-4 bg-[#f8f9fa] border-t border-[#e1e3e4]">
+                    <button onClick={onCancelar}
+                        className="flex-1 h-11 rounded-xl border-2 border-[#e1e3e4] text-[#4c616c] font-semibold text-[14px] hover:bg-white transition-colors">
+                        Cancelar
+                    </button>
+                    <button onClick={onConfirmar}
+                        className="flex-1 h-11 rounded-xl bg-[#ba1a1a] text-white font-semibold text-[14px] hover:bg-[#930014] transition-colors">
+                        Eliminar
+                    </button>
+                </div>
+            </div>
+        </div>
+    )
+}
+
 function FormObjetivo({ descripcion, onChange, onGuardar, onCancelar, placeholder }) {
     return (
         <div className="flex flex-col gap-3">
@@ -57,6 +83,7 @@ export default function ObjetivosProyecto() {
     const [objetivos, setObjetivos] = useState([])
     const [loading, setLoading] = useState(true)
     const [eliminando, setEliminando] = useState(null)
+    const [confirmarEliminar, setConfirmarEliminar] = useState(null)
 
     const [mostrandoFormGeneral, setMostrandoFormGeneral] = useState(false)
     const [textoGeneral, setTextoGeneral] = useState('')
@@ -83,12 +110,11 @@ export default function ObjetivosProyecto() {
 
     async function handleCrear(tipo, descripcion, resetForm) {
         if (!descripcion.trim()) return
-        const lista = objetivos.filter(o => o.tipo === tipo)
         try {
             await proyectosApi.crearObjetivo(proyectoId, {
                 descripcion: descripcion.trim(),
                 tipo,
-                orden: lista.length + 1,
+                orden: objetivos.length + 1,
             })
             resetForm()
             cargarObjetivos()
@@ -114,15 +140,14 @@ export default function ObjetivosProyecto() {
         }
     }
 
-    async function handleEliminar(id) {
-        if (!window.confirm('¿Eliminar este objetivo? Esta acción no se puede deshacer.')) return
+    async function ejecutarEliminar(id) {
+        setConfirmarEliminar(null)
         setEliminando(id)
         try {
             await proyectosApi.eliminarObjetivo(proyectoId, id)
             cargarObjetivos()
         } catch (err) {
             console.error('Error eliminando objetivo:', err)
-            alert('No se pudo eliminar el objetivo.')
         } finally {
             setEliminando(null)
         }
@@ -172,7 +197,7 @@ export default function ObjetivosProyecto() {
                 </p>
             </div>
 
-            {/* ── Objetivo General ── */}
+            {/* Objetivo General */}
             <div className="mb-6">
                 <div className="flex items-center gap-2 mb-3">
                     <div className="w-7 h-7 rounded-lg bg-[#d32f2f] flex items-center justify-center flex-shrink-0">
@@ -233,7 +258,7 @@ export default function ObjetivosProyecto() {
                                         title="Editar">
                                         <IconEdit />
                                     </button>
-                                    <button onClick={() => handleEliminar(objetivoGeneral.id)}
+                                    <button onClick={() => setConfirmarEliminar(objetivoGeneral.id)}
                                         disabled={eliminando === objetivoGeneral.id}
                                         className="w-7 h-7 rounded-lg text-[#ba1a1a] hover:bg-[#ffdad6] flex items-center justify-center transition-colors disabled:opacity-50"
                                         title="Eliminar">
@@ -246,7 +271,7 @@ export default function ObjetivosProyecto() {
                 </div>
             </div>
 
-            {/* ── Objetivos Específicos ── */}
+            {/* Objetivos Específicos */}
             <div className="mb-6">
                 <div className="flex items-center gap-2 mb-3">
                     <div className="w-7 h-7 rounded-lg bg-[#1976d2] flex items-center justify-center flex-shrink-0">
@@ -316,7 +341,7 @@ export default function ObjetivosProyecto() {
                                                 title="Editar">
                                                 <IconEdit />
                                             </button>
-                                            <button onClick={() => handleEliminar(obj.id)}
+                                            <button onClick={() => setConfirmarEliminar(obj.id)}
                                                 disabled={eliminando === obj.id}
                                                 className="w-7 h-7 rounded-lg text-[#ba1a1a] hover:bg-[#ffdad6] flex items-center justify-center transition-colors disabled:opacity-50"
                                                 title="Eliminar">
@@ -343,6 +368,14 @@ export default function ObjetivosProyecto() {
                     </p>
                 </div>
             </div>
+
+            {/* Modal de confirmación */}
+            {confirmarEliminar !== null && (
+                <ModalConfirmar
+                    onConfirmar={() => ejecutarEliminar(confirmarEliminar)}
+                    onCancelar={() => setConfirmarEliminar(null)}
+                />
+            )}
         </div>
     )
 }

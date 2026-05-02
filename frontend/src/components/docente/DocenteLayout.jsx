@@ -75,10 +75,6 @@ function IconTeam() {
 
 // ── Navegación ────────────────────────────────────────────────────────────
 
-const NAV_ITEMS = [
-    { label: 'Mis cursos', to: '/docente/cursos', icon: <IconBook /> },
-]
-
 function navLinkClass({ isActive }) {
     const base = 'flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] font-medium transition-all duration-150 select-none cursor-pointer'
     return isActive
@@ -86,7 +82,18 @@ function navLinkClass({ isActive }) {
         : `${base} text-[#4c616c] hover:bg-[#f0f2f3] hover:text-[#191c1d]`
 }
 
-function SidebarContent({ collapsed, user, userMenuOpen, setUserMenuOpen, loggingOut, handleLogout, onNavClick }) {
+function SidebarContent({ collapsed, user, userMenuOpen, setUserMenuOpen, loggingOut, handleLogout, onNavClick, cursoId }) {
+    const NAV_ITEMS = [
+        { label: 'Mis cursos', to: '/docente/cursos', icon: <IconBook /> },
+    ]
+
+    if (cursoId) {
+        NAV_ITEMS.push(
+            { label: 'Estudiantes', to: `/docente/cursos/${cursoId}/estudiantes`, icon: <IconUsers /> },
+            { label: 'Equipos', to: `/docente/cursos/${cursoId}/equipos`, icon: <IconTeam /> }
+        )
+    }
+
     return (
         <>
             {/* Marca */}
@@ -194,7 +201,7 @@ export default function DocenteLayout() {
             {/* ── Sidebar desktop ──────────────────────────────────────────── */}
             <aside className={`hidden lg:flex ${sidebarW} flex-shrink-0 flex-col bg-white border-r border-[#e1e3e4] transition-[width] duration-200 ease-in-out z-20 relative`}>
                 <SidebarContent collapsed={collapsed} user={user} userMenuOpen={userMenuOpen}
-                    setUserMenuOpen={setUserMenuOpen} loggingOut={loggingOut} handleLogout={handleLogout} onNavClick={undefined} />
+                    setUserMenuOpen={setUserMenuOpen} loggingOut={loggingOut} handleLogout={handleLogout} onNavClick={undefined} cursoId={cursoId} />
                 <div className="border-t border-[#e1e3e4] p-2 flex-shrink-0">
                     <button onClick={() => setCollapsed(c => !c)}
                         className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-[#9ba7ae] hover:bg-[#f0f2f3] hover:text-[#4c616c] transition-colors text-[12px] font-medium"
@@ -210,7 +217,7 @@ export default function DocenteLayout() {
                 onClick={e => e.stopPropagation()}>
                 <SidebarContent collapsed={false} user={user} userMenuOpen={userMenuOpen}
                     setUserMenuOpen={setUserMenuOpen} loggingOut={loggingOut} handleLogout={handleLogout}
-                    onNavClick={() => setMobileOpen(false)} />
+                    onNavClick={() => setMobileOpen(false)} cursoId={cursoId} />
             </aside>
 
             {/* ── Área de contenido ─────────────────────────────────────────── */}
