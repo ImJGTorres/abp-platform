@@ -467,6 +467,18 @@ export default function DetalleCurso() {
                     equipo={proyectoViendo.proyecto.equipo}
                     onClose={() => setProyectoViendo(null)}
                     onAgregar={() => { setProyectoViendo(null); handleAgregar() }}
+                    onPerfilesYRoles={() => {
+                        setProyectoViendo(null)
+                        navigate(`/docente/cursos/${id}/proyectos/${proyectoViendo.proyecto.id}/equipo`)
+                    }}
+                    onReorganizar={() => {
+                        setProyectoViendo(null)
+                        navigate(`/docente/cursos/${id}/proyectos/${proyectoViendo.proyecto.id}/reorganizar`)
+                    }}
+                    onCronograma={() => {
+                        setProyectoViendo(null)
+                        navigate(`/docente/cursos/${id}/proyectos/${proyectoViendo.proyecto.id}/cronograma`)
+                    }}
                 />
             )}
         </div>

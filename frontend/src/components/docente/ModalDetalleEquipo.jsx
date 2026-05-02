@@ -51,7 +51,7 @@ function Avatar({ iniciales, colorIndex, size = 'sm' }) {
  *   onClose   — cierra el modal
  *   onAgregar — callback al pulsar "Asignar estudiante"
  */
-export default function ModalDetalleEquipo({ titulo, subtitulo, colorIndex = 0, equipo, onClose, onAgregar }) {
+export default function ModalDetalleEquipo({ titulo, subtitulo, colorIndex = 0, equipo, onClose, onAgregar, onPerfilesYRoles, onReorganizar, onCronograma }) {
     const [tab, setTab] = useState('miembros')
     const color   = TEAM_COLORS[colorIndex % TEAM_COLORS.length]
     const miembros = equipo?.miembros ?? []
@@ -84,12 +84,19 @@ export default function ModalDetalleEquipo({ titulo, subtitulo, colorIndex = 0, 
                         className="flex items-center gap-1.5 h-9 px-4 rounded-xl border border-[#e1e3e4] text-[#4c616c] text-[13px] font-semibold hover:bg-[#f0f2f3] transition-colors">
                         <IconPlus /> Asignar estudiante
                     </button>
-                    <button className="flex items-center gap-1.5 h-9 px-4 rounded-xl border border-[#e1e3e4] text-[#4c616c] text-[13px] font-semibold hover:bg-[#f0f2f3] transition-colors">
+                    <button onClick={onPerfilesYRoles}
+                        className="flex items-center gap-1.5 h-9 px-4 rounded-xl border border-[#e1e3e4] text-[#4c616c] text-[13px] font-semibold hover:bg-[#f0f2f3] transition-colors">
                         <IconPerson /> Perfiles y roles
                     </button>
-                    <button className="flex items-center gap-1.5 h-9 px-4 rounded-xl border border-[#e1e3e4] text-[#4c616c] text-[13px] font-semibold hover:bg-[#f0f2f3] transition-colors">
+                    <button onClick={onReorganizar}
+                        className="flex items-center gap-1.5 h-9 px-4 rounded-xl border border-[#e1e3e4] text-[#4c616c] text-[13px] font-semibold hover:bg-[#f0f2f3] transition-colors">
                         <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M2 5h12M2 11h12M5 2l-3 3 3 3M11 14l3-3-3-3"/></svg>
                         Reorganizar
+                    </button>
+                    <button onClick={onCronograma}
+                        className="flex items-center gap-1.5 h-9 px-4 rounded-xl border border-[#e1e3e4] text-[#4c616c] text-[13px] font-semibold hover:bg-[#f0f2f3] transition-colors">
+                        <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M2 6h12M5 2v2M11 2v2M5 9h2M9 9h2M5 12h2"/></svg>
+                        Cronograma de hitos
                     </button>
                 </div>
 

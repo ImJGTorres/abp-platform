@@ -253,6 +253,35 @@ export const equiposApi = {
         return data
     },
 
+    async actualizarRolMiembro(miembroId, rolInterno) {
+        const response = await request(`/api/miembros/${miembroId}/`, {
+            method: 'PATCH',
+            body: JSON.stringify({ rol_interno: rolInterno }),
+        })
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+
+    async retirarMiembro(equipoId, usuarioId) {
+        const response = await request(`/api/equipos/${equipoId}/miembros/${usuarioId}/`, {
+            method: 'DELETE',
+        })
+        if (response.status === 204) return
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+    },
+
+    async agregarMiembro(equipoId, estudianteId) {
+        const response = await request(`/api/equipos/${equipoId}/miembros/`, {
+            method: 'POST',
+            body: JSON.stringify({ estudiante_id: estudianteId }),
+        })
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+
 }
 
 // ─── Estudiantes del curso ─────────────────────────────────────────────────
@@ -264,4 +293,15 @@ export const estudiantesApi = {
         if (!response.ok) throw { status: response.status, data }
         return data
     },
+<<<<<<< HEAD
+=======
+
+    async sinEquipoEnProyecto(cursoId, proyectoId) {
+        const response = await request(`/api/cursos/${cursoId}/estudiantes/?proyecto_id=${proyectoId}`)
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+
+>>>>>>> feature/HU-011-frontend
 }

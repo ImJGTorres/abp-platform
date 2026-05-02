@@ -21,10 +21,16 @@ import DetalleCurso from '../components/docente/DetalleCurso'
 import GestionEquipos from '../components/docente/GestionEquipos'
 import AsignarEstudiantes from '../components/docente/AsignarEstudiantes'
 import EstudiantesCurso from '../components/docente/EstudiantesCurso'
+<<<<<<< HEAD
 import ObjetivosProyecto from '../components/docente/ObjetivosProyecto'
 import RAPsProyecto from '../components/docente/RAPsProyecto'
 import ProyectoLayout from '../components/docente/ProyectoLayout'
 import CronogramaProyecto from '../components/docente/CronogramaProyecto'
+=======
+import EquipoProyecto from '../components/docente/EquipoProyecto'
+import ReorganizarEquipos from '../components/docente/ReorganizarEquipos'
+import CronogramaHitos from '../components/docente/CronogramaHitos'
+>>>>>>> feature/HU-011-frontend
 
 function PanelDirector() { return <div className="p-10">Director</div> }
 function PanelEstudiante() { return <div className="p-10">Estudiante</div> }
@@ -87,6 +93,9 @@ export default function AppRouter() {
             <Route path="/docente/cursos" element={<GestionCursos />} />
             <Route path="/docente/cursos/:id" element={<DetalleCurso />} />
             <Route path="/docente/cursos/:id/estudiantes" element={<EstudiantesCurso />} />
+            <Route path="/docente/cursos/:cursoId/proyectos/:proyectoId/equipo" element={<EquipoProyecto />} />
+            <Route path="/docente/cursos/:cursoId/proyectos/:proyectoId/reorganizar" element={<ReorganizarEquipos />} />
+            <Route path="/docente/cursos/:cursoId/proyectos/:proyectoId/cronograma" element={<CronogramaHitos />} />
             <Route path="/docente/proyectos/:proyectoId/equipos" element={<GestionEquipos />} />
             <Route path="/docente/equipos/:equipoId/asignar" element={<AsignarEstudiantes />} />
           </Route>
