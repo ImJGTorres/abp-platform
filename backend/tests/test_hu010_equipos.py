@@ -7,6 +7,7 @@ import pytest
 from rest_framework import status
 from django.urls import reverse
 from django.utils.dateparse import parse_date
+from datetime import date
 
 from apps.usuarios.models import Usuario
 from apps.cursos.models import Proyecto, Curso
@@ -17,29 +18,36 @@ from apps.bitacora.models import BitacoraSistema
 @pytest.fixture
 def proyecto_activo(docente_a):
     """Crea un proyecto activo para testing"""
-    # Primero crear un curso (requerido para Proyecto)
-    curso = Curso.objects.create(
+    from tests.factories import PeriodoAcademicoFactory, CursoFactory
+    periodo = PeriodoAcademicoFactory(usuario_creo=docente_a)
+    curso = CursoFactory(
         nombre="Curso Test",
         codigo="CT001",
         id_docente=docente_a,
-        id_periodo_academico_id=1,  # Asumimos que existe un período académico con ID 1
+        id_periodo_academico=periodo,
         usuario_creo=docente_a,
         estado=Curso.Estado.ACTIVO
     )
-    
-    # Luego crear el proyecto asociado al curso
     return Proyecto.objects.create(
         nombre="Proyecto Test",
         id_curso=curso,
-        fecha_inicio=parse_date("2026-02-01"),
-        fecha_fin_estimada=parse_date("2026-05-31"),
-        estado=Proyecto.Estado.EN_EJECUCION  # Proyecto en ejecución
+        fecha_inicio=date(2026, 2, 1),
+        fecha_fin_estimada=date(2026, 5, 31),
+        estado=Proyecto.Estado.EN_EJECUCION
     )
 
 
 @pytest.mark.django_db
 def test_cp01_crear_equipo_exitoso(cliente_a, proyecto_activo):
     """CP-01: POST /api/proyectos/:id/equipos/ crea equipo → 201"""
+    ParametroSistema.objects.create(
+        clave='max_estudiantes_por_equipo',
+        valor='10',
+        descripcion='Máximo número de estudiantes por equipo',
+        categoria=ParametroSistema.Categoria.GENERAL,
+        tipo_dato=ParametroSistema.TipoDato.INTEGER
+    )
+    
     url = reverse('equipos-por-proyecto', kwargs={'proyecto_id': proyecto_activo.id})
     payload = {
         'nombre': 'Equipo Alpha',
@@ -60,6 +68,14 @@ def test_cp01_crear_equipo_exitoso(cliente_a, proyecto_activo):
 @pytest.mark.django_db
 def test_cp02_nombre_duplicado_mismo_proyecto(cliente_a, proyecto_activo):
     """CP-02: Nombre duplicado en el mismo proyecto → 400"""
+    ParametroSistema.objects.create(
+        clave='max_estudiantes_por_equipo',
+        valor='10',
+        descripcion='Máximo número de estudiantes por equipo',
+        categoria=ParametroSistema.Categoria.GENERAL,
+        tipo_dato=ParametroSistema.TipoDato.INTEGER
+    )
+    
     # Crear primer equipo
     url = reverse('equipos-por-proyecto', kwargs={'proyecto_id': proyecto_activo.id})
     payload1 = {
@@ -82,11 +98,12 @@ def test_cp02_nombre_duplicado_mismo_proyecto(cliente_a, proyecto_activo):
 @pytest.mark.django_db
 def test_cp03_capacidad_maxima_excede_parametro_sistema(cliente_a, proyecto_activo, db):
     """CP-03: capacidad_maxima excede parámetro del sistema → 400"""
-    # Configurar parámetro del sistema
     ParametroSistema.objects.create(
         clave='max_estudiantes_por_equipo',
         valor='5',
-        descripcion='Máximo número de estudiantes por equipo'
+        descripcion='Máximo número de estudiantes por equipo',
+        categoria=ParametroSistema.Categoria.GENERAL,
+        tipo_dato=ParametroSistema.TipoDato.INTEGER
     )
     
     url = reverse('equipos-por-proyecto', kwargs={'proyecto_id': proyecto_activo.id})
@@ -139,6 +156,14 @@ def test_cp05_sin_autenticacion(api_client, proyecto_activo):
 @pytest.mark.django_db
 def test_cp06_creado_registrado_en_bitacora(cliente_a, proyecto_activo):
     """CP-06: Creación queda registrada en BitacoraSistema"""
+    ParametroSistema.objects.create(
+        clave='max_estudiantes_por_equipo',
+        valor='10',
+        descripcion='Máximo número de estudiantes por equipo',
+        categoria=ParametroSistema.Categoria.GENERAL,
+        tipo_dato=ParametroSistema.TipoDato.INTEGER
+    )
+    
     url = reverse('equipos-por-proyecto', kwargs={'proyecto_id': proyecto_activo.id})
     payload = {
         'nombre': 'Equipo Bitacora',
