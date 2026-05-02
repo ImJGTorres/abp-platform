@@ -293,8 +293,6 @@ export const estudiantesApi = {
         if (!response.ok) throw { status: response.status, data }
         return data
     },
-<<<<<<< HEAD
-=======
 
     async sinEquipoEnProyecto(cursoId, proyectoId) {
         const response = await request(`/api/cursos/${cursoId}/estudiantes/?proyecto_id=${proyectoId}`)
@@ -303,5 +301,4 @@ export const estudiantesApi = {
         return data
     },
 
->>>>>>> feature/HU-011-frontend
 }
