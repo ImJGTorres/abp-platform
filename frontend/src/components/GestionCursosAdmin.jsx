@@ -66,7 +66,7 @@ function ModalCurso({ curso, periodos, docentes, onGuardar, onCancelar }) {
         `h-11 px-4 rounded-xl border-2 text-[14px] outline-none transition-all bg-white ${errores[campo] ? 'border-[#ba1a1a] bg-[#fff8f7]' : 'border-[#e1e3e4] focus:border-[#d32f2f]'}`
 
     return (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center z-50 p-4" onClick={onCancelar}>
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden" onClick={e => e.stopPropagation()}>
                 <div className="p-6 border-b border-[#e1e3e4]">
                     <h2 className="text-[19px] font-bold text-[#191c1d]">{esEdicion ? 'Editar curso' : 'Crear nuevo curso'}</h2>
@@ -156,7 +156,7 @@ function ModalCurso({ curso, periodos, docentes, onGuardar, onCancelar }) {
 
 function ModalEliminar({ curso, onConfirm, onCancel }) {
     return (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center z-50 p-4" onClick={onCancel}>
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden" onClick={e => e.stopPropagation()}>
                 <div className="p-6 flex flex-col gap-4">
                     <div className="flex items-start gap-3">

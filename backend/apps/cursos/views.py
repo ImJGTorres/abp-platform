@@ -223,6 +223,7 @@ class ProyectoDetailView(generics.RetrieveUpdateAPIView):
 
 class CursoCargaMasivaView(APIView):
     """POST /api/cursos/carga-masiva/ — importa cursos desde Excel."""
+    authentication_classes = [UsuarioJWTAuthentication]
     permission_classes = [EsAdministrador]
     parser_classes = [MultiPartParser]
 
@@ -231,7 +232,7 @@ class CursoCargaMasivaView(APIView):
         if not archivo:
             return Response({'detail': 'Se requiere un archivo Excel.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        if not archivo.name.endswith('.xlsx'):
+        if not archivo.name.lower().endswith('.xlsx'):
             return Response({'detail': 'El archivo debe ser formato .xlsx.'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
@@ -716,11 +717,6 @@ class RapDetailView(APIView):
             return Response(
                 {'detail': 'Solo el docente propietario puede eliminar este RAP.'},
                 status=status.HTTP_403_FORBIDDEN,
-            )
-        if rap.criterios.exists():
-            return Response(
-                {'detail': 'No se puede eliminar un RAP con evaluaciones vinculadas'},
-                status=status.HTTP_409_CONFLICT,
             )
         rap.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)

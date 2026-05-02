@@ -69,7 +69,7 @@ function ModalProyecto({ cursoId, proyecto, onGuardar, onCancelar }) {
     }
 
     return (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center z-50 p-4" onClick={onCancelar}>
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden" onClick={e => e.stopPropagation()}>
                 <div className="p-6 border-b border-[#e1e3e4]">
                     <h2 className="text-[19px] font-bold text-[#191c1d]">{esEdicion ? 'Editar proyecto' : 'Nuevo proyecto'}</h2>
@@ -168,8 +168,8 @@ export default function DetalleCurso() {
                 id: cursoData.id,
                 nombre: cursoData.nombre,
                 codigo: cursoData.codigo,
-                periodo: cursoData.periodo?.nombre || 'Sin periodo',
-                periodo_nombre: cursoData.periodo?.nombre || 'Sin periodo',
+                periodo: cursoData.periodo_nombre || 'Sin periodo',
+                periodo_nombre: cursoData.periodo_nombre || 'Sin periodo',
                 descripcion: cursoData.descripcion,
                 estado: cursoData.estado,
                 cantidad_estudiantes_actual: cursoData.cantidad_estudiantes_actual ?? 0,

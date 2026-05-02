@@ -15,55 +15,76 @@ function IconTrash() {
 }
 
 const ESTADOS = {
-    pendiente: { label: 'Pendiente', bg: 'bg-[#f0f2f3]', text: 'text-[#5b403d]', dot: 'bg-[#9ba7ae]' },
-    en_progreso: { label: 'En Progreso', bg: 'bg-[#fff3e0]', text: 'text-[#e65100]', dot: 'bg-[#f57c00]' },
-    completado: { label: 'Completado', bg: 'bg-[#e8f5e9]', text: 'text-[#2e7d32]', dot: 'bg-[#2e7d32]' },
+    pendiente:   { label: 'Pendiente',   bg: 'bg-[#f0f2f3]',  text: 'text-[#5b403d]',  dot: 'bg-[#9ba7ae]' },
+    en_progreso: { label: 'En Progreso', bg: 'bg-[#fff3e0]',  text: 'text-[#e65100]',  dot: 'bg-[#f57c00]' },
+    completado:  { label: 'Completado',  bg: 'bg-[#e8f5e9]',  text: 'text-[#2e7d32]',  dot: 'bg-[#2e7d32]' },
 }
 
-function ModalHito({ hito, raps, onGuardar, onCancelar, fechasProyecto }) {
+function ModalConfirmar({ onConfirmar, onCancelar }) {
+    return (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden" onClick={e => e.stopPropagation()}>
+                <div className="p-6 text-center">
+                    <div className="w-12 h-12 rounded-full bg-[#ffdad6] flex items-center justify-center mx-auto mb-4">
+                        <svg className="w-6 h-6 text-[#ba1a1a]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" /></svg>
+                    </div>
+                    <h2 className="text-[17px] font-bold text-[#191c1d] mb-2">Eliminar hito</h2>
+                    <p className="text-[13px] text-[#9ba7ae]">Esta acción no se puede deshacer.</p>
+                </div>
+                <div className="flex gap-2 p-4 bg-[#f8f9fa] border-t border-[#e1e3e4]">
+                    <button onClick={onCancelar}
+                        className="flex-1 h-11 rounded-xl border-2 border-[#e1e3e4] text-[#4c616c] font-semibold text-[14px] hover:bg-white transition-colors">
+                        Cancelar
+                    </button>
+                    <button onClick={onConfirmar}
+                        className="flex-1 h-11 rounded-xl bg-[#ba1a1a] text-white font-semibold text-[14px] hover:bg-[#930014] transition-colors">
+                        Eliminar
+                    </button>
+                </div>
+            </div>
+        </div>
+    )
+}
+
+function formatFecha(fecha) {
+    if (!fecha) return '—'
+    const d = new Date(fecha + 'T00:00:00')
+    return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+function ModalHito({ hito, onGuardar, onCancelar, fechasProyecto }) {
     const esEdicion = !!hito
     const [form, setForm] = useState({
-        nombre: hito?.nombre ?? '',
-        descripcion: hito?.descripcion ?? '',
-        fecha_limite: hito?.fecha_limite ?? '',
-        rap_id: hito?.rap_id ?? '',
-        estado: hito?.estado ?? 'pendiente',
+        nombre:       hito?.nombre       ?? '',
+        descripcion:  hito?.descripcion  ?? '',
+        fecha_inicio: hito?.fecha_inicio ?? '',
+        fecha_fin:    hito?.fecha_fin    ?? '',
+        estado:       hito?.estado       ?? 'pendiente',
     })
     const [errores, setErrores] = useState({})
     const [guardando, setGuardando] = useState(false)
 
     function validar() {
         const e = {}
+        if (!form.nombre.trim()) e.nombre = 'El nombre es obligatorio.'
+        if (!form.fecha_inicio) e.fecha_inicio = 'Selecciona la fecha de inicio.'
+        if (!form.fecha_fin)    e.fecha_fin    = 'Selecciona la fecha de fin.'
 
-        if (!form.nombre.trim()) {
-            e.nombre = 'El nombre es obligatorio.'
+        if (form.fecha_inicio && form.fecha_fin && form.fecha_fin <= form.fecha_inicio) {
+            e.fecha_fin = 'La fecha de fin debe ser posterior al inicio.'
         }
-
-        if (!form.fecha_limite) {
-            e.fecha_limite = 'Selecciona una fecha límite.'
+        if (form.fecha_inicio && fechasProyecto && form.fecha_inicio < fechasProyecto.inicio) {
+            e.fecha_inicio = `Debe ser a partir del ${formatFecha(fechasProyecto.inicio)}`
         }
-
-        if (form.fecha_limite && fechasProyecto) {
-            const fechaHito = new Date(form.fecha_limite)
-            const fechaInicio = new Date(fechasProyecto.inicio)
-            const fechaFin = new Date(fechasProyecto.fin)
-
-            if (fechaInicio > fechaFin) {
-                e.fecha_limite = 'El proyecto tiene fechas inválidas (inicio mayor que fin).'
-            } else if (fechaHito < fechaInicio) {
-                e.fecha_limite = `Debe ser posterior al inicio (${formatFecha(fechasProyecto.inicio)})`
-            } else if (fechaHito > fechaFin) {
-                e.fecha_limite = `Debe ser anterior al fin (${formatFecha(fechasProyecto.fin)})`
-            }
+        if (form.fecha_fin && fechasProyecto && form.fecha_fin > fechasProyecto.fin) {
+            e.fecha_fin = `No puede superar el ${formatFecha(fechasProyecto.fin)}`
         }
-
         return e
     }
 
     async function handleGuardar() {
         const e = validar()
         if (Object.keys(e).length > 0) { setErrores(e); return }
-
         setGuardando(true)
         try {
             await onGuardar(form)
@@ -72,13 +93,8 @@ function ModalHito({ hito, raps, onGuardar, onCancelar, fechasProyecto }) {
         }
     }
 
-    function formatFecha(fecha) {
-        const d = new Date(fecha)
-        return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })
-    }
-
     return (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center z-50 p-4" onClick={onCancelar}>
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden" onClick={e => e.stopPropagation()}>
 
                 <div className="p-6 border-b border-[#e1e3e4]">
@@ -108,28 +124,24 @@ function ModalHito({ hito, raps, onGuardar, onCancelar, fechasProyecto }) {
                         />
                     </div>
 
-                    <div className="flex flex-col gap-1.5">
-                        <label className="text-[13px] font-semibold text-[#191c1d] pl-1">Fecha límite</label>
-                        <input type="date" value={form.fecha_limite}
-                            onChange={e => { setForm(f => ({ ...f, fecha_limite: e.target.value })); setErrores(e => ({ ...e, fecha_limite: '' })) }}
-                            className={`h-11 px-4 rounded-xl border-2 text-[14px] outline-none transition-all ${errores.fecha_limite ? 'border-[#ba1a1a] bg-[#fff8f7]' : 'border-[#e1e3e4] focus:border-[#d32f2f] bg-white'}`}
-                        />
-                        {errores.fecha_limite && <p className="text-[12px] text-[#ba1a1a] pl-1">{errores.fecha_limite}</p>}
-                    </div>
-
-                    {raps.length > 0 && (
+                    <div className="grid grid-cols-2 gap-3">
                         <div className="flex flex-col gap-1.5">
-                            <label className="text-[13px] font-semibold text-[#191c1d] pl-1">RAP asociado (opcional)</label>
-                            <select value={form.rap_id}
-                                onChange={e => setForm(f => ({ ...f, rap_id: e.target.value }))}
-                                className="h-11 px-4 rounded-xl border-2 border-[#e1e3e4] text-[14px] outline-none focus:border-[#d32f2f] transition-all appearance-none bg-white">
-                                <option value="">Sin RAP asociado</option>
-                                {raps.map(r => (
-                                    <option key={r.id} value={r.id}>{r.nombre} - {r.descripcion?.substring(0, 40)}{r.descripcion?.length > 40 ? '...' : ''}</option>
-                                ))}
-                            </select>
+                            <label className="text-[13px] font-semibold text-[#191c1d] pl-1">Fecha de inicio</label>
+                            <input type="date" value={form.fecha_inicio}
+                                onChange={e => { setForm(f => ({ ...f, fecha_inicio: e.target.value })); setErrores(e => ({ ...e, fecha_inicio: '' })) }}
+                                className={`h-11 px-4 rounded-xl border-2 text-[14px] outline-none transition-all ${errores.fecha_inicio ? 'border-[#ba1a1a] bg-[#fff8f7]' : 'border-[#e1e3e4] focus:border-[#d32f2f] bg-white'}`}
+                            />
+                            {errores.fecha_inicio && <p className="text-[12px] text-[#ba1a1a] pl-1">{errores.fecha_inicio}</p>}
                         </div>
-                    )}
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-[13px] font-semibold text-[#191c1d] pl-1">Fecha de fin</label>
+                            <input type="date" value={form.fecha_fin}
+                                onChange={e => { setForm(f => ({ ...f, fecha_fin: e.target.value })); setErrores(e => ({ ...e, fecha_fin: '' })) }}
+                                className={`h-11 px-4 rounded-xl border-2 text-[14px] outline-none transition-all ${errores.fecha_fin ? 'border-[#ba1a1a] bg-[#fff8f7]' : 'border-[#e1e3e4] focus:border-[#d32f2f] bg-white'}`}
+                            />
+                            {errores.fecha_fin && <p className="text-[12px] text-[#ba1a1a] pl-1">{errores.fecha_fin}</p>}
+                        </div>
+                    </div>
 
                     {esEdicion && (
                         <div className="flex flex-col gap-1.5">
@@ -164,17 +176,6 @@ function ModalHito({ hito, raps, onGuardar, onCancelar, fechasProyecto }) {
     )
 }
 
-function formatFecha(fecha) {
-    if (!fecha) return '—'
-    const d = new Date(fecha + 'T00:00:00')
-    return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })
-}
-
-function getMesNombre(mes) {
-    const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
-    return meses[mes]
-}
-
 export default function CronogramaProyecto() {
     const { proyectoId } = useParams()
     const location = useLocation()
@@ -185,27 +186,22 @@ export default function CronogramaProyecto() {
     const fechaFin = location.state?.fecha_fin
 
     const [hitos, setHitos] = useState([])
-    const [raps, setRaps] = useState([])
     const [loading, setLoading] = useState(true)
     const [modalHito, setModalHito] = useState(false)
     const [hitoEditando, setHitoEditando] = useState(null)
     const [eliminando, setEliminando] = useState(null)
+    const [confirmarEliminar, setConfirmarEliminar] = useState(null)
 
     useEffect(() => { cargarDatos() }, [proyectoId])
 
     async function cargarDatos() {
         setLoading(true)
         try {
-            const [hitosData, rapsData] = await Promise.all([
-                proyectosApi.listarHitos(proyectoId),
-                proyectosApi.listarRAPs(proyectoId),
-            ])
+            const hitosData = await proyectosApi.listarHitos(proyectoId)
             setHitos(hitosData.results ?? hitosData)
-            setRaps(rapsData.results ?? rapsData)
         } catch (err) {
             console.error('Error cargando datos:', err)
             setHitos([])
-            setRaps([])
         } finally {
             setLoading(false)
         }
@@ -215,20 +211,18 @@ export default function CronogramaProyecto() {
         try {
             if (hitoEditando) {
                 await proyectosApi.editarHito(proyectoId, hitoEditando.id, {
-                    nombre: formData.nombre,
-                    descripcion: formData.descripcion,
-                    fecha_limite: formData.fecha_limite,
-                    rap_id: formData.rap_id || null,
-                    estado: formData.estado,
-                    orden: hitoEditando.orden,
+                    nombre:       formData.nombre,
+                    descripcion:  formData.descripcion,
+                    fecha_inicio: formData.fecha_inicio,
+                    fecha_fin:    formData.fecha_fin,
+                    estado:       formData.estado,
                 })
             } else {
                 await proyectosApi.crearHito(proyectoId, {
-                    nombre: formData.nombre,
-                    descripcion: formData.descripcion,
-                    fecha_limite: formData.fecha_limite,
-                    rap_id: formData.rap_id || null,
-                    orden: hitos.length + 1,
+                    nombre:       formData.nombre,
+                    descripcion:  formData.descripcion,
+                    fecha_inicio: formData.fecha_inicio,
+                    fecha_fin:    formData.fecha_fin,
                 })
             }
             setModalHito(false)
@@ -240,15 +234,14 @@ export default function CronogramaProyecto() {
         }
     }
 
-    async function handleEliminar(id) {
-        if (!window.confirm('¿Eliminar este hito? Esta acción no se puede deshacer.')) return
+    async function ejecutarEliminar(id) {
+        setConfirmarEliminar(null)
         setEliminando(id)
         try {
             await proyectosApi.eliminarHito(proyectoId, id)
             cargarDatos()
         } catch (err) {
             console.error('Error eliminando hito:', err)
-            alert('No se pudo eliminar el hito.')
         } finally {
             setEliminando(null)
         }
@@ -353,8 +346,7 @@ export default function CronogramaProyecto() {
 
                     <div className="p-5">
                         {hitos.map((h, idx) => {
-                            const info = ESTADOS[h.estado]
-                            const rap = raps.find(r => r.id === h.rap_id)
+                            const info = ESTADOS[h.estado] ?? ESTADOS.pendiente
                             return (
                                 <div key={h.id} className={`flex items-start gap-4 pb-5 ${idx < hitos.length - 1 ? 'border-b border-[#e1e3e4] mb-5' : ''}`}>
 
@@ -376,13 +368,8 @@ export default function CronogramaProyecto() {
                                                 )}
                                                 <div className="flex items-center gap-3 flex-wrap">
                                                     <span className="text-[12px] text-[#9ba7ae]">
-                                                        📅 {formatFecha(h.fecha_limite)}
+                                                        📅 {formatFecha(h.fecha_inicio)} – {formatFecha(h.fecha_fin)}
                                                     </span>
-                                                    {rap && (
-                                                        <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-[#ffdad6] text-[#af101a]">
-                                                            {rap.nombre}
-                                                        </span>
-                                                    )}
                                                     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold ${info.bg} ${info.text}`}>
                                                         <div className={`w-1.5 h-1.5 rounded-full ${info.dot}`} />
                                                         {info.label}
@@ -397,7 +384,7 @@ export default function CronogramaProyecto() {
                                                     <IconEdit />
                                                 </button>
                                                 <button
-                                                    onClick={() => handleEliminar(h.id)}
+                                                    onClick={() => setConfirmarEliminar(h.id)}
                                                     disabled={eliminando === h.id}
                                                     className="w-8 h-8 rounded-lg hover:bg-[#fff1f0] flex items-center justify-center transition-colors disabled:opacity-50"
                                                     title="Eliminar">
@@ -413,14 +400,19 @@ export default function CronogramaProyecto() {
                 </div>
             )}
 
-            {/* Modal */}
+            {/* Modales */}
             {modalHito && (
                 <ModalHito
                     hito={hitoEditando}
-                    raps={raps}
                     onGuardar={handleGuardarHito}
                     onCancelar={() => { setModalHito(false); setHitoEditando(null) }}
                     fechasProyecto={fechaInicio && fechaFin ? { inicio: fechaInicio, fin: fechaFin } : null}
+                />
+            )}
+            {confirmarEliminar !== null && (
+                <ModalConfirmar
+                    onConfirmar={() => ejecutarEliminar(confirmarEliminar)}
+                    onCancelar={() => setConfirmarEliminar(null)}
                 />
             )}
         </div>

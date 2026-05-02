@@ -14,11 +14,38 @@ function IconTrash() {
     return <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M2 4h12M5 4V3a1 1 0 011-1h4a1 1 0 011 1v1M6 7v5M10 7v5M3 4l1 9a1 1 0 001 1h6a1 1 0 001-1l1-9" /></svg>
 }
 
+function ModalConfirmar({ mensaje, onConfirmar, onCancelar }) {
+    return (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden" onClick={e => e.stopPropagation()}>
+                <div className="p-6 text-center">
+                    <div className="w-12 h-12 rounded-full bg-[#ffdad6] flex items-center justify-center mx-auto mb-4">
+                        <svg className="w-6 h-6 text-[#ba1a1a]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" /></svg>
+                    </div>
+                    <h2 className="text-[17px] font-bold text-[#191c1d] mb-2">¿Eliminar este RAP?</h2>
+                    <p className="text-[13px] text-[#9ba7ae]">{mensaje}</p>
+                </div>
+                <div className="flex gap-2 p-4 bg-[#f8f9fa] border-t border-[#e1e3e4]">
+                    <button onClick={onCancelar}
+                        className="flex-1 h-11 rounded-xl border-2 border-[#e1e3e4] text-[#4c616c] font-semibold text-[14px] hover:bg-white transition-colors">
+                        Cancelar
+                    </button>
+                    <button onClick={onConfirmar}
+                        className="flex-1 h-11 rounded-xl bg-[#ba1a1a] text-white font-semibold text-[14px] hover:bg-[#930014] transition-colors">
+                        Eliminar
+                    </button>
+                </div>
+            </div>
+        </div>
+    )
+}
+
 function ModalRAP({ rap, onGuardar, onCancelar, totalActual }) {
     const esEdicion = !!rap
     const [form, setForm] = useState({
         nombre: rap?.nombre ?? '',
         descripcion: rap?.descripcion ?? '',
+        competencia_asociada: rap?.competencia_asociada ?? '',
         porcentaje_evaluacion: rap?.porcentaje_evaluacion ?? '',
     })
     const [errores, setErrores] = useState({})
@@ -26,13 +53,12 @@ function ModalRAP({ rap, onGuardar, onCancelar, totalActual }) {
 
     function validar() {
         const e = {}
-        if (!form.nombre.trim()) e.nombre = 'El nombre es obligatorio.'
+        if (!form.nombre.trim()) e.nombre = 'El código es obligatorio.'
         if (!form.descripcion.trim()) e.descripcion = 'La descripción es obligatoria.'
         if (!form.porcentaje_evaluacion || form.porcentaje_evaluacion <= 0 || form.porcentaje_evaluacion > 100) {
             e.porcentaje_evaluacion = 'El porcentaje debe estar entre 1 y 100.'
         }
 
-        // Validar que el total no exceda 100
         const porcentajeActual = parseFloat(rap?.porcentaje_evaluacion ?? 0)
         const porcentajeNuevo = parseFloat(form.porcentaje_evaluacion)
         const totalSinEste = totalActual - porcentajeActual
@@ -55,7 +81,7 @@ function ModalRAP({ rap, onGuardar, onCancelar, totalActual }) {
     }
 
     return (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center z-50 p-4" onClick={onCancelar}>
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden" onClick={e => e.stopPropagation()}>
 
                 <div className="p-6 border-b border-[#e1e3e4]">
@@ -79,11 +105,20 @@ function ModalRAP({ rap, onGuardar, onCancelar, totalActual }) {
                         <label className="text-[13px] font-semibold text-[#191c1d] pl-1">Descripción del resultado de aprendizaje</label>
                         <textarea value={form.descripcion}
                             onChange={e => { setForm(f => ({ ...f, descripcion: e.target.value })); setErrores(e => ({ ...e, descripcion: '' })) }}
-                            placeholder="ej: Analiza conjuntos de datos masivos utilizando algoritmos de regresión..."
+                            placeholder="ej: Analiza conjuntos de datos utilizando algoritmos de regresión..."
                             rows={3}
                             className={`px-4 py-3 rounded-xl border-2 text-[14px] outline-none transition-all resize-none ${errores.descripcion ? 'border-[#ba1a1a] bg-[#fff8f7]' : 'border-[#e1e3e4] focus:border-[#d32f2f] bg-white'}`}
                         />
                         {errores.descripcion && <p className="text-[12px] text-[#ba1a1a] pl-1">{errores.descripcion}</p>}
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                        <label className="text-[13px] font-semibold text-[#191c1d] pl-1">Competencia asociada (opcional)</label>
+                        <input type="text" value={form.competencia_asociada}
+                            onChange={e => setForm(f => ({ ...f, competencia_asociada: e.target.value }))}
+                            placeholder="ej: Pensamiento Analítico"
+                            className="h-11 px-4 rounded-xl border-2 border-[#e1e3e4] focus:border-[#d32f2f] text-[14px] outline-none transition-all bg-white"
+                        />
                     </div>
 
                     <div className="flex flex-col gap-1.5">
@@ -125,6 +160,7 @@ export default function RAPsProyecto() {
     const [modalRAP, setModalRAP] = useState(false)
     const [rapEditando, setRapEditando] = useState(null)
     const [eliminando, setEliminando] = useState(null)
+    const [confirmarEliminar, setConfirmarEliminar] = useState(null)
 
     useEffect(() => { cargarRAPs() }, [proyectoId])
 
@@ -132,8 +168,7 @@ export default function RAPsProyecto() {
         setLoading(true)
         try {
             const data = await proyectosApi.listarRAPs(proyectoId)
-            const lista = data.results ?? data
-            setRaps(lista)
+            setRaps(data.results ?? data)
         } catch (err) {
             console.error('Error cargando RAPs:', err)
             setRaps([])
@@ -148,13 +183,14 @@ export default function RAPsProyecto() {
                 await proyectosApi.editarRAP(proyectoId, rapEditando.id, {
                     nombre: formData.nombre,
                     descripcion: formData.descripcion,
+                    competencia_asociada: formData.competencia_asociada || null,
                     porcentaje_evaluacion: parseFloat(formData.porcentaje_evaluacion),
-                    orden: rapEditando.orden,
                 })
             } else {
                 await proyectosApi.crearRAP(proyectoId, {
                     nombre: formData.nombre,
                     descripcion: formData.descripcion,
+                    competencia_asociada: formData.competencia_asociada || null,
                     porcentaje_evaluacion: parseFloat(formData.porcentaje_evaluacion),
                     orden: raps.length + 1,
                 })
@@ -168,15 +204,14 @@ export default function RAPsProyecto() {
         }
     }
 
-    async function handleEliminar(id) {
-        if (!window.confirm('¿Eliminar este RAP? Esta acción no se puede deshacer.')) return
+    async function ejecutarEliminar(id) {
+        setConfirmarEliminar(null)
         setEliminando(id)
         try {
             await proyectosApi.eliminarRAP(proyectoId, id)
             cargarRAPs()
         } catch (err) {
             console.error('Error eliminando RAP:', err)
-            alert('No se pudo eliminar el RAP.')
         } finally {
             setEliminando(null)
         }
@@ -300,9 +335,13 @@ export default function RAPsProyecto() {
                                         <p className="text-[14px] text-[#191c1d] leading-relaxed line-clamp-2">{rap.descripcion}</p>
                                     </td>
                                     <td className="px-4 py-3.5 text-center">
-                                        <span className="inline-block px-3 py-1 rounded-full bg-[#e3f2fd] text-[#1565c0] text-[11px] font-semibold">
-                                            Pensamiento Analítico
-                                        </span>
+                                        {rap.competencia_asociada ? (
+                                            <span className="inline-block px-3 py-1 rounded-full bg-[#e3f2fd] text-[#1565c0] text-[11px] font-semibold">
+                                                {rap.competencia_asociada}
+                                            </span>
+                                        ) : (
+                                            <span className="text-[12px] text-[#9ba7ae]">—</span>
+                                        )}
                                     </td>
                                     <td className="px-4 py-3.5 text-center">
                                         <span className="text-[14px] font-bold text-[#191c1d]">{rap.porcentaje_evaluacion}%</span>
@@ -316,7 +355,7 @@ export default function RAPsProyecto() {
                                                 <IconEdit />
                                             </button>
                                             <button
-                                                onClick={() => handleEliminar(rap.id)}
+                                                onClick={() => setConfirmarEliminar(rap.id)}
                                                 disabled={eliminando === rap.id}
                                                 className="w-8 h-8 rounded-lg hover:bg-[#fff1f0] flex items-center justify-center transition-colors disabled:opacity-50"
                                                 title="Eliminar">
@@ -350,13 +389,20 @@ export default function RAPsProyecto() {
                 </div>
             </div>
 
-            {/* Modal */}
+            {/* Modales */}
             {modalRAP && (
                 <ModalRAP
                     rap={rapEditando}
                     onGuardar={handleGuardarRAP}
                     onCancelar={() => { setModalRAP(false); setRapEditando(null) }}
                     totalActual={totalPorcentaje}
+                />
+            )}
+            {confirmarEliminar !== null && (
+                <ModalConfirmar
+                    mensaje="Esta acción eliminará el RAP permanentemente y no se puede deshacer."
+                    onConfirmar={() => ejecutarEliminar(confirmarEliminar)}
+                    onCancelar={() => setConfirmarEliminar(null)}
                 />
             )}
         </div>

@@ -44,7 +44,7 @@ class CursoSerializer(serializers.ModelSerializer):
         return f'{d.nombre} {d.apellido}'
 
     def get_periodo_nombre(self, obj):
-        return obj.id_periodo_academico.nombre
+        return obj.id_periodo_academico.nombre if obj.id_periodo_academico else ''
 
     def get_total_proyectos(self, obj):
         return len(obj.proyectos.all())
@@ -445,10 +445,10 @@ class RapSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ResultadoAprendizaje
-        fields = ['id', 'proyecto', 'descripcion', 'competencia_asociada']
+        fields = ['id', 'proyecto', 'nombre', 'descripcion', 'competencia_asociada', 'porcentaje_evaluacion']
 
 
 class RapCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = ResultadoAprendizaje
-        fields = ['descripcion', 'competencia_asociada']
+        fields = ['nombre', 'descripcion', 'competencia_asociada', 'porcentaje_evaluacion']

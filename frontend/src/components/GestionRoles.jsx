@@ -27,7 +27,7 @@ function Badge({ estado }) {
 function ModalEliminar({ rol, onConfirm, onCancel }) {
     const count = rol.total_usuarios ?? 0
     return (
-        <div className="fixed inset-0 bg-black/45 flex items-center justify-center z-50" onClick={onCancel}>
+        <div className="fixed inset-0 bg-black/45 flex items-center justify-center z-50">
             <div className="bg-white rounded-xl border border-gray-200 p-6 max-w-sm w-full mx-4" onClick={e => e.stopPropagation()}>
                 <h3 className="font-medium text-base mb-2">Eliminar rol</h3>
                 <p className="text-sm text-gray-500 mb-3 leading-relaxed">
