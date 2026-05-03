@@ -76,8 +76,8 @@ export const cursosApi = {
         return data
     },
 
-    async editarProyecto(cursoId, proyectoId, campos) {
-        const response = await request(`/api/cursos/${cursoId}/proyectos/${proyectoId}/`, {
+    async editarProyecto(_cursoId, proyectoId, campos) {
+        const response = await request(`/api/proyectos/${proyectoId}/`, {
             method: 'PUT',
             body: JSON.stringify(campos),
         })

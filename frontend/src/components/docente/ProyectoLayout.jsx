@@ -76,7 +76,7 @@ function navLinkClass({ isActive }) {
 }
 
 
-function SidebarContent({ collapsed, user, userMenuOpen, setUserMenuOpen, loggingOut, handleLogout, onNavClick, proyectoId, nombreProyecto, periodoNombre }) {
+function SidebarContent({ collapsed, user, userMenuOpen, setUserMenuOpen, loggingOut, handleLogout, onNavClick, proyectoId, nombreProyecto, periodoNombre, cursoId, cursoNombre, navState }) {
     const NAV_ITEMS = [
         { label: 'Objetivos', to: `/docente/proyectos/${proyectoId}/objetivos`, icon: <IconTarget /> },
         { label: 'Resultados de Aprendizaje', to: `/docente/proyectos/${proyectoId}/raps`, icon: <IconClipboard /> },
@@ -110,11 +110,20 @@ function SidebarContent({ collapsed, user, userMenuOpen, setUserMenuOpen, loggin
 
             {/* Navegación */}
             <nav className="flex-1 overflow-y-auto py-3 px-2 flex flex-col gap-0.5">
+                {!collapsed && cursoId && (
+                    <Link
+                        to={`/docente/cursos/${cursoId}`}
+                        onClick={onNavClick}
+                        className="flex items-center gap-2 px-3 py-2 rounded-xl text-[11px] font-semibold text-[#9ba7ae] tracking-[0.6px] uppercase hover:bg-[#f0f2f3] hover:text-[#4c616c] transition-all mb-1 truncate">
+                        <svg viewBox="0 0 16 16" fill="none" className="w-3 h-3 flex-shrink-0" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M10 3L5 8l5 5" /></svg>
+                        <span className="truncate">{cursoNombre || 'Curso'}</span>
+                    </Link>
+                )}
                 {!collapsed && (
                     <p className="text-[10px] font-semibold text-[#9ba7ae] tracking-[0.8px] uppercase px-3 pb-1.5 pt-1">Proyecto</p>
                 )}
                 {NAV_ITEMS.map(({ label, to, icon }) => (
-                    <NavLink key={to} to={to} className={navLinkClass} title={collapsed ? label : undefined} onClick={onNavClick}>
+                    <NavLink key={to} to={to} state={navState} className={navLinkClass} title={collapsed ? label : undefined} onClick={onNavClick}>
                         <span className="flex-shrink-0">{icon}</span>
                         {!collapsed && <span>{label}</span>}
                     </NavLink>
@@ -167,6 +176,7 @@ export default function ProyectoLayout() {
     const [loggingOut, setLoggingOut] = useState(false)
     const [userMenuOpen, setUserMenuOpen] = useState(false)
     const [proyecto, setProyecto] = useState(null)
+    const [savedNavState, setSavedNavState] = useState(null)
 
     useEffect(() => {
         const refresh = () => setUser(session.getUser())
@@ -178,6 +188,7 @@ export default function ProyectoLayout() {
         const state = location.state
         if (state?.nombre) {
             setProyecto({ nombre: state.nombre, periodo: state.periodo ?? '' })
+            setSavedNavState(state)
         }
     }, [location.state, proyectoId])
 
@@ -205,7 +216,9 @@ export default function ProyectoLayout() {
             <aside className={`hidden lg:flex ${sidebarW} flex-shrink-0 flex-col bg-white border-r border-[#e1e3e4] transition-[width] duration-200 ease-in-out z-20 relative`}>
                 <SidebarContent collapsed={collapsed} user={user} userMenuOpen={userMenuOpen}
                     setUserMenuOpen={setUserMenuOpen} loggingOut={loggingOut} handleLogout={handleLogout} onNavClick={undefined}
-                    proyectoId={proyectoId} nombreProyecto={proyecto?.nombre} periodoNombre={proyecto?.periodo} />
+                    proyectoId={proyectoId} nombreProyecto={proyecto?.nombre} periodoNombre={proyecto?.periodo}
+                    cursoId={savedNavState?.cursoId} cursoNombre={savedNavState?.cursoNombre}
+                    navState={savedNavState} />
                 <div className="border-t border-[#e1e3e4] p-2 flex-shrink-0">
                     <button onClick={() => setCollapsed(c => !c)}
                         className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-[#9ba7ae] hover:bg-[#f0f2f3] hover:text-[#4c616c] transition-colors text-[12px] font-medium"
@@ -221,7 +234,9 @@ export default function ProyectoLayout() {
                 onClick={e => e.stopPropagation()}>
                 <SidebarContent collapsed={false} user={user} userMenuOpen={userMenuOpen}
                     setUserMenuOpen={setUserMenuOpen} loggingOut={loggingOut} handleLogout={handleLogout}
-                    onNavClick={() => setMobileOpen(false)} proyectoId={proyectoId} nombreProyecto={proyecto?.nombre} periodoNombre={proyecto?.periodo} />
+                    onNavClick={() => setMobileOpen(false)} proyectoId={proyectoId} nombreProyecto={proyecto?.nombre} periodoNombre={proyecto?.periodo}
+                    cursoId={savedNavState?.cursoId} cursoNombre={savedNavState?.cursoNombre}
+                    navState={savedNavState} />
             </aside>
 
             {/* Contenido */}

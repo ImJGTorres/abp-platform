@@ -12,6 +12,7 @@ function ModalCurso({ curso, periodos, docentes, onGuardar, onCancelar }) {
         id_periodo_academico: curso?.id_periodo_academico ?? '',
         id_docente: curso?.id_docente ?? '',
         cantidad_max_estudiantes: curso?.cantidad_max_estudiantes ?? 30,
+        semanas_por_sprint: curso?.semanas_por_sprint ?? 2,
         estado: curso?.estado ?? 'borrador',
     })
     const [errores, setErrores] = useState({})
@@ -29,6 +30,7 @@ function ModalCurso({ curso, periodos, docentes, onGuardar, onCancelar }) {
         if (!form.id_periodo_academico) e.id_periodo_academico = 'Selecciona un periodo.'
         if (!form.id_docente) e.id_docente = 'Selecciona un docente.'
         if (!form.cantidad_max_estudiantes || form.cantidad_max_estudiantes < 1) e.cantidad_max_estudiantes = 'Debe ser mayor a 0.'
+        if (!form.semanas_por_sprint || form.semanas_por_sprint < 1) e.semanas_por_sprint = 'Debe ser mayor a 0.'
         return e
     }
 
@@ -44,6 +46,7 @@ function ModalCurso({ curso, periodos, docentes, onGuardar, onCancelar }) {
                 id_periodo_academico: parseInt(form.id_periodo_academico),
                 id_docente: parseInt(form.id_docente),
                 cantidad_max_estudiantes: parseInt(form.cantidad_max_estudiantes),
+                semanas_por_sprint: parseInt(form.semanas_por_sprint),
                 ...(esEdicion && { estado: form.estado }),
             }
             let resultado
@@ -95,6 +98,14 @@ function ModalCurso({ curso, periodos, docentes, onGuardar, onCancelar }) {
                                 onChange={e => set('cantidad_max_estudiantes', e.target.value)}
                                 className={inputCls('cantidad_max_estudiantes')} />
                             {errores.cantidad_max_estudiantes && <p className="text-[12px] text-[#ba1a1a] pl-1">{errores.cantidad_max_estudiantes}</p>}
+                        </div>
+
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-[13px] font-semibold text-[#191c1d] pl-1">Semanas por sprint</label>
+                            <input type="number" min="1" max="52" value={form.semanas_por_sprint}
+                                onChange={e => set('semanas_por_sprint', e.target.value)}
+                                className={inputCls('semanas_por_sprint')} />
+                            {errores.semanas_por_sprint && <p className="text-[12px] text-[#ba1a1a] pl-1">{errores.semanas_por_sprint}</p>}
                         </div>
 
                         <div className="flex flex-col gap-1.5">
