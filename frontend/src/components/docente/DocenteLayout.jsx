@@ -75,14 +75,27 @@ function IconTeam() {
 
 // ── Navegación ────────────────────────────────────────────────────────────
 
-function navLinkClass({ isActive }) {
-    const base = 'flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] font-medium transition-all duration-150 select-none cursor-pointer'
-    return isActive
-        ? `${base} bg-[#d32f2f] text-white shadow-[0_4px_12px_rgba(211,47,47,0.30)]`
-        : `${base} text-[#4c616c] hover:bg-[#f0f2f3] hover:text-[#191c1d]`
+function isNavLinkActive(to, pathname, cursoId) {
+    // Si es el enlace a "Mis cursos"
+    if (to === '/docente/cursos') {
+        // Activo solo si estamos exactamente en /docente/cursos
+        return pathname === '/docente/cursos'
+    }
+    // Si es el enlace a estudiantes
+    if (to === `/docente/cursos/${cursoId}/estudiantes`) {
+        // Activo solo si estamos en /docente/cursos/:id/estudiantes
+        return pathname === `/docente/cursos/${cursoId}/estudiantes`
+    }
+    // Si es el enlace a equipos (ahora lleva a la página del curso)
+    if (to === `/docente/cursos/${cursoId}`) {
+        // Activo si estamos en /docente/cursos/:id
+        return pathname === `/docente/cursos/${cursoId}`
+    }
+    return false
 }
 
 function SidebarContent({ collapsed, user, userMenuOpen, setUserMenuOpen, loggingOut, handleLogout, onNavClick, cursoId }) {
+    const location = useLocation()
     const NAV_ITEMS = [
         { label: 'Mis cursos', to: '/docente/cursos', icon: <IconBook /> },
     ]
@@ -90,7 +103,7 @@ function SidebarContent({ collapsed, user, userMenuOpen, setUserMenuOpen, loggin
     if (cursoId) {
         NAV_ITEMS.push(
             { label: 'Estudiantes', to: `/docente/cursos/${cursoId}/estudiantes`, icon: <IconUsers /> },
-            { label: 'Equipos', to: `/docente/cursos/${cursoId}/equipos`, icon: <IconTeam /> }
+            { label: 'Equipos', to: `/docente/cursos/${cursoId}`, icon: <IconTeam /> }
         )
     }
 
@@ -102,8 +115,6 @@ function SidebarContent({ collapsed, user, userMenuOpen, setUserMenuOpen, loggin
                     <svg viewBox="0 0 24 24" className="w-8 h-6 text-white" fill="currentColor">
                         <path d="M12 2L2 7l10 5 10-5-10-5z" />
                         <path d="M6 10v4c0 2.5 3.5 4 6 4s6-1.5 6-4v-4l-6 3-6-3z" opacity="0.9" />
-                        <path d="M22 7v6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                        <circle cx="22" cy="14" r="1" fill="currentColor" />
                     </svg>
                 </div>
                 {!collapsed && (
@@ -116,12 +127,24 @@ function SidebarContent({ collapsed, user, userMenuOpen, setUserMenuOpen, loggin
                 {!collapsed && (
                     <p className="text-[10px] font-semibold text-[#9ba7ae] tracking-[0.8px] uppercase px-3 pb-1.5 pt-1">Docente</p>
                 )}
-                {NAV_ITEMS.map(({ label, to, icon }) => (
-                    <NavLink key={to} to={to} className={navLinkClass} title={collapsed ? label : undefined} onClick={onNavClick}>
-                        <span className="flex-shrink-0">{icon}</span>
-                        {!collapsed && <span>{label}</span>}
-                    </NavLink>
-                ))}
+                {NAV_ITEMS.map(({ label, to, icon }) => {
+                    const isActive = isNavLinkActive(to, location.pathname, cursoId)
+                    const classes = isActive
+                        ? 'flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] font-medium transition-all duration-150 select-none cursor-pointer bg-[#d32f2f] text-white shadow-[0_4px_12px_rgba(211,47,47,0.30)]'
+                        : 'flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] font-medium transition-all duration-150 select-none cursor-pointer text-[#4c616c] hover:bg-[#f0f2f3] hover:text-[#191c1d]'
+                    return (
+                        <Link
+                            key={to}
+                            to={to}
+                            className={classes}
+                            title={collapsed ? label : undefined}
+                            onClick={onNavClick}
+                        >
+                            <span className="flex-shrink-0">{icon}</span>
+                            {!collapsed && <span>{label}</span>}
+                        </Link>
+                    )
+                })}
             </nav>
 
             {/* Usuario + Logout */}
@@ -180,8 +203,11 @@ export default function DocenteLayout() {
 
     async function handleLogout() {
         setLoggingOut(true)
-        try { await authApi.logout() } catch { }
-        finally {
+        try {
+            await authApi.logout()
+        } catch {
+            // Silenciar errores de logout
+        } finally {
             setLoggingOut(false)
             navigate('/login', { replace: true })
         }

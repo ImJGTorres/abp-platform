@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { Fragment } from "react";
 import { configuracionApi } from "../services/api";
 
 // ─── Subcomponentes ──────────────────────────────────────────────────────────
@@ -213,11 +212,6 @@ export default function ConfiguracionParametros() {
       correo_soporte: "",
       logo_url: "",
     },
-    academicos: {
-      max_estudiantes_equipo: 0,
-      semanas_sprint: 0,
-      nota_minima_aprobacion: 0,
-    },
   });
   const [toast, setToast] = useState("");
   const [loading, setLoading] = useState(true);
@@ -232,10 +226,9 @@ export default function ConfiguracionParametros() {
       setLoading(true);
       setError("");
       const data = await configuracionApi.getParametros();
-      
+
       const mapped = {
         institucional: {},
-        academicos: {},
       };
 
       if (data.institucional) {
@@ -243,14 +236,6 @@ export default function ConfiguracionParametros() {
           if (p.clave === "nombre_institucion") mapped.institucional.nombre_institucion = p.valor_casteado;
           if (p.clave === "correo_soporte") mapped.institucional.correo_soporte = p.valor_casteado;
           if (p.clave === "logo_url") mapped.institucional.logo_url = p.valor_casteado;
-        });
-      }
-
-      if (data.general) {
-        data.general.forEach((p) => {
-          if (p.clave === "max_estudiantes_por_equipo") mapped.academicos.max_estudiantes_equipo = p.valor_casteado;
-          if (p.clave === "semanas_sprint") mapped.academicos.semanas_sprint = p.valor_casteado;
-          if (p.clave === "nota_minima_aprobacion") mapped.academicos.nota_minima_aprobacion = p.valor_casteado;
         });
       }
 
@@ -275,11 +260,6 @@ export default function ConfiguracionParametros() {
         nombre_institucion: "nombre_institucion",
         correo_soporte: "correo_soporte",
         logo_url: "logo_url",
-      },
-      academicos: {
-        max_estudiantes_equipo: "max_estudiantes_por_equipo",
-        semanas_sprint: "semanas_sprint",
-        nota_minima_aprobacion: "nota_minima_aprobacion",
       },
     };
 
@@ -362,39 +342,6 @@ export default function ConfiguracionParametros() {
           value={params.institucional.logo_url}
           type="TEXTO"
           onChange={(v) => updateParam("institucional", "logo_url", v)}
-        />
-      </SectionCard>
-
-      {/* Sección 2: Parámetros Académicos */}
-      <SectionCard
-        icon="A"
-        iconBg="#c0392b"
-        title="Parámetros Académicos"
-        onSave={() => handleSave("academicos")}
-      >
-        <ParamRow
-          label="Máximo de estudiantes por equipo"
-          paramKey="max_estudiantes_equipo"
-          value={params.academicos.max_estudiantes_equipo}
-          type="ENTERO"
-          min={1}
-          onChange={(v) => updateParam("academicos", "max_estudiantes_equipo", v)}
-        />
-        <ParamRow
-          label="Semanas por sprint"
-          paramKey="semanas_sprint"
-          value={params.academicos.semanas_sprint}
-          type="ENTERO"
-          min={1}
-          onChange={(v) => updateParam("academicos", "semanas_sprint", v)}
-        />
-        <ParamRow
-          label="Nota mínima de aprobación"
-          paramKey="nota_minima_aprobacion"
-          value={params.academicos.nota_minima_aprobacion}
-          type="ENTERO"
-          min={1}
-          onChange={(v) => updateParam("academicos", "nota_minima_aprobacion", v)}
         />
       </SectionCard>
     </div>
