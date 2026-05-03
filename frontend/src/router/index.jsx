@@ -28,7 +28,7 @@ import CronogramaProyecto from '../components/docente/CronogramaProyecto'
 import EquipoProyecto from '../components/docente/EquipoProyecto'
 import ReorganizarEquipos from '../components/docente/ReorganizarEquipos'
 import CronogramaHitos from '../components/docente/CronogramaHitos'
-
+import EquiposCurso from '../components/docente/EquiposCurso'
 function PanelDirector() { return <div className="p-10">Director</div> }
 function PanelEstudiante() { return <div className="p-10">Estudiante</div> }
 function PanelLider() { return <div className="p-10">Líder</div> }
@@ -90,6 +90,7 @@ export default function AppRouter() {
             <Route path="/docente/cursos" element={<GestionCursos />} />
             <Route path="/docente/cursos/:id" element={<DetalleCurso />} />
             <Route path="/docente/cursos/:id/estudiantes" element={<EstudiantesCurso />} />
+            <Route path="/docente/cursos/:id/equipos" element={<EquiposCurso />} />
             <Route path="/docente/cursos/:cursoId/proyectos/:proyectoId/equipo" element={<EquipoProyecto />} />
             <Route path="/docente/cursos/:cursoId/proyectos/:proyectoId/reorganizar" element={<ReorganizarEquipos />} />
             <Route path="/docente/cursos/:cursoId/proyectos/:proyectoId/cronograma" element={<CronogramaHitos />} />
