@@ -191,7 +191,7 @@ export default function DetalleCurso() {
                     nombre: p.nombre,
                     descripcion: p.descripcion,
                     fecha_inicio: p.fecha_inicio,
-                    fecha_fin: p.fecha_fin_estimada,
+                    fecha_fin: p.fecha_fin_estimada ?? p.fecha_fin ?? null,
                     estado: p.estado ?? 'activo',
                     equipo: p.equipo ?? null,
                 }))
