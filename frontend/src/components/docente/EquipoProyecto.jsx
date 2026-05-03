@@ -202,12 +202,9 @@ export default function EquipoProyecto() {
 
                         {/* Selector de rol */}
                         <div className="p-6">
-                            <div className="flex items-center justify-between mb-3">
-                                <h3 className="text-[14px] font-bold text-[#191c1d]">Rol en el equipo</h3>
-                                <span className="text-[11px] text-[#9ba7ae] font-mono bg-[#f8f9fa] px-2 py-0.5 rounded">
-                                    PATCH /api/miembros/{miembroSel.id}/
-                                </span>
-                            </div>
+                        <div className="flex items-center justify-between mb-3">
+                            <h3 className="text-[14px] font-bold text-[#191c1d]">Rol en el equipo</h3>
+                        </div>
                             <div className="flex flex-wrap gap-2 mb-4">
                                 {ROLES.map(r => {
                                     const activo = miembroSel.rol_interno === r.key
@@ -225,12 +222,6 @@ export default function EquipoProyecto() {
                                     )
                                 })}
                             </div>
-                            {miembroSel.rol_interno === 'lider' && (
-                                <div className="bg-[#e3f2fd] rounded-xl px-4 py-3 text-[12px] text-[#1565c0] leading-relaxed">
-                                    Un equipo puede tener <strong>solo un líder</strong>. El rol es visible para todos los integrantes del equipo.{' '}
-                                    <code className="bg-[#bbdefb] px-1 rounded text-[11px]">rol_en_equipo ∈ {'{lider, miembro}'}</code> en BD.
-                                </div>
-                            )}
                         </div>
                     </div>
                 ) : (
