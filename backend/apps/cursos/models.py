@@ -166,6 +166,21 @@ class HitoProyecto(models.Model):
         return f'{self.nombre} ({self.get_tipo_display()}) — {self.id_proyecto}'
 
 
+class CursoEstudiante(models.Model):
+    curso = models.ForeignKey(Curso, on_delete=models.CASCADE, related_name='estudiantes')
+    estudiante = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='cursos_inscritos')
+    fecha_inscripcion = models.DateTimeField(auto_now_add=True)
+    estado = models.CharField(max_length=20, default='activo')
+
+    class Meta:
+        db_table = 'curso_estudiante'
+        unique_together = ('curso', 'estudiante')
+        managed = False
+
+    def __str__(self):
+        return f'{self.estudiante} → {self.curso}'
+
+
 class ResultadoAprendizaje(models.Model):
     proyecto = models.ForeignKey(
         Proyecto,
