@@ -6,6 +6,7 @@ from .views import (
     CursoDetailView,
     CursoEstudianteView,
     CursoListCreateView,
+    CursoMatriculaExcelView,
     DocenteListView,
     HitoDetailView,
     ProyectoListCreateView,
@@ -21,6 +22,10 @@ urlpatterns = [
     path('<int:curso_id>/proyectos/', ProyectoListCreateView.as_view(), name='proyecto-list-create'),
     # GET/POST /api/cursos/<curso_id>/estudiantes/
     path('<int:curso_id>/estudiantes/', CursoEstudianteView.as_view(), name='curso-estudiantes'),
+    # GET /api/cursos/<curso_id>/estudiantes/?proyecto_id=<int>
+    path('<int:curso_id>/estudiantes/', EstudiantesDisponiblesView.as_view(), name='estudiantes-disponibles'),
+    # POST /api/cursos/<curso_id>/estudiantes/importar/
+    path('<int:curso_id>/estudiantes/importar/', CursoMatriculaExcelView.as_view(), name='estudiantes-importar'),
 ]
 
 # Exportados para incluirse bajo prefijos distintos en config/urls.py

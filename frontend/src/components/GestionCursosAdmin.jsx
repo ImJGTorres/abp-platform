@@ -198,6 +198,89 @@ function ModalEliminar({ curso, onConfirm, onCancel }) {
     )
 }
 
+// ── Modal importar estudiantes ────────────────────────────────────────────────
+
+function ModalImportarEstudiantes({ curso, onCerrar, onImportado }) {
+    const [archivo, setArchivo] = useState(null)
+    const [importando, setImportando] = useState(false)
+    const [resultado, setResultado] = useState(null)
+    const inputRef = useRef(null)
+
+    async function handleImportar() {
+        if (!archivo) return
+        setImportando(true)
+        setResultado(null)
+        try {
+            const data = await cursosAdminApi.importarEstudiantes(curso.id, archivo)
+            setResultado({ tipo: 'exito', data })
+            onImportado?.()
+        } catch (error) {
+            setResultado({ tipo: 'error', msg: error?.data?.detail ?? 'Error al procesar el archivo.' })
+        } finally {
+            setImportando(false)
+        }
+    }
+
+    return (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center z-50 p-4"
+            onClick={onCerrar}>
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden" onClick={e => e.stopPropagation()}>
+                <div className="p-6 border-b border-[#e1e3e4]">
+                    <h2 className="text-[19px] font-bold text-[#191c1d]">Importar estudiantes desde Excel</h2>
+                    <p className="text-[13px] text-[#9ba7ae] mt-0.5">Curso: <strong>{curso.nombre}</strong></p>
+                </div>
+
+                <div className="p-6 flex flex-col gap-4">
+                    <p className="text-[13px] text-[#4c616c]">
+                        Sube un archivo <strong>.xlsx</strong> con columnas: <code className="bg-[#f0f2f3] px-1 rounded text-[12px]">nombre, apellido, codigo, correo</code>
+                    </p>
+
+                    <label className="h-11 rounded-xl border-2 border-dashed border-[#e1e3e4] flex items-center justify-center gap-2 cursor-pointer hover:border-[#d32f2f] hover:bg-[#fff8f7] transition-all px-4 text-[13px] text-[#9ba7ae]">
+                        <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M2 12V14h12v-2M8 2v8M5 5l3-3 3 3" />
+                        </svg>
+                        <span className="truncate">{archivo ? archivo.name : 'Seleccionar archivo .xlsx / .xls'}</span>
+                        <input ref={inputRef} type="file" accept=".xlsx,.xls" className="hidden"
+                            onChange={e => { setArchivo(e.target.files[0] ?? null); setResultado(null) }} />
+                    </label>
+
+                    {resultado?.tipo === 'exito' && (
+                        <div className="rounded-xl bg-[#e8f5e9] border border-[#a5d6a7] p-4 flex flex-col gap-1">
+                            <p className="text-[13px] font-semibold text-[#2e7d32]">
+                                {resultado.data.matriculados} estudiante{resultado.data.matriculados !== 1 ? 's' : ''} matriculado{resultado.data.matriculados !== 1 ? 's' : ''}
+                            </p>
+                            {resultado.data.ya_matriculados > 0 && (
+                                <p className="text-[12px] text-[#558b2f]">{resultado.data.ya_matriculados} ya estaban matriculados</p>
+                            )}
+                            {resultado.data.no_encontrados?.length > 0 && (
+                                <p className="text-[12px] text-[#ba1a1a]">Códigos no encontrados: {resultado.data.no_encontrados.join(', ')}</p>
+                            )}
+                            {resultado.data.rol_incorrecto?.length > 0 && (
+                                <p className="text-[12px] text-[#f57c00]">Sin rol estudiante: {resultado.data.rol_incorrecto.join(', ')}</p>
+                            )}
+                        </div>
+                    )}
+                    {resultado?.tipo === 'error' && (
+                        <div className="rounded-xl bg-[#fff1f0] border border-[#ffcdd2] p-4">
+                            <p className="text-[13px] text-[#ba1a1a]">{resultado.msg}</p>
+                        </div>
+                    )}
+                </div>
+
+                <div className="flex gap-2 p-4 bg-[#f8f9fa] border-t border-[#e1e3e4]">
+                    <button onClick={onCerrar} className="flex-1 h-11 rounded-xl border-2 border-[#e1e3e4] text-[#4c616c] font-semibold text-[14px] hover:bg-white transition-colors">Cancelar</button>
+                    <button onClick={handleImportar} disabled={!archivo || importando}
+                        className="flex-1 h-11 rounded-xl bg-[#d32f2f] text-white font-semibold text-[14px] hover:bg-[#af101a] transition-colors disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                        {importando
+                            ? <><svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>Importando...</>
+                            : 'Importar'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    )
+}
+
 // ── Carga masiva ──────────────────────────────────────────────────────────────
 
 function CargaMasivaCursos({ onCargado }) {
@@ -298,6 +381,7 @@ export default function GestionCursosAdmin() {
     const [cursoEditando, setCursoEditando] = useState(null)
     const [cursoEliminar, setCursoEliminar] = useState(null)
     const [eliminando, setEliminando] = useState(false)
+    const [cursoImportando, setCursoImportando] = useState(null)
 
     useEffect(() => { cargarDatos() }, [])
 
@@ -416,6 +500,12 @@ export default function GestionCursosAdmin() {
                                                         <path d="M11 2l3 3-9 9H2v-3l9-9z" />
                                                     </svg>
                                                 </button>
+                                                <button onClick={() => setCursoImportando(c)}
+                                                    className="w-8 h-8 rounded-lg hover:bg-[#e8f5e9] flex items-center justify-center transition-colors" title="Importar estudiantes">
+                                                    <svg className="w-4 h-4 text-[#388e3c]" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                                        <path d="M8 10V2M5 7l3 3 3-3M2 12v1a1 1 0 001 1h10a1 1 0 001-1v-1" />
+                                                    </svg>
+                                                </button>
                                                 <button onClick={() => setCursoEliminar(c)}
                                                     className="w-8 h-8 rounded-lg hover:bg-[#fff1f0] flex items-center justify-center transition-colors" title="Eliminar">
                                                     <svg className="w-4 h-4 text-[#ba1a1a]" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -451,6 +541,14 @@ export default function GestionCursosAdmin() {
                     curso={cursoEliminar}
                     onConfirm={handleEliminar}
                     onCancel={() => setCursoEliminar(null)}
+                />
+            )}
+
+            {cursoImportando && (
+                <ModalImportarEstudiantes
+                    curso={cursoImportando}
+                    onCerrar={() => setCursoImportando(null)}
+                    onImportado={() => setCursoImportando(null)}
                 />
             )}
 

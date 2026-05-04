@@ -604,6 +604,39 @@ export const cursosAdminApi = {
     if (!response.ok) throw { status: response.status, data }
     return data
   },
+
+  async importarEstudiantes(cursoId, archivo) {
+    const formData = new FormData()
+    formData.append('archivo', archivo)
+
+    const authHeaders = () => {
+      const token = session.getAccess()
+      return token ? { Authorization: `Bearer ${token}` } : {}
+    }
+
+    const doFetch = () =>
+      fetch(`${BASE_URL}/api/cursos/${cursoId}/estudiantes/importar/`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: formData,
+      }).catch(() => { throw { type: 'network', message: 'Sin conexión con el servidor' } })
+
+    let response = await doFetch()
+
+    if (response.status === 401) {
+      const refreshed = await tryRefresh()
+      if (refreshed) {
+        response = await doFetch()
+      } else {
+        window.location.href = '/login'
+        throw { type: 'auth', message: 'Sesión expirada' }
+      }
+    }
+
+    const data = await parseJSON(response)
+    if (!response.ok) throw { status: response.status, data }
+    return data
+  },
 }
 
 // Helpers
