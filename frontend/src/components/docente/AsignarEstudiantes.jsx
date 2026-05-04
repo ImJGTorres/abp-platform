@@ -157,8 +157,7 @@ export default function AsignarEstudiantes() {
                                             />
                                             <div
                                                 className="w-9 h-9 rounded-full flex items-center justify-center text-white text-[11px] font-bold flex-shrink-0"
-                                                style={{ backgroundColor: colorFor(est.id) }}
-                                            >
+                                                style={{ backgroundColor: colorFor(est.id) }}>
                                                 {avatar(est.nombre, est.apellido)}
                                             </div>
                                             <div className="flex-1 min-w-0">
@@ -179,28 +178,27 @@ export default function AsignarEstudiantes() {
                             <p className="px-5 py-6 text-[13px] text-[#9ba7ae] text-center">Sin resultados para "{busqueda}"</p>
                         )}
 
-                        {/* Ya en el equipo */}
+                        {/* Ya en un proyecto */}
                         {(datos?.ya_en_equipo?.length ?? 0) > 0 && (
                             <div>
                                 <p className="px-5 pt-4 pb-2 text-[11px] font-bold text-[#9ba7ae] tracking-widest uppercase">
-                                    Ya en ({datos.ya_en_equipo.length})
+                                    Ya en un proyecto ({datos.ya_en_equipo.length})
                                 </p>
                                 {datos.ya_en_equipo.map(est => (
                                     <div key={est.id} className="flex items-center gap-3 px-5 py-3 opacity-60">
                                         <div className="w-4 h-4 flex-shrink-0" />
                                         <div
                                             className="w-9 h-9 rounded-full flex items-center justify-center text-white text-[11px] font-bold flex-shrink-0"
-                                            style={{ backgroundColor: colorFor(est.id) }}
-                                        >
+                                            style={{ backgroundColor: colorFor(est.id) }}>
                                             {avatar(est.nombre, est.apellido)}
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <p className="text-[13px] font-semibold text-[#191c1d] truncate">{est.nombre} {est.apellido}</p>
                                             <p className="text-[12px] text-[#9ba7ae] truncate">{est.correo}</p>
                                         </div>
-                                        <span className="flex items-center gap-1 text-[11px] font-semibold text-[#1976d2] flex-shrink-0">
-                                            <span className="w-1.5 h-1.5 rounded-full bg-[#1976d2]" />
-                                            EN EQUIPO
+                                        <span className="flex items-center gap-1 text-[11px] font-semibold text-[#9ba7ae] flex-shrink-0">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-[#9ba7ae]" />
+                                            EN PROYECTO
                                         </span>
                                     </div>
                                 ))}
@@ -218,8 +216,7 @@ export default function AsignarEstudiantes() {
                                         <div className="w-4 h-4 flex-shrink-0" />
                                         <div
                                             className="w-9 h-9 rounded-full flex items-center justify-center text-white text-[11px] font-bold flex-shrink-0"
-                                            style={{ backgroundColor: colorFor(est.id) }}
-                                        >
+                                            style={{ backgroundColor: colorFor(est.id) }}>
                                             {avatar(est.nombre, est.apellido)}
                                         </div>
                                         <div className="flex-1 min-w-0">
@@ -282,7 +279,9 @@ export default function AsignarEstudiantes() {
                                 </>
                             ) : (
                                 <>
-                                    <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M8 8a3 3 0 100-6 3 3 0 000 6zm-6 6s-1 0-1-1 1-4 7-4 7 3 7 4-1 1-1 1H2z" /></svg>
+                                    <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                                        <path d="M8 8a3 3 0 100-6 3 3 0 000 6zm-6 6s-1 0-1-1 1-4 7-4 7 3 7 4-1 1-1 1H2z" />
+                                    </svg>
                                     Asignar estudiantes
                                     {seleccionados.size > 0 && (
                                         <span className="bg-white text-[#d32f2f] text-[11px] font-bold w-5 h-5 rounded-full flex items-center justify-center">

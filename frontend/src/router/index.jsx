@@ -92,7 +92,7 @@ export default function AppRouter() {
             <Route path="/docente/cursos/:id/estudiantes" element={<EstudiantesCurso />} />
             <Route path="/docente/cursos/:id/equipos" element={<EquiposCurso />} />
             <Route path="/docente/cursos/:cursoId/proyectos/:proyectoId/equipo" element={<EquipoProyecto />} />
-            <Route path="/docente/cursos/:cursoId/proyectos/:proyectoId/reorganizar" element={<ReorganizarEquipos />} />
+            <Route path="/docente/cursos/:cursoId/reorganizar" element={<ReorganizarEquipos />} />
             <Route path="/docente/cursos/:cursoId/proyectos/:proyectoId/cronograma" element={<CronogramaHitos />} />
             <Route path="/docente/proyectos/:proyectoId/equipos" element={<GestionEquipos />} />
             <Route path="/docente/equipos/:equipoId/asignar" element={<AsignarEstudiantes />} />

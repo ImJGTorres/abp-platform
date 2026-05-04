@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { equiposApi, estudiantesApi } from '../../services/docenteApi'
+import { equiposApi, estudiantesApi, cursosApi } from '../../services/docenteApi'
 
 const AVATAR_COLORS = ['#d32f2f', '#1976d2', '#388e3c', '#7b1fa2', '#f57c00', '#0097a7', '#5d4037', '#37474f']
 const TEAM_COLORS   = ['#1976d2', '#388e3c', '#f57c00', '#7b1fa2', '#d32f2f', '#0097a7']
@@ -57,9 +57,11 @@ function MemberCard({ miembro, idx, onDragStart, onDragEnd }) {
     )
 }
 
-function TeamColumn({ equipo, colorIdx, isOver, onDragOver, onDragLeave, onDrop, onMemberDragStart, onDragEnd }) {
-    const miembros = equipo.miembros ?? []
+function TeamColumn({ proyecto, equipo, colorIdx, isOver, onDragOver, onDragLeave, onDrop, onMemberDragStart, onDragEnd }) {
+    const miembros = equipo?.miembros ?? []
     const color = TEAM_COLORS[colorIdx % TEAM_COLORS.length]
+    const nombre = equipo?.nombre ?? proyecto?.nombre ?? 'Proyecto sin equipo'
+    const tieneEntregables = equipo?.cantidad_entregables ?? 0
 
     return (
         <div
@@ -75,12 +77,12 @@ function TeamColumn({ equipo, colorIdx, isOver, onDragOver, onDragLeave, onDrop,
             <div>
                 <div className="flex items-center gap-2 mb-0.5">
                     <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
-                    <h3 className="text-[14px] font-bold text-[#191c1d] truncate">{equipo.nombre}</h3>
+                    <h3 className="text-[14px] font-bold text-[#191c1d] truncate">{nombre}</h3>
                 </div>
                 <p className="text-[11px] text-[#9ba7ae] pl-[18px]">
-                    {miembros.length} miembro{miembros.length !== 1 ? 's' : ''} · {equipo.cantidad_entregables} entregable{equipo.cantidad_entregables !== 1 ? 's' : ''}
+                    {miembros.length} miembro{miembros.length !== 1 ? 's' : ''}{tieneEntregables > 0 ? ` · ${tieneEntregables} entregable${tieneEntregables !== 1 ? 's' : ''}` : ''}
                 </p>
-                {equipo.cantidad_entregables > 0 && (
+                {tieneEntregables > 0 && (
                     <p className="text-[11px] text-[#b45309] font-medium pl-[18px] mt-0.5">
                         ⚠ No eliminar: tiene entregables
                     </p>
@@ -90,7 +92,7 @@ function TeamColumn({ equipo, colorIdx, isOver, onDragOver, onDragLeave, onDrop,
             <div className="flex flex-col gap-2 flex-1">
                 {miembros.length === 0 ? (
                     <div className="flex-1 flex items-center justify-center border border-dashed border-[#d1d3d4] rounded-xl py-6 text-[12px] text-[#9ba7ae]">
-                        Suelta un miembro aquí
+                        Suelta un estudiante aquí
                     </div>
                 ) : (
                     miembros.map((m, i) => (
@@ -109,45 +111,76 @@ function TeamColumn({ equipo, colorIdx, isOver, onDragOver, onDragLeave, onDrop,
 }
 
 export default function ReorganizarEquipos() {
-    const { cursoId, proyectoId } = useParams()
+    const { cursoId } = useParams()
     const navigate = useNavigate()
 
-    const [equipos, setEquipos]       = useState([])
-    const [sinAsignar, setSinAsignar] = useState([])
-    const [loading, setLoading]       = useState(true)
-    const [error, setError]           = useState(null)
-    const [moviendo, setMoviendo]     = useState(false)
-    const [aviso, setAviso]           = useState(null)
-    const [dropTarget, setDropTarget] = useState(null)
+    const [proyectos, setProyectos]       = useState([])
+    const [sinAsignar, setSinAsignar]     = useState([])
+    const [loading, setLoading]           = useState(true)
+    const [error, setError]               = useState(null)
+    const [moviendo, setMoviendo]         = useState(false)
+    const [aviso, setAviso]               = useState(null)
+    const [dropTarget, setDropTarget]     = useState(null)
 
     const dragRef = useRef(null)
 
-    useEffect(() => { cargarDatos() }, [proyectoId])
+     useEffect(() => { cargarDatos() }, [cursoId])
 
-    async function cargarDatos() {
-        setLoading(true)
-        setError(null)
-        try {
-            const [eqData, saData] = await Promise.all([
-                equiposApi.obtenerPorProyecto(proyectoId),
-                estudiantesApi.sinEquipoEnProyecto(cursoId, proyectoId),
-            ])
-            setEquipos(eqData.equipos ?? [])
-            setSinAsignar((saData ?? []).map(e => ({
-                ...e,
-                iniciales: (e.nombre?.[0] ?? '').toUpperCase() + (e.apellido?.[0] ?? '').toUpperCase(),
-                nombre_completo: `${e.nombre} ${e.apellido}`.trim(),
-                usuario_id: e.id,
-            })))
-        } catch {
-            setError('No se pudo cargar la información de equipos.')
-        } finally {
-            setLoading(false)
-        }
-    }
+     async function cargarDatos() {
+         setLoading(true)
+         setError(null)
+         try {
+             // Obtener proyectos del curso y sus equipos en paralelo
+             const [proyectosRes, todosEstudiantesRes] = await Promise.all([
+                 cursosApi.obtenerProyectos(cursoId),
+                 estudiantesApi.listarPorCurso(cursoId)
+             ])
+             
+             const listaProyectos = proyectosRes.results ?? proyectosRes
+             const todosEstudiantes = todosEstudiantesRes
 
-    function handleDragStart(e, miembro, origenEquipoId) {
-        dragRef.current = { miembro, origenEquipoId }
+             // Para cada proyecto, obtener su equipo (asumimos uno por proyecto)
+             // Ejecutamos en paralelo para mejorar rendimiento
+             const proyectosConEquipo = await Promise.all(
+                 listaProyectos.map(async p => {
+                     try {
+                         const dataEq = await equiposApi.obtenerPorProyecto(p.id)
+                         const equipo = dataEq.equipos?.[0] ?? null
+                         return { ...p, equipo }
+                     } catch {
+                         return { ...p, equipo: null }
+                     }
+                 })
+             )
+             setProyectos(proyectosConEquipo)
+
+             // Estudiantes sin equipo en este curso (sin asignar a ningún proyecto)
+             const estudiantesEnEquipos = new Set()
+             // Recorrer todos los equipos de todos los proyectos
+             for (const p of proyectosConEquipo) {
+                 if (p.equipo?.miembros) {
+                     for (const m of p.equipo.miembros) {
+                         if (m.usuario_id) estudiantesEnEquipos.add(m.usuario_id)
+                     }
+                 }
+             }
+             const sinEquipo = todosEstudiantes.filter(e => !estudiantesEnEquipos.has(e.id))
+             setSinAsignar(sinEquipo.map(e => ({
+                 ...e,
+                 iniciales: (e.nombre?.[0] ?? '').toUpperCase() + (e.apellido?.[0] ?? '').toUpperCase(),
+                 nombre_completo: `${e.nombre} ${e.apellido}`.trim(),
+                 usuario_id: e.id,
+             })))
+         } catch (err) {
+             console.error('Error cargando datos:', err)
+             setError('No se pudo cargar la información. Por favor, intente de nuevo.')
+         } finally {
+             setLoading(false)
+         }
+     }
+
+    function handleDragStart(e, miembro, origenProyectoId) {
+        dragRef.current = { miembro, origenProyectoId }
         e.dataTransfer.effectAllowed = 'move'
     }
 
@@ -168,44 +201,79 @@ export default function ReorganizarEquipos() {
         setDropTarget(null)
     }
 
-     async function handleDrop(e, destinoEquipoId) {
+      async function handleDrop(e, destinoProyectoId) {
         e.preventDefault()
         setDropTarget(null)
         const drag = dragRef.current
         dragRef.current = null
         if (!drag) return
 
-        const { miembro, origenEquipoId } = drag
-        if (origenEquipoId === destinoEquipoId) return
+        const { miembro, origenProyectoId } = drag
 
-        // No mover al único líder del equipo
-        if (origenEquipoId !== null && miembro.rol_interno === 'lider') {
-            const equipo = equipos.find(eq => eq.id === origenEquipoId)
-            const lideres = (equipo?.miembros ?? []).filter(m => m.rol_interno === 'lider')
-            if (lideres.length <= 1) {
-                setAviso('No puedes mover al único líder de un equipo.')
-                setTimeout(() => setAviso(null), 4000)
-                return
-            }
-        }
+        // No hacer nada si es el mismo destino
+        if (origenProyectoId === destinoProyectoId) return
 
         setMoviendo(true)
         setAviso(null)
         setError(null)
         try {
-            if (origenEquipoId === null) {
-                // Sin equipo → Equipo: asignar
-                await equiposApi.asignarEstudiantes(destinoEquipoId, [miembro.usuario_id])
-            } else if (destinoEquipoId === null) {
-                // Equipo → Sin equipo: retirar
-                await equiposApi.retirarMiembro(origenEquipoId, miembro.usuario_id)
-            } else {
-                // Equipo → Equipo: mover
-                await equiposApi.moverMiembro(origenEquipoId, miembro.usuario_id, destinoEquipoId)
+            // Caso 1: Sin proyecto -> Proyecto (asignar)
+            if (origenProyectoId === null && destinoProyectoId !== null) {
+                const proyDest = proyectos.find(p => p.id === destinoProyectoId)
+                if (!proyDest?.equipo) {
+                    setError("El proyecto destino no tiene equipo.")
+                    setMoviendo(false)
+                    return
+                }
+                const cupoMax = proyDest.equipo.cupo_maximo || 0
+                const actualMiembros = proyDest.equipo.miembros?.length || 0
+                if (actualMiembros >= cupoMax) {
+                    setError(`El equipo "${proyDest.equipo.nombre}" ya alcanzó su cupo máximo (${cupoMax}).`)
+                    setMoviendo(false)
+                    return
+                }
+                await equiposApi.asignarEstudiantes(proyDest.equipo.id, [miembro.usuario_id])
+            }
+            // Caso 2: Proyecto -> Sin proyecto (retirar)
+            else if (origenProyectoId !== null && destinoProyectoId === null) {
+                const proyOrigen = proyectos.find(p => p.id === origenProyectoId)
+                if (!proyOrigen?.equipo) {
+                    setError("El proyecto origen no tiene equipo.")
+                    setMoviendo(false)
+                    return
+                }
+                await equiposApi.retirarMiembro(proyOrigen.equipo.id, miembro.usuario_id)
+            }
+            // Caso 3: Proyecto -> Proyecto (mover)
+            else if (origenProyectoId !== null && destinoProyectoId !== null) {
+                const proyOrigen = proyectos.find(p => p.id === origenProyectoId)
+                const proyDest = proyectos.find(p => p.id === destinoProyectoId)
+                if (!proyOrigen?.equipo || !proyDest?.equipo) {
+                    setError("Uno de los proyectos no tiene equipo.")
+                    setMoviendo(false)
+                    return
+                }
+                const cupoMax = proyDest.equipo.cupo_maximo || 0
+                const actualMiembros = proyDest.equipo.miembros?.length || 0
+                if (actualMiembros >= cupoMax) {
+                    setError(`El equipo "${proyDest.equipo.nombre}" ya alcanzó su cupo máximo (${cupoMax}).`)
+                    setMoviendo(false)
+                    return
+                }
+                // Nota: como cada proyecto tiene su propio equipo y moverMiembro
+                // exige que ambos equipos sean del mismo proyecto, simulamos el movimiento
+                // retirando del equipo origen y asignando al equipo destino.
+                await equiposApi.retirarMiembro(proyOrigen.equipo.id, miembro.usuario_id)
+                await equiposApi.asignarEstudiantes(proyDest.equipo.id, [miembro.usuario_id])
+            }
+            // Caso 4: Sin proyecto -> Sin proyecto (no hacer nada)
+            else {
+                setMoviendo(false)
+                return
             }
             await cargarDatos()
         } catch (err) {
-            setError(err?.data?.detail ?? 'Error al mover el estudiante. Intenta de nuevo.')
+            setError(err?.data?.detail ?? "Error al procesar el movimiento.")
         } finally {
             setMoviendo(false)
         }
@@ -229,11 +297,10 @@ export default function ReorganizarEquipos() {
                     onClick={() => navigate(-1)}
                     className="text-[#9ba7ae] hover:text-[#4c616c] transition-colors flex items-center gap-1.5">
                     <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M10 3L5 8l5 5" /></svg>
-                    Equipos
+                    Proyectos
                 </button>
                 <svg className="w-3 h-3 text-[#9ba7ae]" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 3l5 5-5 5" /></svg>
-                <span className="font-semibold text-[#191c1d]">Reorganizar Equipos</span>
-                <span className="ml-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-[#e3f2fd] text-[#1565c0]">HU-013</span>
+                <span className="font-semibold text-[#191c1d]">Reorganizar Proyectos</span>
             </div>
 
             {/* Banner informativo */}
@@ -242,10 +309,8 @@ export default function ReorganizarEquipos() {
                     <circle cx="8" cy="8" r="6" /><path d="M8 7v4M8 5.5v.5" />
                 </svg>
                 <p className="leading-relaxed">
-                    <strong>Arrastra</strong> un miembro de un equipo a otro para reasignarlo. Los cambios usan{' '}
-                    <code className="bg-[#bbdefb] px-1 rounded text-[11px]">DELETE /api/miembros/:id/</code>{' '}+{' '}
-                    <code className="bg-[#bbdefb] px-1 rounded text-[11px]">POST /api/equipos/:id/miembros/</code>.{' '}
-                    No puedes mover al único líder de un equipo.
+                    <strong>Arrastra</strong> un estudiante para reasignarlo entre equipos. 
+                    Se valida el cupo máximo del equipo destino al mover entre proyectos.
                 </p>
             </div>
 
@@ -275,44 +340,45 @@ export default function ReorganizarEquipos() {
                 </div>
             )}
 
-            {/* Grid de equipos */}
+            {/* Grid de proyectos */}
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 mb-6">
-                {equipos.map((eq, i) => (
+                {proyectos.map((proy, i) => (
                     <TeamColumn
-                        key={eq.id}
-                        equipo={eq}
+                        key={proy.id}
+                        proyecto={proy}
+                        equipo={proy.equipo}
                         colorIdx={i}
-                        isOver={dropTarget === eq.id}
-                        onDragOver={e => handleDragOver(e, eq.id)}
+                        isOver={dropTarget === proy.id}
+                        onDragOver={e => handleDragOver(e, proy.id)}
                         onDragLeave={handleDragLeave}
-                        onDrop={e => handleDrop(e, eq.id)}
-                        onMemberDragStart={(e, m) => handleDragStart(e, m, eq.id)}
+                        onDrop={e => handleDrop(e, proy.id)}
+                        onMemberDragStart={(e, m) => handleDragStart(e, m, proy.id)}
                         onDragEnd={handleDragEnd}
                     />
                 ))}
             </div>
 
-            {/* Sin equipo asignado */}
+            {/* Estudiantes sin proyecto asignado (zona de drop) */}
             <div
-                onDragOver={e => handleDragOver(e, 'sin_asignar')}
+                onDragOver={e => handleDragOver(e, null)}
                 onDragLeave={handleDragLeave}
                 onDrop={e => handleDrop(e, null)}
-                className={`rounded-2xl border-2 border-dashed p-4 transition-all ${
-                    dropTarget === 'sin_asignar'
+                className={`rounded-2xl border-2 border-dashed p-4 transition-all mb-6 ${
+                    dropTarget === null
                         ? 'border-[#d32f2f] bg-[#fff8f7] shadow-md'
                         : 'border-[#e1e3e4] bg-[#f8f9fa]'
                 }`}
             >
                 <p className="text-[11px] font-bold text-[#9ba7ae] tracking-widest uppercase mb-3">
-                    SIN EQUIPO ASIGNADO ({sinAsignar.length})
+                    Sin proyecto asignado ({sinAsignar.length})
                 </p>
-                <div className="flex flex-wrap gap-2 min-h-[40px]">
-                    {sinAsignar.length === 0 ? (
-                        <p className="text-[13px] text-[#9ba7ae] py-1 self-center">
-                            Todos los estudiantes están asignados a un equipo.
-                        </p>
-                    ) : (
-                        sinAsignar.map((est, i) => (
+                {sinAsignar.length === 0 ? (
+                    <p className="text-[13px] text-[#9ba7ae] py-2 text-center">
+                        No hay estudiantes sin proyecto.
+                    </p>
+                ) : (
+                    <div className="flex flex-wrap gap-2">
+                        {sinAsignar.map((est, i) => (
                             <div
                                 key={est.id}
                                 draggable
@@ -325,9 +391,9 @@ export default function ReorganizarEquipos() {
                                     {est.nombre} {est.apellido}
                                 </span>
                             </div>
-                        ))
-                    )}
-                </div>
+                        ))}
+                    </div>
+                )}
             </div>
         </div>
     )
