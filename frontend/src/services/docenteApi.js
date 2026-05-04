@@ -1,6 +1,6 @@
 import { request } from './api'
 
-// ─── Parse helper (opcional si no lo exportas desde api.js) ───
+// ── Parse helper (opcional si no lo exportas desde api.js) ───
 async function parseJSON(response) {
     const text = await response.text()
     if (!text) return {}
@@ -12,16 +12,7 @@ async function parseJSON(response) {
 }
 
 // ─── Cursos (Docente) ─────────────────────────────────────────
-//Endpoints: GET /api/cursos/ (listar),
-// POST /api/cursos/ (crear),
-// PUT/PATCH /api/cursos/:id/ (editar),
-// DELETE /api/cursos/:id/ (eliminar)
-
-// Para proyectos dentro de un curso:
-// GET /api/cursos/:cursoId/proyectos/ (listar),
-// POST /api/cursos/:cursoId/proyectos/ (crear), PUT/PATCH /api/cursos/:cursoId/proyectos/:proyectoId/ (editar)
 export const cursosApi = {
-
     async listar() {
         const response = await request('/api/cursos/')
         const data = await parseJSON(response)
@@ -36,29 +27,6 @@ export const cursosApi = {
         return data
     },
 
-    async editar(id, campos) {
-        const response = await request(`/api/cursos/${id}/`, {
-            method: 'PUT', // usa PATCH si tu backend es parcial
-            body: JSON.stringify(campos),
-        })
-
-        const data = await parseJSON(response)
-        if (!response.ok) throw { status: response.status, data }
-        return data
-    },
-
-    async eliminar(id) {
-        const response = await request(`/api/cursos/${id}/`, {
-            method: 'DELETE',
-        })
-
-        if (!response.ok) {
-            const data = await parseJSON(response)
-            throw { status: response.status, data }
-        }
-    },
-
-    // ─── Proyectos dentro de un curso ───
     async obtenerProyectos(cursoId) {
         const response = await request(`/api/cursos/${cursoId}/proyectos/`)
         const data = await parseJSON(response)
@@ -95,11 +63,10 @@ export const cursosApi = {
             throw { status: response.status, data }
         }
     },
-
 }
-// ─── Proyectos (Objetivos y RAPs) ─────────────────────────────────────────────
-export const proyectosApi = {
 
+// ─── Proyectos (Objetivos, RAPs, Hitos) ────────────────────────
+export const proyectosApi = {
     // ── Objetivos ──
     async listarObjetivos(proyectoId) {
         const response = await request(`/api/proyectos/${proyectoId}/objetivos/`)
@@ -184,17 +151,18 @@ export const proyectosApi = {
         return data
     },
 
-    async crearHito(proyectoId, { nombre, descripcion, fecha_inicio, fecha_fin }) {
+    async crearHito(proyectoId, { nombre, descripcion, fecha_inicio, fecha_fin, responsable, estado }) {
+        const body = { nombre, descripcion, fecha_inicio, fecha_fin, responsable, estado }
         const response = await request(`/api/proyectos/${proyectoId}/hitos/`, {
             method: 'POST',
-            body: JSON.stringify({ nombre, descripcion, fecha_inicio, fecha_fin }),
+            body: JSON.stringify(body),
         })
         const data = await parseJSON(response)
         if (!response.ok) throw { status: response.status, data }
         return data
     },
 
-    async editarHito(_proyectoId, hitoId, campos) {
+    async actualizarHito(hitoId, campos) {
         const response = await request(`/api/hitos/${hitoId}/`, {
             method: 'PUT',
             body: JSON.stringify(campos),
@@ -204,21 +172,18 @@ export const proyectosApi = {
         return data
     },
 
-    async eliminarHito(_proyectoId, hitoId) {
+    async eliminarHito(hitoId) {
         const response = await request(`/api/hitos/${hitoId}/`, {
             method: 'DELETE',
         })
-        if (!response.ok) {
-            const data = await parseJSON(response)
-            throw { status: response.status, data }
-        }
+        if (response.status === 204) return
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
     },
 }
 
-
-// ─── Equipos ──────────────────────────────────────────────────────────────────
+// ─── Equipos ───────────────────────────────────────────────────
 export const equiposApi = {
-
     async obtenerPorProyecto(proyectoId) {
         const response = await request(`/api/proyectos/${proyectoId}/equipos/`)
         const data = await parseJSON(response)
@@ -293,12 +258,10 @@ export const equiposApi = {
         if (!response.ok) throw { status: response.status, data }
         return data
     },
-
 }
 
-// ─── Estudiantes del curso ─────────────────────────────────────────────────
+// ─── Estudiantes del curso ─────────────────────────────────────
 export const estudiantesApi = {
-
     async listarPorCurso(cursoId) {
         const response = await request(`/api/cursos/${cursoId}/estudiantes/`)
         const data = await parseJSON(response)
@@ -312,5 +275,4 @@ export const estudiantesApi = {
         if (!response.ok) throw { status: response.status, data }
         return data
     },
-
 }

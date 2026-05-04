@@ -103,7 +103,8 @@ function SidebarContent({ collapsed, user, userMenuOpen, setUserMenuOpen, loggin
     if (cursoId) {
         NAV_ITEMS.push(
             { label: 'Estudiantes', to: `/docente/cursos/${cursoId}/estudiantes`, icon: <IconUsers /> },
-            { label: 'Equipos', to: `/docente/cursos/${cursoId}`, icon: <IconTeam /> }
+            { label: 'Proyectos', to: `/docente/cursos/${cursoId}`, icon: <IconTeam /> },
+            { label: 'Reorganizar equipos', to: `/docente/cursos/${cursoId}/reorganizar`, icon: <IconTeam /> }
         )
     }
 

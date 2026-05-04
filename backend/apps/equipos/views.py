@@ -507,18 +507,14 @@ class EstudiantesDisponiblesView(generics.ListAPIView):
     def get_queryset(self):
         curso_id = self.kwargs['curso_id']
         proyecto_id = self.request.query_params.get('proyecto_id')
-        if not proyecto_id:
-            raise ValidationError("Se requiere el parámetro proyecto_id.")
-        proyecto = get_object_or_404(Proyecto, pk=proyecto_id, id_curso_id=curso_id)
-        ya_asignados = MiembroEquipo.objects.filter(
-            equipo__proyecto=proyecto, estado='activo'
-        ).values_list('usuario_id', flat=True)
-        return Usuario.objects.filter(tipo_rol='estudiante', estado='activo').exclude(id__in=ya_asignados)
-
-        return Usuario.objects.filter(
-            tipo_rol='estudiante',
-            estado='activo',
-        ).exclude(id__in=ya_asignados)
+        if proyecto_id:
+            proyecto = get_object_or_404(Proyecto, pk=proyecto_id, id_curso_id=curso_id)
+            ya_asignados = MiembroEquipo.objects.filter(
+                equipo__proyecto=proyecto, estado='activo'
+            ).values_list('usuario_id', flat=True)
+            return Usuario.objects.filter(tipo_rol='estudiante', estado='activo').exclude(id__in=ya_asignados)
+        # No proyecto_id provided: return all active students in the course
+        return Usuario.objects.filter(tipo_rol='estudiante', estado='activo')
 
 
 # PUT/PATCH /api/equipos/<equipo_id>/

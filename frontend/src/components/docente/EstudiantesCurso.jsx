@@ -234,19 +234,10 @@ export default function EstudiantesCurso() {
             const proyectosLista = proyectosData.results ?? proyectosData
             setProyectos(proyectosLista)
 
-            // Determinar proyectoId (usar primer proyecto activo, o el primero)
-            const proyectoActivo = proyectosLista.find(p => p.estado === 'activo') || proyectosLista[0]
-            const proyectoId = proyectoActivo?.id
-
-            let estudiantesData = { disponibles: [], en_equipo: [] }
-
-            if (proyectoId) {
-                // Obtener estudiantes disponibles para ese proyecto (requiere proyecto_id)
-                const disponibles = await estudiantesApi.sinEquipoEnProyecto(cursoId, proyectoId)
-                estudiantesData = { disponibles, en_equipo: [] }
-            }
-            // Si no hay proyectos, se mantienen arrays vacíos (se muestra mensaje)
-
+            // Obtener TODOS los estudiantes del curso con su situación de equipo
+            // listarPorCurso sin proyecto_id devuelve:
+            // { disponibles: [...], en_equipo: [...] }
+            const estudiantesData = await estudiantesApi.listarPorCurso(cursoId)
             setEstudiantes(estudiantesData)
         } catch (err) {
             console.error('Error cargando datos:', err)
@@ -279,8 +270,9 @@ export default function EstudiantesCurso() {
     const disponiblesFiltrados = useMemo(() => {
         if (!estudiantes) return []
         const q = busqueda.toLowerCase()
-        if (!q) return estudiantes.disponibles
-        return estudiantes.disponibles.filter(e =>
+        const disp = estudiantes.disponibles || []
+        if (!q) return disp
+        return disp.filter(e =>
             `${e.nombre} ${e.apellido}`.toLowerCase().includes(q) ||
             e.correo.toLowerCase().includes(q) ||
             (e.codigo_estudiante ?? '').toLowerCase().includes(q)
@@ -290,8 +282,9 @@ export default function EstudiantesCurso() {
     const enEquipoFiltrados = useMemo(() => {
         if (!estudiantes) return []
         const q = busqueda.toLowerCase()
-        if (!q) return estudiantes.en_equipo
-        return estudiantes.en_equipo.filter(e =>
+        const enEq = estudiantes.en_equipo || []
+        if (!q) return enEq
+        return enEq.filter(e =>
             `${e.nombre} ${e.apellido}`.toLowerCase().includes(q) ||
             e.correo.toLowerCase().includes(q) ||
             (e.codigo_estudiante ?? '').toLowerCase().includes(q)
@@ -423,34 +416,34 @@ export default function EstudiantesCurso() {
                             </div>
                         )}
 
-                        {/* Ya en equipo */}
-                        {enEquipoFiltrados.length > 0 && (
-                            <div>
-                                <p className="px-5 pt-4 pb-2 text-[11px] font-bold text-[#9ba7ae] tracking-widest uppercase">
-                                    Ya en equipo ({enEquipoFiltrados.length})
-                                </p>
-                                {enEquipoFiltrados.map(est => (
-                                    <div key={est.id} className="flex items-center gap-3 px-5 py-3 opacity-60">
-                                        <div className="w-4 h-4 flex-shrink-0" />
-                                        <div
-                                            className="w-9 h-9 rounded-full flex items-center justify-center text-white text-[11px] font-bold flex-shrink-0"
-                                            style={{ backgroundColor: colorFor(est.id) }}>
-                                            {iniciales(est.nombre, est.apellido)}
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-[13px] font-semibold text-[#191c1d] truncate">{est.nombre} {est.apellido}</p>
-                                            <p className="text-[12px] text-[#9ba7ae] truncate">
-                                                {est.equipos?.[0]?.equipo_nombre ?? ''} · {est.correo}
-                                            </p>
-                                        </div>
-                                        <span className="flex items-center gap-1 text-[11px] font-semibold text-[#1976d2] flex-shrink-0">
-                                            <span className="w-1.5 h-1.5 rounded-full bg-[#1976d2]" />
-                                            EN EQUIPO
-                                        </span>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
+                         {/* Ya en equipo (No disponibles) */}
+                         {enEquipoFiltrados.length > 0 && (
+                             <div>
+                                 <p className="px-5 pt-4 pb-2 text-[11px] font-bold text-[#9ba7ae] tracking-widest uppercase">
+                                     No disponibles ({enEquipoFiltrados.length})
+                                 </p>
+                                 {enEquipoFiltrados.map(est => (
+                                     <div key={est.id} className="flex items-center gap-3 px-5 py-3 opacity-50">
+                                         <div className="w-4 h-4 flex-shrink-0" />
+                                         <div
+                                             className="w-9 h-9 rounded-full flex items-center justify-center text-white text-[11px] font-bold flex-shrink-0"
+                                             style={{ backgroundColor: colorFor(est.id), opacity: 0.5 }}>
+                                             {iniciales(est.nombre, est.apellido)}
+                                         </div>
+                                         <div className="flex-1 min-w-0">
+                                             <p className="text-[13px] font-semibold text-[#9ba7ae] truncate">{est.nombre} {est.apellido}</p>
+                                             <p className="text-[12px] text-[#c8cdd1] truncate">
+                                                 {est.equipos?.[0]?.equipo_nombre ?? ''} · {est.correo}
+                                             </p>
+                                         </div>
+                                         <span className="flex items-center gap-1 text-[11px] font-semibold text-[#9ba7ae] flex-shrink-0">
+                                             <span className="w-1.5 h-1.5 rounded-full bg-[#9ba7ae]" />
+                                             NO DISPONIBLE
+                                         </span>
+                                     </div>
+                                 ))}
+                             </div>
+                         )}
 
                         {disponiblesFiltrados.length === 0 && enEquipoFiltrados.length === 0 && (
                             <p className="px-5 py-10 text-[13px] text-[#9ba7ae] text-center">
