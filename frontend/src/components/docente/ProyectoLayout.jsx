@@ -68,6 +68,15 @@ function IconCalendar() {
     )
 }
 
+function IconUsers() {
+    return (
+        <svg viewBox="0 0 20 20" fill="none" className="w-5 h-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="8" cy="6" r="3" /><path d="M1 17a7 7 0 0114 0" />
+            <circle cx="15" cy="7" r="2.5" /><path d="M15 13c2.5 0 4 1.5 4 4" />
+        </svg>
+    )
+}
+
 function navLinkClass({ isActive }) {
     const base = 'flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] font-medium transition-all duration-150 select-none cursor-pointer'
     return isActive
@@ -81,6 +90,7 @@ function SidebarContent({ collapsed, user, userMenuOpen, setUserMenuOpen, loggin
         { label: 'Objetivos', to: `/docente/proyectos/${proyectoId}/objetivos`, icon: <IconTarget /> },
         { label: 'Resultados de Aprendizaje', to: `/docente/proyectos/${proyectoId}/raps`, icon: <IconClipboard /> },
         { label: 'Cronograma', to: `/docente/proyectos/${proyectoId}/cronograma`, icon: <IconCalendar /> },
+        { label: 'Perfiles y Roles', to: `/docente/proyectos/${proyectoId}/perfiles-roles`, icon: <IconUsers /> },
     ]
 
     return (

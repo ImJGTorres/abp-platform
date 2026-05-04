@@ -1,5 +1,6 @@
 import io
 
+from django.db import transaction
 from django.shortcuts import get_object_or_404
 
 from rest_framework import generics, status
@@ -16,7 +17,7 @@ from apps.equipos.models import MiembroEquipo
 from apps.usuarios.models import Usuario
 from apps.usuarios.serializers import UsuarioSerializer
 from apps.usuarios.authentication import UsuarioJWTAuthentication
-from .models import Curso, HitoProyecto, ObjetivoProyecto, Proyecto, ResultadoAprendizaje
+from .models import Curso, CursoEstudiante, HitoProyecto, ObjetivoProyecto, Proyecto, ResultadoAprendizaje
 from .permissions import EsAdministrador, EsDocente, EsDocenteOAdministrador
 from .serializers import (
     CursoAdminCreateSerializer,
@@ -646,6 +647,99 @@ class HitoDetailView(generics.RetrieveUpdateDestroyAPIView):
         )
         self.perform_destroy(instance)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# ---------------------------------------------------------------------------
+# Estudiantes del curso (CursoEstudiante)
+# ---------------------------------------------------------------------------
+
+class CursoEstudianteView(APIView):
+    """
+    GET  /api/cursos/<curso_id>/estudiantes/ — lista estudiantes inscritos con su estado.
+    POST /api/cursos/<curso_id>/estudiantes/ — inscribe un estudiante al curso.
+    """
+    authentication_classes = [UsuarioJWTAuthentication]
+    permission_classes = [EsDocenteOAdministrador]
+
+    def _get_curso(self, curso_id):
+        return get_object_or_404(Curso, pk=curso_id)
+
+    def get(self, request, curso_id):
+        curso = self._get_curso(curso_id)
+
+        inscripciones = (
+            CursoEstudiante.objects
+            .filter(curso=curso, estado='activo')
+            .select_related('estudiante')
+        )
+
+        # Estudiantes con equipo activo en algún proyecto de este curso
+        from apps.equipos.models import MiembroEquipo as _MiembroEquipo
+        membresias = (
+            _MiembroEquipo.objects
+            .filter(equipo__proyecto__id_curso=curso, estado='activo')
+            .select_related('usuario', 'equipo__proyecto')
+        )
+        en_proyecto = {}
+        for m in membresias:
+            uid = m.usuario_id
+            if uid not in en_proyecto:
+                en_proyecto[uid] = {'id': m.equipo.proyecto.id, 'nombre': m.equipo.proyecto.nombre}
+
+        result = []
+        for ins in inscripciones:
+            est = ins.estudiante
+            proyecto_data = en_proyecto.get(est.id)
+            result.append({
+                'id': est.id,
+                'nombre': est.nombre,
+                'apellido': est.apellido,
+                'correo': est.correo,
+                'codigo_estudiante': getattr(est, 'codigo_estudiante', '') or '',
+                'estado_en_curso': 'en_proyecto' if proyecto_data else 'disponible',
+                'proyecto': proyecto_data,
+            })
+
+        return Response(result)
+
+    def post(self, request, curso_id):
+        curso = self._get_curso(curso_id)
+        estudiante_id = request.data.get('estudiante_id')
+        if not estudiante_id:
+            return Response({'detail': 'Se requiere estudiante_id.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        estudiante = get_object_or_404(Usuario, pk=estudiante_id, tipo_rol='estudiante')
+
+        try:
+            with transaction.atomic():
+                inscripcion, creado = CursoEstudiante.objects.get_or_create(
+                    curso=curso,
+                    estudiante=estudiante,
+                    defaults={'estado': 'activo'},
+                )
+                if not creado and inscripcion.estado != 'activo':
+                    inscripcion.estado = 'activo'
+                    inscripcion.save(update_fields=['estado'])
+        except Exception:
+            return Response(
+                {'detail': 'No se pudo inscribir al estudiante.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            registrar_evento(
+                request=request,
+                accion=BitacoraSistema.Accion.CREATE,
+                modulo='cursos',
+                descripcion=f'Estudiante ID={estudiante.id} inscrito en curso ID={curso.id}',
+            )
+        except Exception:
+            pass
+
+        return Response(
+            {'detail': 'Estudiante inscrito correctamente.'},
+            status=status.HTTP_201_CREATED,
+        )
 
 
 # ---------------------------------------------------------------------------

@@ -78,6 +78,28 @@ class Proyecto(models.Model):
         return f'{self.nombre} ({self.id_curso})'
 
 
+class CursoEstudiante(models.Model):
+    curso = models.ForeignKey(
+        Curso,
+        on_delete=models.CASCADE,
+        related_name='estudiantes',
+    )
+    estudiante = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='cursos_inscritos',
+    )
+    fecha_inscripcion = models.DateTimeField(auto_now_add=True)
+    estado = models.CharField(max_length=20, default='activo')  # activo | inactivo
+
+    class Meta:
+        db_table = 'curso_estudiante'
+        unique_together = ('curso', 'estudiante')
+
+    def __str__(self):
+        return f'{self.estudiante} en {self.curso}'
+
+
 class ObjetivoProyecto(models.Model):
     """
     Objetivo asociado a un proyecto (general o específico).

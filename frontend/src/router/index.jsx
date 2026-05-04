@@ -25,6 +25,7 @@ import ObjetivosProyecto from '../components/docente/ObjetivosProyecto'
 import RAPsProyecto from '../components/docente/RAPsProyecto'
 import ProyectoLayout from '../components/docente/ProyectoLayout'
 import CronogramaProyecto from '../components/docente/CronogramaProyecto'
+import PerfilesRolesProyecto from '../components/docente/PerfilesRolesProyecto'
 import EquipoProyecto from '../components/docente/EquipoProyecto'
 import ReorganizarEquipos from '../components/docente/ReorganizarEquipos'
 import CronogramaHitos from '../components/docente/CronogramaHitos'
@@ -102,6 +103,7 @@ export default function AppRouter() {
             <Route path="/docente/proyectos/:proyectoId/objetivos" element={<ObjetivosProyecto />} />
             <Route path="/docente/proyectos/:proyectoId/raps" element={<RAPsProyecto />} />
             <Route path="/docente/proyectos/:proyectoId/cronograma" element={<CronogramaProyecto />} />
+            <Route path="/docente/proyectos/:proyectoId/perfiles-roles" element={<PerfilesRolesProyecto />} />
           </Route>
         </Route>
 

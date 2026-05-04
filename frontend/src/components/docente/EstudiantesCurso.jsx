@@ -229,16 +229,21 @@ export default function EstudiantesCurso() {
         setError(null)
         setSeleccionados(new Set())
         try {
-            // Cargar proyectos del curso
             const proyectosData = await cursosApi.obtenerProyectos(cursoId)
             const proyectosLista = proyectosData.results ?? proyectosData
             setProyectos(proyectosLista)
 
-            // Obtener TODOS los estudiantes del curso con su situación de equipo
-            // listarPorCurso sin proyecto_id devuelve:
-            // { disponibles: [...], en_equipo: [...] }
-            const estudiantesData = await estudiantesApi.listarPorCurso(cursoId)
-            setEstudiantes(estudiantesData)
+            const rawData = await estudiantesApi.listarPorCurso(cursoId)
+            // Nueva respuesta: array plano con estado_en_curso
+            if (Array.isArray(rawData)) {
+                setEstudiantes({
+                    disponibles: rawData.filter(e => e.estado_en_curso === 'disponible'),
+                    en_equipo: rawData.filter(e => e.estado_en_curso === 'en_proyecto'),
+                })
+            } else {
+                // compatibilidad con respuesta anterior { disponibles, en_equipo }
+                setEstudiantes(rawData)
+            }
         } catch (err) {
             console.error('Error cargando datos:', err)
             setError(err?.data?.detail ?? err?.message ?? 'No se pudo cargar la información del curso.')
@@ -416,29 +421,31 @@ export default function EstudiantesCurso() {
                             </div>
                         )}
 
-                         {/* Ya en equipo (No disponibles) */}
+                         {/* En proyecto */}
                          {enEquipoFiltrados.length > 0 && (
                              <div>
                                  <p className="px-5 pt-4 pb-2 text-[11px] font-bold text-[#9ba7ae] tracking-widest uppercase">
-                                     No disponibles ({enEquipoFiltrados.length})
+                                     En proyecto ({enEquipoFiltrados.length})
                                  </p>
                                  {enEquipoFiltrados.map(est => (
-                                     <div key={est.id} className="flex items-center gap-3 px-5 py-3 opacity-50">
+                                     <div key={est.id} className="flex items-center gap-3 px-5 py-3 opacity-60">
                                          <div className="w-4 h-4 flex-shrink-0" />
                                          <div
                                              className="w-9 h-9 rounded-full flex items-center justify-center text-white text-[11px] font-bold flex-shrink-0"
-                                             style={{ backgroundColor: colorFor(est.id), opacity: 0.5 }}>
+                                             style={{ backgroundColor: colorFor(est.id), opacity: 0.6 }}>
                                              {iniciales(est.nombre, est.apellido)}
                                          </div>
                                          <div className="flex-1 min-w-0">
                                              <p className="text-[13px] font-semibold text-[#9ba7ae] truncate">{est.nombre} {est.apellido}</p>
                                              <p className="text-[12px] text-[#c8cdd1] truncate">
-                                                 {est.equipos?.[0]?.equipo_nombre ?? ''} · {est.correo}
+                                                 {est.codigo_estudiante ? `${est.codigo_estudiante} · ` : ''}{est.correo}
                                              </p>
                                          </div>
-                                         <span className="flex items-center gap-1 text-[11px] font-semibold text-[#9ba7ae] flex-shrink-0">
-                                             <span className="w-1.5 h-1.5 rounded-full bg-[#9ba7ae]" />
-                                             NO DISPONIBLE
+                                         <span className="flex items-center gap-1 text-[11px] font-semibold text-[#1565c0] flex-shrink-0 max-w-[160px]">
+                                             <span className="w-1.5 h-1.5 rounded-full bg-[#1565c0] flex-shrink-0" />
+                                             <span className="truncate">
+                                                 {est.proyecto ? `EN PROYECTO: ${est.proyecto.nombre}` : 'EN PROYECTO'}
+                                             </span>
                                          </span>
                                      </div>
                                  ))}
@@ -447,7 +454,9 @@ export default function EstudiantesCurso() {
 
                         {disponiblesFiltrados.length === 0 && enEquipoFiltrados.length === 0 && (
                             <p className="px-5 py-10 text-[13px] text-[#9ba7ae] text-center">
-                                {busqueda ? `Sin resultados para "${busqueda}"` : 'No hay estudiantes registrados.'}
+                                {busqueda
+                                    ? `Sin resultados para "${busqueda}"`
+                                    : 'No hay estudiantes inscritos en este curso.'}
                             </p>
                         )}
 
@@ -474,7 +483,7 @@ export default function EstudiantesCurso() {
                                 </span>
                             </div>
                             <div className="flex items-center justify-between">
-                                <span className="text-[12px] text-[#5b403d] font-medium">Ya en equipo</span>
+                                <span className="text-[12px] text-[#5b403d] font-medium">En proyecto</span>
                                 <span className="text-[12px] font-bold text-[#191c1d]">
                                     {estudiantes?.en_equipo?.length ?? 0}
                                 </span>
