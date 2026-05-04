@@ -1,5 +1,6 @@
 import io
 
+from django.db import transaction
 from django.shortcuts import get_object_or_404
 
 from rest_framework import generics, status
@@ -16,7 +17,7 @@ from apps.equipos.models import MiembroEquipo
 from apps.usuarios.models import Usuario
 from apps.usuarios.serializers import UsuarioSerializer
 from apps.usuarios.authentication import UsuarioJWTAuthentication
-from .models import Curso, HitoProyecto, ObjetivoProyecto, Proyecto, ResultadoAprendizaje
+from .models import Curso, CursoEstudiante, HitoProyecto, ObjetivoProyecto, Proyecto, ResultadoAprendizaje
 from .permissions import EsAdministrador, EsDocente, EsDocenteOAdministrador
 from .serializers import (
     CursoAdminCreateSerializer,
@@ -305,6 +306,103 @@ class CursoCargaMasivaView(APIView):
         )
 
         return Response({'creados': creados, 'omitidos': omitidos, 'errores': errores}, status=status.HTTP_200_OK)
+
+
+# ---------------------------------------------------------------------------
+# Matrícula masiva de estudiantes por Excel (admin)
+# ---------------------------------------------------------------------------
+
+class CursoMatriculaExcelView(APIView):
+    """POST /api/cursos/<curso_id>/estudiantes/importar/ — matricula estudiantes desde Excel."""
+    authentication_classes = [UsuarioJWTAuthentication]
+    permission_classes = [EsAdministrador]
+    parser_classes = [MultiPartParser]
+
+    def post(self, request, curso_id):
+        curso = get_object_or_404(Curso, pk=curso_id)
+
+        archivo = request.FILES.get('archivo')
+        if not archivo:
+            return Response({'detail': 'Se requiere un archivo Excel.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not archivo.name.lower().endswith(('.xlsx', '.xls')):
+            return Response({'detail': 'El archivo debe ser formato .xlsx o .xls.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            import openpyxl
+            wb = openpyxl.load_workbook(io.BytesIO(archivo.read()), data_only=True)
+            ws = wb.active
+        except Exception:
+            return Response({'detail': 'No se pudo leer el archivo Excel.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        raw_headers = [cell.value for cell in next(ws.iter_rows(min_row=1, max_row=1))]
+        headers = [str(h).strip().lower() if h is not None else '' for h in raw_headers]
+
+        if 'codigo' not in headers:
+            return Response(
+                {'detail': 'El archivo no contiene la columna requerida: "codigo".'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        col_idx = {h: i for i, h in enumerate(headers)}
+
+        matriculados = []
+        ya_matriculados = []
+        no_encontrados = []
+        rol_incorrecto = []
+
+        try:
+            with transaction.atomic():
+                for row in ws.iter_rows(min_row=2, values_only=True):
+                    if not any(row):
+                        continue
+
+                    raw = row[col_idx['codigo']]
+                    codigo = str(raw).strip() if raw is not None else ''
+                    if not codigo or codigo.lower() == 'none':
+                        continue
+
+                    try:
+                        usuario = Usuario.objects.get(codigo_estudiante=codigo)
+                    except Usuario.DoesNotExist:
+                        no_encontrados.append(codigo)
+                        continue
+
+                    if getattr(usuario, 'tipo_rol', None) != 'estudiante':
+                        rol_incorrecto.append(codigo)
+                        continue
+
+                    if CursoEstudiante.objects.filter(curso=curso, estudiante=usuario).exists():
+                        ya_matriculados.append(codigo)
+                        continue
+
+                    CursoEstudiante.objects.create(curso=curso, estudiante=usuario, estado='activo')
+                    matriculados.append(codigo)
+
+        except Exception as e:
+            return Response({'detail': f'Error procesando el archivo: {e}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        try:
+            registrar_evento(
+                request=request,
+                accion=BitacoraSistema.Accion.CREATE,
+                modulo='cursos',
+                descripcion=(
+                    f'Matrícula masiva en curso ID={curso_id}: '
+                    f'{len(matriculados)} matriculados, {len(ya_matriculados)} ya matriculados, '
+                    f'{len(no_encontrados)} no encontrados'
+                ),
+            )
+        except Exception:
+            pass
+
+        return Response({
+            'matriculados': len(matriculados),
+            'ya_matriculados': len(ya_matriculados),
+            'no_encontrados': no_encontrados,
+            'rol_incorrecto': rol_incorrecto,
+            'errores': [],
+        }, status=status.HTTP_200_OK)
 
 
 # ---------------------------------------------------------------------------
@@ -646,6 +744,99 @@ class HitoDetailView(generics.RetrieveUpdateDestroyAPIView):
         )
         self.perform_destroy(instance)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# ---------------------------------------------------------------------------
+# Estudiantes del curso (CursoEstudiante)
+# ---------------------------------------------------------------------------
+
+class CursoEstudianteView(APIView):
+    """
+    GET  /api/cursos/<curso_id>/estudiantes/ — lista estudiantes inscritos con su estado.
+    POST /api/cursos/<curso_id>/estudiantes/ — inscribe un estudiante al curso.
+    """
+    authentication_classes = [UsuarioJWTAuthentication]
+    permission_classes = [EsDocenteOAdministrador]
+
+    def _get_curso(self, curso_id):
+        return get_object_or_404(Curso, pk=curso_id)
+
+    def get(self, request, curso_id):
+        curso = self._get_curso(curso_id)
+
+        inscripciones = (
+            CursoEstudiante.objects
+            .filter(curso=curso, estado='activo')
+            .select_related('estudiante')
+        )
+
+        # Estudiantes con equipo activo en algún proyecto de este curso
+        from apps.equipos.models import MiembroEquipo as _MiembroEquipo
+        membresias = (
+            _MiembroEquipo.objects
+            .filter(equipo__proyecto__id_curso=curso, estado='activo')
+            .select_related('usuario', 'equipo__proyecto')
+        )
+        en_proyecto = {}
+        for m in membresias:
+            uid = m.usuario_id
+            if uid not in en_proyecto:
+                en_proyecto[uid] = {'id': m.equipo.proyecto.id, 'nombre': m.equipo.proyecto.nombre}
+
+        result = []
+        for ins in inscripciones:
+            est = ins.estudiante
+            proyecto_data = en_proyecto.get(est.id)
+            result.append({
+                'id': est.id,
+                'nombre': est.nombre,
+                'apellido': est.apellido,
+                'correo': est.correo,
+                'codigo_estudiante': getattr(est, 'codigo_estudiante', '') or '',
+                'estado_en_curso': 'en_proyecto' if proyecto_data else 'disponible',
+                'proyecto': proyecto_data,
+            })
+
+        return Response(result)
+
+    def post(self, request, curso_id):
+        curso = self._get_curso(curso_id)
+        estudiante_id = request.data.get('estudiante_id')
+        if not estudiante_id:
+            return Response({'detail': 'Se requiere estudiante_id.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        estudiante = get_object_or_404(Usuario, pk=estudiante_id, tipo_rol='estudiante')
+
+        try:
+            with transaction.atomic():
+                inscripcion, creado = CursoEstudiante.objects.get_or_create(
+                    curso=curso,
+                    estudiante=estudiante,
+                    defaults={'estado': 'activo'},
+                )
+                if not creado and inscripcion.estado != 'activo':
+                    inscripcion.estado = 'activo'
+                    inscripcion.save(update_fields=['estado'])
+        except Exception:
+            return Response(
+                {'detail': 'No se pudo inscribir al estudiante.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            registrar_evento(
+                request=request,
+                accion=BitacoraSistema.Accion.CREATE,
+                modulo='cursos',
+                descripcion=f'Estudiante ID={estudiante.id} inscrito en curso ID={curso.id}',
+            )
+        except Exception:
+            pass
+
+        return Response(
+            {'detail': 'Estudiante inscrito correctamente.'},
+            status=status.HTTP_201_CREATED,
+        )
 
 
 # ---------------------------------------------------------------------------

@@ -51,7 +51,7 @@ function Avatar({ iniciales, colorIndex, size = 'sm' }) {
  *   onClose   — cierra el modal
  *   onAgregar — callback al pulsar "Asignar estudiante"
  */
-export default function ModalDetalleEquipo({ titulo, subtitulo, colorIndex = 0, equipo, onClose, onAgregar, onPerfilesYRoles, onReorganizar, onCronograma }) {
+export default function ModalDetalleEquipo({ titulo, subtitulo, colorIndex = 0, equipo, onClose, onAgregar }) {
     const [tab, setTab] = useState('miembros')
     const color   = TEAM_COLORS[colorIndex % TEAM_COLORS.length]
     const miembros = equipo?.miembros ?? []
@@ -75,28 +75,6 @@ export default function ModalDetalleEquipo({ titulo, subtitulo, colorIndex = 0, 
                     <button onClick={onClose}
                         className="w-8 h-8 rounded-xl text-[#9ba7ae] hover:bg-[#f0f2f3] hover:text-[#191c1d] flex items-center justify-center transition-colors flex-shrink-0">
                         <IconX />
-                    </button>
-                </div>
-
-                {/* Acciones */}
-                <div className="px-6 pt-4 pb-3 flex items-center gap-2 flex-wrap border-b border-[#f0f2f3]">
-                    <button onClick={onAgregar}
-                        className="flex items-center gap-1.5 h-9 px-4 rounded-xl border border-[#e1e3e4] text-[#4c616c] text-[13px] font-semibold hover:bg-[#f0f2f3] transition-colors">
-                        <IconPlus /> Asignar estudiante
-                    </button>
-                    <button onClick={onPerfilesYRoles}
-                        className="flex items-center gap-1.5 h-9 px-4 rounded-xl border border-[#e1e3e4] text-[#4c616c] text-[13px] font-semibold hover:bg-[#f0f2f3] transition-colors">
-                        <IconPerson /> Perfiles y roles
-                    </button>
-                    <button onClick={onReorganizar}
-                        className="flex items-center gap-1.5 h-9 px-4 rounded-xl border border-[#e1e3e4] text-[#4c616c] text-[13px] font-semibold hover:bg-[#f0f2f3] transition-colors">
-                        <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M2 5h12M2 11h12M5 2l-3 3 3 3M11 14l3-3-3-3"/></svg>
-                        Reorganizar
-                    </button>
-                    <button onClick={onCronograma}
-                        className="flex items-center gap-1.5 h-9 px-4 rounded-xl border border-[#e1e3e4] text-[#4c616c] text-[13px] font-semibold hover:bg-[#f0f2f3] transition-colors">
-                        <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M2 6h12M5 2v2M11 2v2M5 9h2M9 9h2M5 12h2"/></svg>
-                        Cronograma de hitos
                     </button>
                 </div>
 
@@ -125,7 +103,7 @@ export default function ModalDetalleEquipo({ titulo, subtitulo, colorIndex = 0, 
                                 <table className="w-full">
                                     <thead>
                                         <tr className="border-b border-[#e1e3e4]">
-                                            {['ESTUDIANTE', 'CORREO', 'ROL EN EQUIPO', 'ESTADO', 'INCORPORACIÓN', 'ACCIONES'].map(h => (
+                                            {['ESTUDIANTE', 'CORREO', 'ROL EN EQUIPO', 'ESTADO', 'INCORPORACIÓN'].map(h => (
                                                 <th key={h} className="px-5 py-3 text-left text-[11px] font-semibold text-[#9ba7ae] tracking-wide whitespace-nowrap">{h}</th>
                                             ))}
                                         </tr>
@@ -149,11 +127,6 @@ export default function ModalDetalleEquipo({ titulo, subtitulo, colorIndex = 0, 
                                                 </td>
                                                 <td className="px-5 py-3.5 text-[13px] text-[#5b403d] whitespace-nowrap">
                                                     {formatFecha(m.fecha_asignacion)}
-                                                </td>
-                                                <td className="px-5 py-3.5">
-                                                    <button className="flex items-center gap-1.5 h-7 px-3 rounded-lg border border-[#e1e3e4] text-[#4c616c] text-[12px] font-semibold hover:bg-[#f0f2f3] transition-colors">
-                                                        <IconPerson /> Perfil
-                                                    </button>
                                                 </td>
                                             </tr>
                                         ))}
