@@ -52,7 +52,6 @@ INSTALLED_APPS = [
     'apps.configuracion',
     'apps.cursos',
     'apps.equipos',
-    'apps.actividades',
     'apps.entregables',
 ]
 
@@ -251,4 +250,10 @@ DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='ABP Platform <noreply
 # ARCHIVOS DE MEDIA (fotos de perfil, etc.)
 # =============================================================================
 MEDIA_URL  = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_ROOT = BASE_DIR / 'media'  # TODO: configurar S3 en producción vía env vars
+
+# Límite de tamaño de archivos adjuntos: 10 MB
+MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024
+
+# Subdirectorio para archivos adjuntos de entregables
+ENTREGABLES_UPLOAD_DIR = 'entregables/archivos/'

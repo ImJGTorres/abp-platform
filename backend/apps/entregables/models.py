@@ -1,3 +1,7 @@
+import os
+import uuid
+
+from django.conf import settings
 from django.db import models
 
 
@@ -17,7 +21,7 @@ class Entregable(models.Model):
     ]
 
     id_actividad = models.ForeignKey(
-        'actividades.Actividad',
+        'cursos.Actividad',
         on_delete=models.PROTECT,
         related_name='entregables',
     )
@@ -38,3 +42,38 @@ class Entregable(models.Model):
 
     def __str__(self):
         return f'{self.titulo} ({self.estado})'
+
+
+class ArchivoAdjunto(models.Model):
+    id_entregable = models.ForeignKey(
+        Entregable,
+        on_delete=models.PROTECT,
+        related_name='archivos',
+    )
+    id_usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name='archivos_subidos',
+    )
+    nombre_original = models.CharField(max_length=255)
+    nombre_almacenado = models.CharField(max_length=255)
+    ruta = models.CharField(max_length=500)
+    tipo_mime = models.CharField(max_length=100)
+    tamaño_bytes = models.BigIntegerField()
+    version = models.PositiveIntegerField(default=1)
+    fecha_subida = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'archivo_adjunto'
+        ordering = ['-fecha_subida']
+
+    def save(self, *args, **kwargs):
+        if not self.pk:
+            max_version = ArchivoAdjunto.objects.filter(
+                id_entregable=self.id_entregable
+            ).aggregate(models.Max('version'))['version__max'] or 0
+            self.version = max_version + 1
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f'{self.nombre_original} (v{self.version})'

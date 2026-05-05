@@ -7,7 +7,7 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('actividades', '0001_initial'),
+        ('cursos', '0014_actividad_actividaddependencia'),
         ('equipos', '0002_miembroequipo'),
     ]
 
@@ -43,7 +43,7 @@ class Migration(migrations.Migration):
                 ('id_actividad', models.ForeignKey(
                     on_delete=django.db.models.deletion.PROTECT,
                     related_name='entregables',
-                    to='actividades.actividad',
+                    to='cursos.actividad',
                 )),
                 ('id_equipo', models.ForeignKey(
                     on_delete=django.db.models.deletion.PROTECT,

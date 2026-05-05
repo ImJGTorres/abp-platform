@@ -1,19 +1,29 @@
+import uuid
+
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
 from rest_framework import generics, status
 from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from apps.actividades.models import Actividad
+from apps.cursos.models import Actividad
 from apps.bitacora.models import BitacoraSistema
 from apps.equipos.models import MiembroEquipo
 from apps.usuarios.authentication import UsuarioJWTAuthentication
 
-from .models import Entregable
-from .serializers import EntregableCreateSerializer, EntregableSerializer
+from .models import ArchivoAdjunto, Entregable
+from .serializers import (
+    ArchivoAdjuntoSerializer,
+    EntregableCreateSerializer,
+    EntregableSerializer,
+    SubirArchivoSerializer,
+)
 
 
 class EntregableListCreateView(generics.ListCreateAPIView):
@@ -136,3 +146,86 @@ class EnviarEntregableView(generics.UpdateAPIView):
                 pass
 
         return Response(EntregableSerializer(entregable).data, status=status.HTTP_200_OK)
+
+
+class ArchivoListCreateView(generics.GenericAPIView):
+    authentication_classes = [UsuarioJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def get_serializer_class(self):
+        if self.request.method == 'POST':
+            return SubirArchivoSerializer
+        return ArchivoAdjuntoSerializer
+
+    def get(self, request, id_entregable):
+        entregable = get_object_or_404(Entregable, pk=id_entregable)
+        usuario = request.user
+        tipo_rol = usuario.tipo_rol
+        proyecto = entregable.id_actividad.id_fase.id_proyecto
+
+        if tipo_rol == 'docente':
+            if proyecto.id_curso.id_docente_id != usuario.id:
+                raise PermissionDenied('No tienes acceso a este proyecto.')
+        else:
+            es_miembro = MiembroEquipo.objects.filter(
+                usuario=usuario,
+                equipo__proyecto=proyecto,
+                estado='activo',
+            ).exists()
+            if not es_miembro:
+                raise PermissionDenied('No perteneces a este proyecto.')
+
+        archivos = ArchivoAdjunto.objects.filter(id_entregable=entregable)
+        serializer = ArchivoAdjuntoSerializer(archivos, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def post(self, request, id_entregable):
+        entregable = get_object_or_404(Entregable, pk=id_entregable)
+        usuario = request.user
+
+        es_miembro = MiembroEquipo.objects.filter(
+            usuario=usuario,
+            equipo=entregable.id_equipo,
+            estado='activo',
+        ).exists()
+        if not es_miembro:
+            raise PermissionDenied('No perteneces al equipo dueño de este entregable.')
+
+        serializer = SubirArchivoSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        archivo = serializer.validated_data['archivo']
+        tipo_mime = getattr(archivo, '_tipo_mime', archivo.content_type)
+
+        ext = archivo.name.rsplit('.', 1)[-1].lower()
+        nombre_uuid = f"{uuid.uuid4().hex}.{ext}"
+        ruta_relativa = f"entregables/archivos/{nombre_uuid}"
+
+        default_storage.save(ruta_relativa, ContentFile(archivo.read()))
+
+        with transaction.atomic():
+            adjunto = ArchivoAdjunto(
+                id_entregable=entregable,
+                id_usuario=usuario,
+                nombre_original=archivo.name,
+                nombre_almacenado=nombre_uuid,
+                ruta=ruta_relativa,
+                tipo_mime=tipo_mime,
+                tamaño_bytes=archivo.size,
+            )
+            adjunto.save()
+
+            try:
+                BitacoraSistema.objects.create(
+                    id_usuario=usuario,
+                    nombre_usuario=f'{usuario.nombre} {usuario.apellido}',
+                    accion='CREATE',
+                    modulo='Archivos',
+                    descripcion=f'Archivo "{archivo.name}" subido al entregable {id_entregable}',
+                    ip_origen=request.META.get('REMOTE_ADDR'),
+                )
+            except Exception:
+                pass
+
+        return Response(ArchivoAdjuntoSerializer(adjunto).data, status=status.HTTP_201_CREATED)

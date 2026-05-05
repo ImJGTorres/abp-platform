@@ -12,4 +12,9 @@ urlpatterns = [
         views.EnviarEntregableView.as_view(),
         name='entregable-enviar',
     ),
+    path(
+        'entregables/<int:id_entregable>/archivos/',
+        views.ArchivoListCreateView.as_view(),
+        name='archivo-list-create',
+    ),
 ]
