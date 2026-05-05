@@ -17,9 +17,12 @@ from apps.equipos.models import MiembroEquipo
 from apps.usuarios.models import Usuario
 from apps.usuarios.serializers import UsuarioSerializer
 from apps.usuarios.authentication import UsuarioJWTAuthentication
-from .models import Curso, CursoEstudiante, HitoProyecto, ObjetivoProyecto, Proyecto, ResultadoAprendizaje
+from .models import Actividad, Curso, CursoEstudiante, FaseProyecto, HitoProyecto, ObjetivoProyecto, Proyecto, ResultadoAprendizaje
 from .permissions import EsAdministrador, EsDocente, EsDocenteOAdministrador
 from .serializers import (
+    ActividadCreateSerializer,
+    ActividadSerializer,
+    ActividadUpdateSerializer,
     CursoAdminCreateSerializer,
     CursoAdminUpdateSerializer,
     CursoSerializer,
@@ -910,4 +913,117 @@ class RapDetailView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
         rap.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# ---------------------------------------------------------------------------
+# Actividades
+# ---------------------------------------------------------------------------
+
+class ActividadListCreateView(generics.ListCreateAPIView):
+    """
+    GET  /api/fases/<fase_id>/actividades/ — lista actividades de la fase.
+         Accesible para todos los participantes del curso (docente, admin, estudiantes activos).
+    POST /api/fases/<fase_id>/actividades/ — crea actividad (solo el docente propietario).
+    """
+
+    def get_permissions(self):
+        if self.request.method == 'POST':
+            return [EsDocente()]
+        return [IsAuthenticated()]
+
+    def get_serializer_class(self):
+        if self.request.method == 'POST':
+            return ActividadCreateSerializer
+        return ActividadSerializer
+
+    def _get_fase(self):
+        return get_object_or_404(
+            FaseProyecto.objects.select_related('id_proyecto__id_curso'),
+            pk=self.kwargs['fase_id'],
+        )
+
+    def _check_acceso_fase(self, fase):
+        usuario = self.request.user
+        tipo_rol = getattr(usuario, 'tipo_rol', None)
+        if tipo_rol == 'administrador':
+            return
+        curso = fase.id_proyecto.id_curso
+        if tipo_rol == 'docente':
+            if curso.id_docente_id != usuario.pk:
+                raise PermissionDenied('No eres el docente propietario de este proyecto.')
+        elif tipo_rol == 'estudiante':
+            tiene_equipo = MiembroEquipo.objects.filter(
+                equipo__proyecto__id_curso=curso,
+                usuario=usuario,
+                estado='activo',
+            ).exists()
+            if not tiene_equipo:
+                raise PermissionDenied('No perteneces a ningún equipo de este curso.')
+        else:
+            raise PermissionDenied('Acceso no permitido.')
+
+    def get_queryset(self):
+        fase = self._get_fase()
+        self._check_acceso_fase(fase)
+        return Actividad.objects.filter(id_fase=fase)
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        if self.request.method == 'POST':
+            context['fase'] = self._get_fase()
+        return context
+
+    def perform_create(self, serializer):
+        fase = self._get_fase()
+        if fase.id_proyecto.id_curso.id_docente_id != self.request.user.pk:
+            raise PermissionDenied('No eres el docente propietario de este proyecto.')
+        actividad = serializer.save(id_fase=fase)
+        registrar_evento(
+            request=self.request,
+            accion=BitacoraSistema.Accion.CREATE,
+            modulo='actividades',
+            descripcion=f'Actividad creada: ID={actividad.id}, nombre={actividad.nombre}, fase ID={fase.id}',
+        )
+
+
+class ActividadDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """
+    GET    /api/actividades/<pk>/ — detalle de la actividad.
+    PUT    /api/actividades/<pk>/ — actualiza todos los campos.
+    PATCH  /api/actividades/<pk>/ — actualización parcial.
+    DELETE /api/actividades/<pk>/ — elimina si no hay dependencias activas (409 si las hay).
+
+    Solo el docente propietario del curso puede modificar o eliminar.
+    El queryset filtra transitivamente: actividad → fase → proyecto → curso → docente.
+    """
+
+    permission_classes = [EsDocente]
+
+    def get_queryset(self):
+        return (
+            Actividad.objects
+            .filter(id_fase__id_proyecto__id_curso__id_docente=self.request.user)
+            .select_related('id_fase__id_proyecto__id_curso')
+        )
+
+    def get_serializer_class(self):
+        if self.request.method in ('PUT', 'PATCH'):
+            return ActividadUpdateSerializer
+        return ActividadSerializer
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if instance.sucesores.exists():
+            return Response(
+                {'detail': 'No se puede eliminar la actividad porque otras actividades dependen de ella.'},
+                status=status.HTTP_409_CONFLICT,
+            )
+        registrar_evento(
+            request=request,
+            accion=BitacoraSistema.Accion.DELETE,
+            modulo='actividades',
+            descripcion=f'Actividad eliminada: ID={instance.id}, nombre={instance.nombre}',
+        )
+        self.perform_destroy(instance)
         return Response(status=status.HTTP_204_NO_CONTENT)

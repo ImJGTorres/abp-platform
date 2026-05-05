@@ -203,6 +203,116 @@ class CursoEstudiante(models.Model):
         return f'{self.estudiante} → {self.curso}'
 
 
+class FaseProyecto(models.Model):
+
+    class Estado(models.TextChoices):
+        PENDIENTE = 'pendiente', 'Pendiente'
+        EN_PROGRESO = 'en_progreso', 'En Progreso'
+        COMPLETADA = 'completada', 'Completada'
+
+    id_proyecto = models.ForeignKey(
+        Proyecto,
+        on_delete=models.CASCADE,
+        related_name='fases',
+    )
+    nombre = models.CharField(max_length=200)
+    descripcion = models.TextField(null=True, blank=True)
+    orden = models.PositiveIntegerField()
+    fecha_inicio = models.DateField()
+    fecha_fin = models.DateField()
+    estado = models.CharField(
+        max_length=12,
+        choices=Estado.choices,
+        default=Estado.PENDIENTE,
+    )
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'fase_proyecto'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['id_proyecto', 'orden'],
+                name='unique_orden_por_fase_proyecto',
+            )
+        ]
+        ordering = ['orden']
+
+    def __str__(self):
+        return f'Fase {self.orden}: {self.nombre} — {self.id_proyecto}'
+
+
+class Actividad(models.Model):
+
+    class Prioridad(models.TextChoices):
+        ALTA = 'alta', 'Alta'
+        MEDIA = 'media', 'Media'
+        BAJA = 'baja', 'Baja'
+
+    class Estado(models.TextChoices):
+        PENDIENTE = 'pendiente', 'Pendiente'
+        EN_PROGRESO = 'en_progreso', 'En Progreso'
+        COMPLETADA = 'completada', 'Completada'
+        BLOQUEADA = 'bloqueada', 'Bloqueada'
+
+    id_fase = models.ForeignKey(
+        FaseProyecto,
+        on_delete=models.CASCADE,
+        related_name='actividades',
+    )
+    nombre = models.CharField(max_length=200)
+    descripcion = models.TextField(null=True, blank=True)
+    fecha_limite = models.DateField()
+    prioridad = models.CharField(
+        max_length=5,
+        choices=Prioridad.choices,
+        default=Prioridad.MEDIA,
+    )
+    estado = models.CharField(
+        max_length=12,
+        choices=Estado.choices,
+        default=Estado.PENDIENTE,
+    )
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'actividad'
+        ordering = ['fecha_limite', 'prioridad']
+
+    def __str__(self):
+        return f'{self.nombre} [{self.get_prioridad_display()}] — {self.id_fase}'
+
+
+class ActividadDependencia(models.Model):
+    """Relación de precedencia entre actividades (grafo dirigido acíclico)."""
+
+    id_actividad = models.ForeignKey(
+        Actividad,
+        on_delete=models.CASCADE,
+        related_name='dependencias',
+    )
+    id_actividad_predecesor = models.ForeignKey(
+        Actividad,
+        on_delete=models.CASCADE,
+        related_name='sucesores',
+    )
+
+    class Meta:
+        db_table = 'actividad_depende_de'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['id_actividad', 'id_actividad_predecesor'],
+                name='unique_dependencia_actividad',
+            ),
+            models.CheckConstraint(
+                check=~models.Q(id_actividad=models.F('id_actividad_predecesor')),
+                name='no_autoref_dependencia',
+            ),
+        ]
+
+    def __str__(self):
+        return f'Actividad {self.id_actividad_id} depende de {self.id_actividad_predecesor_id}'
+
+
 class ResultadoAprendizaje(models.Model):
     proyecto = models.ForeignKey(
         Proyecto,

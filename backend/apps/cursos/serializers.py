@@ -3,7 +3,7 @@ from rest_framework import serializers
 from apps.configuracion.models import PeriodoAcademico
 from apps.usuarios.models import Usuario
 from apps.equipos.serializers import EquipoDetalleSerializer
-from .models import Curso, HitoProyecto, ObjetivoProyecto, Proyecto
+from .models import Curso, FaseProyecto, HitoProyecto, ObjetivoProyecto, Proyecto
 
 
 # ---------------------------------------------------------------------------
@@ -437,7 +437,7 @@ class HitoUpdateSerializer(serializers.ModelSerializer):
 # ResultadoAprendizaje (RAP)
 # ---------------------------------------------------------------------------
 
-from .models import ResultadoAprendizaje
+from .models import Actividad, FaseProyecto, ResultadoAprendizaje
 
 
 class RapSerializer(serializers.ModelSerializer):
@@ -452,3 +452,182 @@ class RapCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = ResultadoAprendizaje
         fields = ['nombre', 'descripcion', 'competencia_asociada', 'porcentaje_evaluacion']
+
+
+# ---------------------------------------------------------------------------
+# FaseProyecto
+# ---------------------------------------------------------------------------
+
+def _validate_fechas_fase(attrs, instance=None, proyecto=None):
+    """Valida coherencia interna de fechas y rango respecto al proyecto."""
+    fecha_inicio = attrs.get('fecha_inicio') or getattr(instance, 'fecha_inicio', None)
+    fecha_fin = attrs.get('fecha_fin') or getattr(instance, 'fecha_fin', None)
+
+    if fecha_inicio and fecha_fin and fecha_fin <= fecha_inicio:
+        raise serializers.ValidationError(
+            {'fecha_fin': 'La fecha de fin debe ser posterior a la fecha de inicio.'}
+        )
+
+    if proyecto is None and instance is not None:
+        proyecto = instance.id_proyecto
+
+    if proyecto and fecha_inicio and fecha_inicio < proyecto.fecha_inicio:
+        raise serializers.ValidationError(
+            {'fecha_inicio': 'La fecha de inicio de la fase no puede ser anterior a la del proyecto.'}
+        )
+    if proyecto and fecha_fin and fecha_fin > proyecto.fecha_fin_estimada:
+        raise serializers.ValidationError(
+            {'fecha_fin': 'La fecha de fin de la fase no puede superar la fecha fin estimada del proyecto.'}
+        )
+
+
+class FaseSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FaseProyecto
+        fields = [
+            'id',
+            'id_proyecto',
+            'nombre',
+            'descripcion',
+            'orden',
+            'fecha_inicio',
+            'fecha_fin',
+            'estado',
+            'fecha_creacion',
+        ]
+        read_only_fields = fields
+
+
+class FaseCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FaseProyecto
+        fields = ['nombre', 'descripcion', 'orden', 'fecha_inicio', 'fecha_fin', 'estado']
+
+    def validate_orden(self, value):
+        if value < 1:
+            raise serializers.ValidationError('El orden debe ser un número positivo (mínimo 1).')
+        return value
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        proyecto = self.context.get('proyecto')
+        _validate_fechas_fase(attrs, proyecto=proyecto)
+        if proyecto:
+            orden = attrs.get('orden')
+            if orden and FaseProyecto.objects.filter(id_proyecto=proyecto, orden=orden).exists():
+                raise serializers.ValidationError(
+                    {'orden': f'Ya existe una fase con orden {orden} en este proyecto.'}
+                )
+        return attrs
+
+    def to_representation(self, instance):
+        return FaseSerializer(instance, context=self.context).data
+
+
+class FaseUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FaseProyecto
+        fields = ['nombre', 'descripcion', 'orden', 'fecha_inicio', 'fecha_fin', 'estado']
+
+    def validate_orden(self, value):
+        if value < 1:
+            raise serializers.ValidationError('El orden debe ser un número positivo (mínimo 1).')
+        return value
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        _validate_fechas_fase(attrs, instance=self.instance)
+        if self.instance is not None:
+            orden = attrs.get('orden', self.instance.orden)
+            duplicado = (
+                FaseProyecto.objects
+                .filter(id_proyecto=self.instance.id_proyecto, orden=orden)
+                .exclude(pk=self.instance.pk)
+                .exists()
+            )
+            if duplicado:
+                raise serializers.ValidationError(
+                    {'orden': f'Ya existe una fase con orden {orden} en este proyecto.'}
+                )
+        return attrs
+
+    def to_representation(self, instance):
+        return FaseSerializer(instance, context=self.context).data
+
+
+# ---------------------------------------------------------------------------
+# Actividad
+# ---------------------------------------------------------------------------
+
+def _validate_fecha_limite_actividad(attrs, instance=None, fase=None):
+    """Valida que fecha_límite esté dentro del rango de la fase y del proyecto."""
+    fecha_limite = attrs.get('fecha_limite') or getattr(instance, 'fecha_limite', None)
+
+    if fase is None and instance is not None:
+        fase = instance.id_fase
+
+    if not fase or not fecha_limite:
+        return
+
+    if fecha_limite < fase.fecha_inicio:
+        raise serializers.ValidationError(
+            {'fecha_limite': 'La fecha límite no puede ser anterior a la fecha de inicio de la fase.'}
+        )
+    if fecha_limite > fase.fecha_fin:
+        raise serializers.ValidationError(
+            {'fecha_limite': 'La fecha límite no puede superar la fecha de fin de la fase.'}
+        )
+
+    proyecto = fase.id_proyecto
+    if fecha_limite < proyecto.fecha_inicio:
+        raise serializers.ValidationError(
+            {'fecha_limite': 'La fecha límite no puede ser anterior a la fecha de inicio del proyecto.'}
+        )
+    if fecha_limite > proyecto.fecha_fin_estimada:
+        raise serializers.ValidationError(
+            {'fecha_limite': 'La fecha límite no puede superar la fecha fin estimada del proyecto.'}
+        )
+
+
+class ActividadSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Actividad
+        fields = [
+            'id',
+            'id_fase',
+            'nombre',
+            'descripcion',
+            'fecha_limite',
+            'prioridad',
+            'estado',
+            'fecha_creacion',
+        ]
+        read_only_fields = fields
+
+
+class ActividadCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Actividad
+        fields = ['nombre', 'descripcion', 'fecha_limite', 'prioridad', 'estado']
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        _validate_fecha_limite_actividad(attrs, fase=self.context.get('fase'))
+        return attrs
+
+    def to_representation(self, instance):
+        return ActividadSerializer(instance, context=self.context).data
+
+
+class ActividadUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Actividad
+        fields = ['nombre', 'descripcion', 'fecha_limite', 'prioridad', 'estado']
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        _validate_fecha_limite_actividad(attrs, instance=self.instance)
+        return attrs
+
+    def to_representation(self, instance):
+        return ActividadSerializer(instance, context=self.context).data
