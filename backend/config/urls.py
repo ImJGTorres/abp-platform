@@ -68,6 +68,7 @@ urlpatterns = [
     # Ruta standalone de objetivos individuales:
     #   /api/objetivos/<pk>/  → detalle, edición y borrado con reordenamiento
     path('api/objetivos/', include('apps.cursos.objetivo_urls')),
+    path('api/', include('apps.entregables.urls')),
 
     # SPA: Servir index.html para cualquier ruta que no sea API ni static
     # Excluye /api/ y /static/ usando lookahead negativo en regex
