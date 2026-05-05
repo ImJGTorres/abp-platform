@@ -68,12 +68,16 @@ urlpatterns = [
     # Ruta standalone de objetivos individuales:
     #   /api/objetivos/<pk>/  → detalle, edición y borrado con reordenamiento
     path('api/objetivos/', include('apps.cursos.objetivo_urls')),
+<<<<<<< HEAD
     # Actividades anidadas bajo fases:
     #   /api/fases/<fase_id>/actividades/  → lista/creación de actividades
     path('api/fases/', include('apps.cursos.fase_urls')),
     # Actividad individual:
     #   /api/actividades/<pk>/  → detalle, edición y borrado de actividad
     path('api/actividades/', include('apps.cursos.actividad_urls')),
+=======
+    path('api/', include('apps.entregables.urls')),
+>>>>>>> feature/HU-019-backend
 
     # SPA: Servir index.html para cualquier ruta que no sea API ni static
     # Excluye /api/ y /static/ usando lookahead negativo en regex
