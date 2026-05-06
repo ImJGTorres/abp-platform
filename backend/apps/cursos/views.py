@@ -27,6 +27,9 @@ from .serializers import (
     CursoAdminUpdateSerializer,
     CursoSerializer,
     CursoUpdateSerializer,
+    FaseCreateSerializer,
+    FaseSerializer,
+    FaseUpdateSerializer,
     HitoCreateSerializer,
     HitoSerializer,
     HitoUpdateSerializer,
@@ -913,6 +916,118 @@ class RapDetailView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
         rap.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# ---------------------------------------------------------------------------
+# Fases del proyecto
+# ---------------------------------------------------------------------------
+
+class FaseListCreateView(generics.ListCreateAPIView):
+    """
+    GET  /api/proyectos/<proyecto_id>/fases/ — Lista fases del proyecto ordenadas por campo orden.
+         Accesible para docente propietario, administrador y estudiantes activos del curso.
+    POST /api/proyectos/<proyecto_id>/fases/ — Crea una fase (solo el docente propietario).
+    """
+
+    def get_permissions(self):
+        if self.request.method == 'POST':
+            return [EsDocente()]
+        return [IsAuthenticated()]
+
+    def get_serializer_class(self):
+        if self.request.method == 'POST':
+            return FaseCreateSerializer
+        return FaseSerializer
+
+    def _get_proyecto(self):
+        return get_object_or_404(
+            Proyecto.objects.select_related('id_curso'),
+            pk=self.kwargs['proyecto_id'],
+        )
+
+    def _check_acceso_proyecto(self, proyecto):
+        usuario = self.request.user
+        tipo_rol = getattr(usuario, 'tipo_rol', None)
+        if tipo_rol == 'administrador':
+            return
+        curso = proyecto.id_curso
+        if tipo_rol == 'docente':
+            if curso.id_docente_id != usuario.pk:
+                raise PermissionDenied('No eres el docente propietario de este proyecto.')
+        elif tipo_rol == 'estudiante':
+            tiene_equipo = MiembroEquipo.objects.filter(
+                equipo__proyecto__id_curso=curso,
+                usuario=usuario,
+                estado='activo',
+            ).exists()
+            if not tiene_equipo:
+                raise PermissionDenied('No perteneces a ningún equipo de este curso.')
+        else:
+            raise PermissionDenied('Acceso no permitido.')
+
+    def get_queryset(self):
+        proyecto = self._get_proyecto()
+        self._check_acceso_proyecto(proyecto)
+        return FaseProyecto.objects.filter(id_proyecto=proyecto).order_by('orden')
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        if self.request.method == 'POST':
+            context['proyecto'] = self._get_proyecto()
+        return context
+
+    def perform_create(self, serializer):
+        proyecto = self._get_proyecto()
+        if proyecto.id_curso.id_docente_id != self.request.user.pk:
+            raise PermissionDenied('No eres el docente propietario de este proyecto.')
+        fase = serializer.save(id_proyecto=proyecto)
+        registrar_evento(
+            request=self.request,
+            accion=BitacoraSistema.Accion.CREATE,
+            modulo='fases',
+            descripcion=f'Fase creada: ID={fase.id}, nombre={fase.nombre}, proyecto ID={proyecto.id}',
+        )
+
+
+class FaseDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """
+    GET    /api/fases/<pk>/ — Detalle de la fase.
+    PUT    /api/fases/<pk>/ — Actualiza todos los campos de la fase.
+    PATCH  /api/fases/<pk>/ — Actualización parcial.
+    DELETE /api/fases/<pk>/ — Elimina la fase (409 si tiene actividades asociadas).
+
+    Solo el docente propietario del curso puede modificar o eliminar.
+    """
+
+    permission_classes = [EsDocente]
+
+    def get_queryset(self):
+        return (
+            FaseProyecto.objects
+            .filter(id_proyecto__id_curso__id_docente=self.request.user)
+            .select_related('id_proyecto__id_curso')
+        )
+
+    def get_serializer_class(self):
+        if self.request.method in ('PUT', 'PATCH'):
+            return FaseUpdateSerializer
+        return FaseSerializer
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if instance.actividades.exists():
+            return Response(
+                {'detail': 'No se puede eliminar la fase porque tiene actividades asociadas.'},
+                status=status.HTTP_409_CONFLICT,
+            )
+        registrar_evento(
+            request=request,
+            accion=BitacoraSistema.Accion.DELETE,
+            modulo='fases',
+            descripcion=f'Fase eliminada: ID={instance.id}, nombre={instance.nombre}',
+        )
+        self.perform_destroy(instance)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
