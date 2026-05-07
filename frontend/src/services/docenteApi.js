@@ -67,6 +67,13 @@ export const cursosApi = {
 
 // ─── Proyectos (Objetivos, RAPs, Hitos) ────────────────────────
 export const proyectosApi = {
+    async obtener(proyectoId) {
+        const response = await request(`/api/proyectos/${proyectoId}/`)
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+
     // ── Objetivos ──
     async listarObjetivos(proyectoId) {
         const response = await request(`/api/proyectos/${proyectoId}/objetivos/`)
@@ -181,6 +188,113 @@ export const proyectosApi = {
         if (!response.ok) throw { status: response.status, data }
     },
 }
+
+//Fases del proyecto
+export const fasesApi = {
+
+    async listarPorProyecto(proyectoId) {
+        const response = await request(`/api/proyectos/${proyectoId}/fases/`)
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+
+    async crear(proyectoId, { nombre, descripcion, fecha_inicio, fecha_fin, orden }) {
+        const response = await request(`/api/proyectos/${proyectoId}/fases/`, {
+            method: 'POST',
+            body: JSON.stringify({
+                nombre,
+                descripcion,
+                fecha_inicio,
+                fecha_fin,
+                orden,
+                estado: 'pendiente',
+            }),
+        })
+
+        const data = await parseJSON(response)
+
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+
+    async editar(faseId, campos) {
+        const response = await request(`/api/fases/${faseId}/`, {
+            method: 'PATCH',
+            body: JSON.stringify(campos),
+        })
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+
+    async eliminar(faseId) {
+        const response = await request(`/api/fases/${faseId}/`, {
+            method: 'DELETE',
+        })
+        if (response.status === 204) return
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+    },
+
+    async reordenar(faseId, nuevoOrden) {
+        const response = await request(`/api/fases/${faseId}/`, {
+            method: 'PATCH',
+            body: JSON.stringify({ orden: nuevoOrden }),
+        })
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+}
+
+// Actividades dentro de las fases
+export const actividadesApi = {
+
+    async listarPorFase(faseId) {
+        const response = await request(`/api/fases/${faseId}/actividades/`)
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+
+    async listarPorEquipo(equipoId) {
+        const response = await request(`/api/equipos/${equipoId}/actividades/`)
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+
+    async crear(faseId, { nombre, descripcion, fecha_limite, prioridad, estado }) {
+        const response = await request(`/api/fases/${faseId}/actividades/`, {
+            method: 'POST',
+            body: JSON.stringify({ nombre, descripcion, fecha_limite, prioridad, estado }),
+        })
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+
+    async editar(actividadId, campos) {
+        const response = await request(`/api/actividades/${actividadId}/`, {
+            method: 'PATCH',
+            body: JSON.stringify(campos),
+        })
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+
+    async eliminar(actividadId) {
+        const response = await request(`/api/actividades/${actividadId}/`, {
+            method: 'DELETE',
+        })
+        if (response.status === 204) return
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+    },
+}
+
 
 // ─── Equipos ───────────────────────────────────────────────────
 export const equiposApi = {
