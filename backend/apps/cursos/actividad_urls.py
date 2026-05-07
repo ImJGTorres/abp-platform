@@ -1,6 +1,6 @@
 from django.urls import path
 
-from .views import ActividadAsignarResponsableView, ActividadDetailView
+from .views import ActividadAsignarResponsableView, ActividadDetailView, AvanceActividadListCreateView
 
 urlpatterns = [
     # GET    /api/actividades/<pk>/ — detalle.
@@ -10,4 +10,7 @@ urlpatterns = [
     path('<int:pk>/', ActividadDetailView.as_view(), name='actividad-detail'),
     # PATCH  /api/actividades/<pk>/asignar-responsable/ — líder asigna responsable.
     path('<int:pk>/asignar-responsable/', ActividadAsignarResponsableView.as_view(), name='actividad-asignar-responsable'),
+    # GET  /api/actividades/<actividad_id>/avances/ — lista avances.
+    # POST /api/actividades/<actividad_id>/avances/ — registra avance.
+    path('<int:actividad_id>/avances/', AvanceActividadListCreateView.as_view(), name='avance-list-create'),
 ]

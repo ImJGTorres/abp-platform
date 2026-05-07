@@ -4,7 +4,7 @@ from apps.configuracion.models import PeriodoAcademico
 from apps.usuarios.models import Usuario
 from apps.equipos.models import MiembroEquipo
 from apps.equipos.serializers import EquipoDetalleSerializer
-from .models import Actividad, Curso, FaseProyecto, HitoProyecto, ObjetivoProyecto, Proyecto
+from .models import Actividad, AvanceActividad, Curso, FaseProyecto, HitoProyecto, ObjetivoProyecto, Proyecto
 
 
 # ---------------------------------------------------------------------------
@@ -495,6 +495,7 @@ class FaseSerializer(serializers.ModelSerializer):
             'fecha_fin',
             'estado',
             'fecha_creacion',
+            'porcentaje_completado',
         ]
         read_only_fields = fields
 
@@ -634,6 +635,73 @@ class ActividadUpdateSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         return ActividadSerializer(instance, context=self.context).data
+
+
+# ---------------------------------------------------------------------------
+# AvanceActividad
+# ---------------------------------------------------------------------------
+
+class AvanceActividadSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AvanceActividad
+        fields = [
+            'id',
+            'id_actividad',
+            'id_usuario',
+            'descripcion',
+            'porcentaje_completado',
+            'fecha_registro',
+            'tipo',
+            'url_referencia',
+        ]
+        read_only_fields = fields
+
+
+class AvanceActividadCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AvanceActividad
+        fields = ['descripcion', 'porcentaje_completado', 'tipo', 'url_referencia']
+
+    def validate_porcentaje_completado(self, value):
+        if not (0 <= value <= 100):
+            raise serializers.ValidationError('El porcentaje debe estar entre 0 y 100.')
+        return value
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+
+        if attrs.get('tipo') == AvanceActividad.Tipo.ENLACE and not attrs.get('url_referencia'):
+            raise serializers.ValidationError(
+                {'url_referencia': 'Se requiere una URL cuando el tipo es "enlace".'}
+            )
+
+        actividad = self.context['actividad']
+        usuario = self.context['request'].user
+
+        es_responsable = (
+            actividad.id_responsable_id is not None
+            and actividad.id_responsable_id == usuario.pk
+        )
+        if not es_responsable:
+            equipo = actividad.id_equipo_asignado
+            if equipo is None:
+                raise serializers.ValidationError(
+                    'Solo el responsable o un miembro del equipo asignado puede registrar avances.'
+                )
+            es_miembro = MiembroEquipo.objects.filter(
+                equipo=equipo,
+                usuario=usuario,
+                estado='activo',
+            ).exists()
+            if not es_miembro:
+                raise serializers.ValidationError(
+                    'Solo el responsable o un miembro activo del equipo asignado puede registrar avances.'
+                )
+
+        return attrs
+
+    def to_representation(self, instance):
+        return AvanceActividadSerializer(instance, context=self.context).data
 
 
 class ActividadAsignarResponsableSerializer(serializers.ModelSerializer):
