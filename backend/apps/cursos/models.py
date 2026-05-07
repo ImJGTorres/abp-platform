@@ -288,6 +288,11 @@ class Actividad(models.Model):
         blank=True,
         related_name='actividades',
     )
+    responsables = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        related_name='actividades_asignadas',
+        blank=True,
+    )
 
     class Meta:
         db_table = 'actividad'

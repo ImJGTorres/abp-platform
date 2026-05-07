@@ -1,4 +1,5 @@
 from django.urls import path
+from apps.cursos.views import ActividadesPorEquipoView
 from .views import (
     ActualizarRolView,
     AsignarEstudiantesView,
@@ -42,4 +43,6 @@ urlpatterns = [
     # PATCH /api/miembros/<miembro_id>/
     # Actualizar rol_interno de un miembro (lider, desarrollador, analista, disenador, tester, "").
     path('miembros/<int:miembro_id>/', ActualizarRolMiembroView.as_view(), name='miembro-actualizar-rol'),
+    # GET /api/equipos/<equipo_id>/actividades/ — lista actividades del equipo (HU-016 BE-03).
+    path('equipos/<int:equipo_id>/actividades/', ActividadesPorEquipoView.as_view(), name='actividades-por-equipo'),
 ]

@@ -610,6 +610,7 @@ class ActividadSerializer(serializers.ModelSerializer):
             'fecha_creacion',
             'id_responsable',
             'id_equipo_asignado',
+            'responsables',
         ]
         read_only_fields = fields
 
@@ -736,3 +737,66 @@ class ActividadAsignarResponsableSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         return ActividadSerializer(instance, context=self.context).data
+
+
+class ActividadAsignarSerializer(serializers.Serializer):
+    """
+    PATCH /api/actividades/<pk>/asignar/
+    Líder de equipo asigna uno o más responsables a la actividad.
+    Todos deben ser miembros activos del equipo asignado.
+    """
+
+    responsables = serializers.ListField(
+        child=serializers.IntegerField(min_value=1),
+        allow_empty=True,
+    )
+
+    def validate(self, attrs):
+        actividad = self.context['actividad']
+        equipo = actividad.id_equipo_asignado
+        if equipo is None:
+            raise serializers.ValidationError(
+                {'responsables': 'La actividad no tiene un equipo asignado.'}
+            )
+        ids = attrs['responsables']
+        if not ids:
+            return attrs
+        miembros_activos = set(
+            MiembroEquipo.objects
+            .filter(equipo=equipo, estado='activo')
+            .values_list('usuario_id', flat=True)
+        )
+        no_miembros = [uid for uid in ids if uid not in miembros_activos]
+        if no_miembros:
+            raise serializers.ValidationError(
+                {'responsables': f'Los siguientes usuarios no son miembros activos del equipo: {no_miembros}'}
+            )
+        return attrs
+
+
+class ActividadPorEquipoSerializer(serializers.ModelSerializer):
+    """Serializer para listar actividades de un equipo con sus responsables."""
+
+    es_responsable = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Actividad
+        fields = [
+            'id',
+            'id_fase',
+            'nombre',
+            'descripcion',
+            'fecha_limite',
+            'prioridad',
+            'estado',
+            'fecha_creacion',
+            'id_responsable',
+            'id_equipo_asignado',
+            'responsables',
+            'es_responsable',
+        ]
+        read_only_fields = fields
+
+    def get_es_responsable(self, obj):
+        usuario = self.context['request'].user
+        return obj.responsables.filter(pk=usuario.pk).exists()

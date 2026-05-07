@@ -22,7 +22,9 @@ from .models import Actividad, AvanceActividad, Curso, CursoEstudiante, FaseProy
 from .permissions import EsAdministrador, EsDocente, EsDocenteOAdministrador, EsLiderEquipo
 from .serializers import (
     ActividadAsignarResponsableSerializer,
+    ActividadAsignarSerializer,
     ActividadCreateSerializer,
+    ActividadPorEquipoSerializer,
     ActividadSerializer,
     ActividadUpdateSerializer,
     AvanceActividadCreateSerializer,
@@ -1271,3 +1273,90 @@ class AvanceActividadListCreateView(generics.ListCreateAPIView):
             )
         # BE 04 — recalcular porcentaje de la fase
         _recalcular_porcentaje_fase(actividad.id_fase)
+
+
+# ---------------------------------------------------------------------------
+# HU-016 — Asignación de responsables
+# ---------------------------------------------------------------------------
+
+class ActividadAsignarView(APIView):
+    """
+    PATCH /api/actividades/<pk>/asignar/
+
+    Líder de equipo asigna uno o más responsables a una actividad.
+    Todos los responsables deben ser miembros activos del equipo asignado.
+    """
+
+    permission_classes = [EsLiderEquipo]
+
+    def _get_actividad(self, pk):
+        return get_object_or_404(
+            Actividad.objects
+            .filter(
+                id_equipo_asignado__miembros__usuario=self.request.user,
+                id_equipo_asignado__miembros__estado='activo',
+                id_equipo_asignado__miembros__rol_interno='lider',
+            )
+            .select_related('id_equipo_asignado')
+            .distinct(),
+            pk=pk,
+        )
+
+    def patch(self, request, pk):
+        actividad = self._get_actividad(pk)
+        serializer = ActividadAsignarSerializer(
+            data=request.data,
+            context={'actividad': actividad, 'request': request},
+        )
+        serializer.is_valid(raise_exception=True)
+        ids = serializer.validated_data['responsables']
+        actividad.responsables.set(ids)
+        registrar_evento(
+            request=request,
+            accion=BitacoraSistema.Accion.UPDATE,
+            modulo='actividades',
+            descripcion=(
+                f'Responsables asignados a actividad ID={actividad.id}: {ids}'
+            ),
+        )
+        return Response(ActividadSerializer(actividad).data)
+
+
+class ActividadesPorEquipoView(generics.ListAPIView):
+    """
+    GET /api/equipos/<equipo_id>/actividades/
+
+    Lista todas las actividades asignadas al equipo.
+    El campo `es_responsable` indica si el usuario autenticado es responsable.
+    Accesible a miembros activos del equipo, docentes del curso y administradores.
+    """
+
+    permission_classes = [IsAuthenticated]
+    serializer_class = ActividadPorEquipoSerializer
+
+    def get_queryset(self):
+        from apps.equipos.models import Equipo
+        equipo = get_object_or_404(Equipo, pk=self.kwargs['equipo_id'])
+        usuario = self.request.user
+        tipo_rol = getattr(usuario, 'tipo_rol', None)
+        if tipo_rol == 'administrador':
+            pass
+        elif tipo_rol == 'docente':
+            if not equipo.proyecto.id_curso.id_docente_id == usuario.pk:
+                raise PermissionDenied('No eres el docente propietario de este proyecto.')
+        elif tipo_rol in ('estudiante', 'lider_equipo'):
+            es_miembro = MiembroEquipo.objects.filter(
+                equipo=equipo,
+                usuario=usuario,
+                estado='activo',
+            ).exists()
+            if not es_miembro:
+                raise PermissionDenied('No eres miembro activo de este equipo.')
+        else:
+            raise PermissionDenied('Acceso no permitido.')
+        return (
+            Actividad.objects
+            .filter(id_equipo_asignado=equipo)
+            .prefetch_related('responsables')
+            .select_related('id_fase')
+        )
