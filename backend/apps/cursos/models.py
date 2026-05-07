@@ -226,6 +226,7 @@ class FaseProyecto(models.Model):
         default=Estado.PENDIENTE,
     )
     fecha_creacion = models.DateTimeField(auto_now_add=True)
+    porcentaje_completado = models.PositiveSmallIntegerField(default=0)
 
     class Meta:
         db_table = 'fase_proyecto'
@@ -273,6 +274,20 @@ class Actividad(models.Model):
         default=Estado.PENDIENTE,
     )
     fecha_creacion = models.DateTimeField(auto_now_add=True)
+    id_responsable = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='actividades_responsable',
+    )
+    id_equipo_asignado = models.ForeignKey(
+        'equipos.Equipo',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='actividades',
+    )
 
     class Meta:
         db_table = 'actividad'
@@ -311,6 +326,46 @@ class ActividadDependencia(models.Model):
 
     def __str__(self):
         return f'Actividad {self.id_actividad_id} depende de {self.id_actividad_predecesor_id}'
+
+
+class AvanceActividad(models.Model):
+
+    class Tipo(models.TextChoices):
+        TEXTO = 'texto', 'Texto'
+        ENLACE = 'enlace', 'Enlace'
+
+    id_actividad = models.ForeignKey(
+        Actividad,
+        on_delete=models.CASCADE,
+        related_name='avances',
+    )
+    id_usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name='avances_registrados',
+    )
+    descripcion = models.TextField()
+    porcentaje_completado = models.PositiveSmallIntegerField()
+    fecha_registro = models.DateTimeField(auto_now_add=True)
+    tipo = models.CharField(
+        max_length=6,
+        choices=Tipo.choices,
+        default=Tipo.TEXTO,
+    )
+    url_referencia = models.URLField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'avance_actividad'
+        ordering = ['-fecha_registro']
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(porcentaje_completado__gte=0) & models.Q(porcentaje_completado__lte=100),
+                name='avance_porcentaje_0_100',
+            )
+        ]
+
+    def __str__(self):
+        return f'Avance {self.porcentaje_completado}% — {self.id_actividad} por {self.id_usuario}'
 
 
 class ResultadoAprendizaje(models.Model):

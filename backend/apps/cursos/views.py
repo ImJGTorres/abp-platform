@@ -1,6 +1,7 @@
 import io
 
 from django.db import transaction
+from django.db.models import OuterRef, Subquery
 from django.shortcuts import get_object_or_404
 
 from rest_framework import generics, status
@@ -17,12 +18,15 @@ from apps.equipos.models import MiembroEquipo
 from apps.usuarios.models import Usuario
 from apps.usuarios.serializers import UsuarioSerializer
 from apps.usuarios.authentication import UsuarioJWTAuthentication
-from .models import Actividad, Curso, CursoEstudiante, FaseProyecto, HitoProyecto, ObjetivoProyecto, Proyecto, ResultadoAprendizaje
-from .permissions import EsAdministrador, EsDocente, EsDocenteOAdministrador
+from .models import Actividad, AvanceActividad, Curso, CursoEstudiante, FaseProyecto, HitoProyecto, ObjetivoProyecto, Proyecto, ResultadoAprendizaje
+from .permissions import EsAdministrador, EsDocente, EsDocenteOAdministrador, EsLiderEquipo
 from .serializers import (
+    ActividadAsignarResponsableSerializer,
     ActividadCreateSerializer,
     ActividadSerializer,
     ActividadUpdateSerializer,
+    AvanceActividadCreateSerializer,
+    AvanceActividadSerializer,
     CursoAdminCreateSerializer,
     CursoAdminUpdateSerializer,
     CursoSerializer,
@@ -1142,3 +1146,128 @@ class ActividadDetailView(generics.RetrieveUpdateDestroyAPIView):
         )
         self.perform_destroy(instance)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ActividadAsignarResponsableView(generics.UpdateAPIView):
+    """
+    PATCH /api/actividades/<pk>/asignar-responsable/
+
+    Permite al líder de equipo asignar el responsable de una actividad.
+    El responsable debe ser miembro activo del equipo asignado a la actividad.
+    """
+
+    http_method_names = ['patch']
+    permission_classes = [EsLiderEquipo]
+    serializer_class = ActividadAsignarResponsableSerializer
+
+    def get_queryset(self):
+        return (
+            Actividad.objects
+            .filter(
+                id_equipo_asignado__miembros__usuario=self.request.user,
+                id_equipo_asignado__miembros__estado='activo',
+                id_equipo_asignado__miembros__rol_interno='lider',
+            )
+            .select_related('id_equipo_asignado')
+            .distinct()
+        )
+
+    def patch(self, request, *args, **kwargs):
+        return self.partial_update(request, *args, **kwargs)
+
+
+def _recalcular_porcentaje_fase(fase):
+    """BE 04 — Recalcula porcentaje_completado de la fase como promedio del último avance por actividad."""
+    actividades = fase.actividades.all()
+    total = actividades.count()
+    if total == 0:
+        FaseProyecto.objects.filter(pk=fase.pk).update(porcentaje_completado=0)
+        return
+    ultimo_avance = (
+        AvanceActividad.objects
+        .filter(id_actividad=OuterRef('pk'))
+        .order_by('-fecha_registro')
+        .values('porcentaje_completado')[:1]
+    )
+    suma = sum(
+        a.ultimo_porcentaje or 0
+        for a in actividades.annotate(ultimo_porcentaje=Subquery(ultimo_avance))
+    )
+    FaseProyecto.objects.filter(pk=fase.pk).update(
+        porcentaje_completado=round(suma / total)
+    )
+
+
+class AvanceActividadListCreateView(generics.ListCreateAPIView):
+    """
+    GET  /api/actividades/<actividad_id>/avances/ — historial de avances (BE 03).
+         Accesible a todos los participantes del proyecto.
+    POST /api/actividades/<actividad_id>/avances/ — registra avance (BE 02).
+         Solo responsable o miembro activo del equipo asignado.
+         Actualiza automáticamente el estado de la actividad al 100%.
+         Recalcula el porcentaje de completitud de la fase (BE 04).
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def _get_actividad(self):
+        if not hasattr(self, '_actividad_cache'):
+            self._actividad_cache = get_object_or_404(
+                Actividad.objects.select_related(
+                    'id_fase__id_proyecto__id_curso',
+                    'id_equipo_asignado',
+                ),
+                pk=self.kwargs['actividad_id'],
+            )
+        return self._actividad_cache
+
+    def _verificar_acceso(self, actividad):
+        """Verifica que el usuario sea participante del proyecto (BE 03)."""
+        usuario = self.request.user
+        tipo_rol = getattr(usuario, 'tipo_rol', None)
+        if tipo_rol == 'administrador':
+            return
+        curso = actividad.id_fase.id_proyecto.id_curso
+        if tipo_rol == 'docente':
+            if curso.id_docente_id != usuario.pk:
+                raise PermissionDenied('No eres el docente propietario de este proyecto.')
+        elif tipo_rol in ('estudiante', 'lider_equipo'):
+            en_proyecto = MiembroEquipo.objects.filter(
+                equipo__proyecto__id_curso=curso,
+                usuario=usuario,
+                estado='activo',
+            ).exists()
+            if not en_proyecto:
+                raise PermissionDenied('No perteneces a ningún equipo de este proyecto.')
+        else:
+            raise PermissionDenied('Acceso no permitido.')
+
+    def get_queryset(self):
+        actividad = self._get_actividad()
+        self._verificar_acceso(actividad)
+        return AvanceActividad.objects.filter(id_actividad=actividad)
+
+    def get_serializer_class(self):
+        if self.request.method == 'POST':
+            return AvanceActividadCreateSerializer
+        return AvanceActividadSerializer
+
+    def get_serializer_context(self):
+        ctx = super().get_serializer_context()
+        ctx['actividad'] = self._get_actividad()
+        return ctx
+
+    def perform_create(self, serializer):
+        actividad = self._get_actividad()
+        self._verificar_acceso(actividad)
+        avance = serializer.save(
+            id_actividad=actividad,
+            id_usuario=self.request.user,
+        )
+        # BE 02 — auto-completar actividad si llega al 100 %
+        if avance.porcentaje_completado == 100:
+            Actividad.objects.filter(pk=actividad.pk).update(
+                estado=Actividad.Estado.COMPLETADA
+            )
+        # BE 04 — recalcular porcentaje de la fase
+        _recalcular_porcentaje_fase(actividad.id_fase)
