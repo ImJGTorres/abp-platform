@@ -2,8 +2,9 @@ from rest_framework import serializers
 
 from apps.configuracion.models import PeriodoAcademico
 from apps.usuarios.models import Usuario
+from apps.equipos.models import MiembroEquipo
 from apps.equipos.serializers import EquipoDetalleSerializer
-from .models import Curso, FaseProyecto, HitoProyecto, ObjetivoProyecto, Proyecto
+from .models import Actividad, Curso, FaseProyecto, HitoProyecto, ObjetivoProyecto, Proyecto
 
 
 # ---------------------------------------------------------------------------
@@ -601,6 +602,8 @@ class ActividadSerializer(serializers.ModelSerializer):
             'prioridad',
             'estado',
             'fecha_creacion',
+            'id_responsable',
+            'id_equipo_asignado',
         ]
         read_only_fields = fields
 
@@ -628,6 +631,35 @@ class ActividadUpdateSerializer(serializers.ModelSerializer):
         attrs = super().validate(attrs)
         _validate_fecha_limite_actividad(attrs, instance=self.instance)
         return attrs
+
+    def to_representation(self, instance):
+        return ActividadSerializer(instance, context=self.context).data
+
+
+class ActividadAsignarResponsableSerializer(serializers.ModelSerializer):
+    """PATCH exclusivo para líderes de equipo: asignar id_responsable."""
+
+    class Meta:
+        model = Actividad
+        fields = ['id_responsable']
+
+    def validate_id_responsable(self, usuario):
+        actividad = self.instance
+        equipo = actividad.id_equipo_asignado
+        if equipo is None:
+            raise serializers.ValidationError(
+                'La actividad no tiene un equipo asignado.'
+            )
+        es_miembro = MiembroEquipo.objects.filter(
+            equipo=equipo,
+            usuario=usuario,
+            estado='activo',
+        ).exists()
+        if not es_miembro:
+            raise serializers.ValidationError(
+                'El responsable debe ser un miembro activo del equipo asignado a esta actividad.'
+            )
+        return usuario
 
     def to_representation(self, instance):
         return ActividadSerializer(instance, context=self.context).data

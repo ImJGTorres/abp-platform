@@ -273,6 +273,20 @@ class Actividad(models.Model):
         default=Estado.PENDIENTE,
     )
     fecha_creacion = models.DateTimeField(auto_now_add=True)
+    id_responsable = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='actividades_responsable',
+    )
+    id_equipo_asignado = models.ForeignKey(
+        'equipos.Equipo',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='actividades',
+    )
 
     class Meta:
         db_table = 'actividad'

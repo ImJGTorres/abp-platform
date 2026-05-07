@@ -18,8 +18,9 @@ from apps.usuarios.models import Usuario
 from apps.usuarios.serializers import UsuarioSerializer
 from apps.usuarios.authentication import UsuarioJWTAuthentication
 from .models import Actividad, Curso, CursoEstudiante, FaseProyecto, HitoProyecto, ObjetivoProyecto, Proyecto, ResultadoAprendizaje
-from .permissions import EsAdministrador, EsDocente, EsDocenteOAdministrador
+from .permissions import EsAdministrador, EsDocente, EsDocenteOAdministrador, EsLiderEquipo
 from .serializers import (
+    ActividadAsignarResponsableSerializer,
     ActividadCreateSerializer,
     ActividadSerializer,
     ActividadUpdateSerializer,
@@ -1142,3 +1143,31 @@ class ActividadDetailView(generics.RetrieveUpdateDestroyAPIView):
         )
         self.perform_destroy(instance)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ActividadAsignarResponsableView(generics.UpdateAPIView):
+    """
+    PATCH /api/actividades/<pk>/asignar-responsable/
+
+    Permite al líder de equipo asignar el responsable de una actividad.
+    El responsable debe ser miembro activo del equipo asignado a la actividad.
+    """
+
+    http_method_names = ['patch']
+    permission_classes = [EsLiderEquipo]
+    serializer_class = ActividadAsignarResponsableSerializer
+
+    def get_queryset(self):
+        return (
+            Actividad.objects
+            .filter(
+                id_equipo_asignado__miembros__usuario=self.request.user,
+                id_equipo_asignado__miembros__estado='activo',
+                id_equipo_asignado__miembros__rol_interno='lider',
+            )
+            .select_related('id_equipo_asignado')
+            .distinct()
+        )
+
+    def patch(self, request, *args, **kwargs):
+        return self.partial_update(request, *args, **kwargs)
