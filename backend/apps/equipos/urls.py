@@ -3,12 +3,13 @@ from apps.cursos.views import ActividadesPorEquipoView
 from .views import (
     ActualizarRolView,
     AsignarEstudiantesView,
-    EquiposPorProyectoView,
-    EditarEquipoView,
-    EstudiantesEquipoView,
-    RetirarMiembroView,
-    MoverMiembroView,
     DisolverEquipoView,
+    EditarEquipoView,
+    EquipoProgresoView,
+    EquiposPorProyectoView,
+    EstudiantesEquipoView,
+    MoverMiembroView,
+    RetirarMiembroView,
     ActualizarRolMiembroView,
 )
 
@@ -45,4 +46,7 @@ urlpatterns = [
     path('miembros/<int:miembro_id>/', ActualizarRolMiembroView.as_view(), name='miembro-actualizar-rol'),
     # GET /api/equipos/<equipo_id>/actividades/ — lista actividades del equipo (HU-016 BE-03).
     path('equipos/<int:equipo_id>/actividades/', ActividadesPorEquipoView.as_view(), name='actividades-por-equipo'),
+
+    # GET /api/equipos/<equipo_id>/progreso/ — resumen de progreso del equipo (BE 02).
+    path('equipos/<int:equipo_id>/progreso/', EquipoProgresoView.as_view(), name='equipo-progreso'),
 ]

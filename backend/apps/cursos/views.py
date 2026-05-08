@@ -1,7 +1,8 @@
 import io
 
 from django.db import transaction
-from django.db.models import OuterRef, Subquery
+from django.db.models import Count, OuterRef, Q, Subquery, Sum
+from django.db.models.functions import Coalesce
 from django.shortcuts import get_object_or_404
 
 from rest_framework import generics, status
@@ -188,6 +189,7 @@ class ProyectoListCreateView(generics.ListCreateAPIView):
         return (
             Proyecto.objects
             .filter(id_curso=curso)
+            .con_progreso()
             .prefetch_related('equipos')
             .order_by('fecha_inicio')
         )
@@ -1196,25 +1198,25 @@ class ActividadAsignarResponsableView(generics.UpdateAPIView):
 
 
 def _recalcular_porcentaje_fase(fase):
-    """BE 04 — Recalcula porcentaje_completado de la fase como promedio del último avance por actividad."""
-    actividades = fase.actividades.all()
-    total = actividades.count()
-    if total == 0:
-        FaseProyecto.objects.filter(pk=fase.pk).update(porcentaje_completado=0)
-        return
-    ultimo_avance = (
+    """BE 04 — Recalcula porcentaje_completado de la fase como promedio del último avance por actividad.
+
+    Emite exactamente 2 queries: una de agregación y una UPDATE.
+    """
+    ultimo_avance_sq = (
         AvanceActividad.objects
         .filter(id_actividad=OuterRef('pk'))
         .order_by('-fecha_registro')
         .values('porcentaje_completado')[:1]
     )
-    suma = sum(
-        a.ultimo_porcentaje or 0
-        for a in actividades.annotate(ultimo_porcentaje=Subquery(ultimo_avance))
+    resultado = (
+        Actividad.objects
+        .filter(id_fase=fase)
+        .annotate(ultimo_porcentaje=Coalesce(Subquery(ultimo_avance_sq), 0))
+        .aggregate(total=Count('id'), suma=Sum('ultimo_porcentaje'))
     )
-    FaseProyecto.objects.filter(pk=fase.pk).update(
-        porcentaje_completado=round(suma / total)
-    )
+    total = resultado['total'] or 0
+    nuevo_pct = round((resultado['suma'] or 0) / total) if total else 0
+    FaseProyecto.objects.filter(pk=fase.pk).update(porcentaje_completado=nuevo_pct)
 
 
 class AvanceActividadListCreateView(generics.ListCreateAPIView):
@@ -1377,3 +1379,96 @@ class ActividadesPorEquipoView(generics.ListAPIView):
             .prefetch_related('responsables')
             .select_related('id_fase')
         )
+# BE 01 — Progreso del proyecto
+# ---------------------------------------------------------------------------
+
+class ProyectoProgresoView(APIView):
+    """
+    GET /api/proyectos/<pk>/progreso/
+
+    Retorna el resumen de progreso del proyecto:
+      - porcentaje_progreso: promedio del porcentaje_completado de todas sus fases.
+      - fases: lista ordenada con conteos de actividades por estado por fase.
+      - actividades_por_estado: conteos globales (pendiente / en_progreso / completada / bloqueada).
+
+    Acceso: administrador, docente propietario del curso o estudiante activo del curso.
+    """
+
+    authentication_classes = [UsuarioJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def _check_acceso(self, proyecto):
+        usuario = self.request.user
+        tipo_rol = getattr(usuario, 'tipo_rol', None)
+        if tipo_rol == 'administrador':
+            return
+        curso = proyecto.id_curso
+        if tipo_rol == 'docente':
+            if curso.id_docente_id != usuario.pk:
+                raise PermissionDenied('No eres el docente propietario de este proyecto.')
+        elif tipo_rol == 'estudiante':
+            tiene_acceso = MiembroEquipo.objects.filter(
+                equipo__proyecto__id_curso=curso,
+                usuario=usuario,
+                estado='activo',
+            ).exists()
+            if not tiene_acceso:
+                raise PermissionDenied('No perteneces a ningún equipo de este curso.')
+        else:
+            raise PermissionDenied('Acceso no permitido.')
+
+    def get(self, request, pk):
+        proyecto = get_object_or_404(
+            Proyecto.objects.select_related('id_curso'),
+            pk=pk,
+        )
+        self._check_acceso(proyecto)
+
+        fases = list(
+            FaseProyecto.objects
+            .filter(id_proyecto=proyecto)
+            .con_resumen_actividades()
+            .order_by('orden')
+        )
+
+        porcentaje_progreso = (
+            round(sum(f.porcentaje_completado for f in fases) / len(fases))
+            if fases else 0
+        )
+
+        fases_data = []
+        totales = {'pendiente': 0, 'en_progreso': 0, 'completada': 0, 'bloqueada': 0}
+        for f in fases:
+            pendientes = max(
+                f.total_actividades
+                - f.actividades_completadas
+                - f.actividades_en_progreso
+                - f.actividades_bloqueadas,
+                0,
+            )
+            totales['pendiente'] += pendientes
+            totales['en_progreso'] += f.actividades_en_progreso
+            totales['completada'] += f.actividades_completadas
+            totales['bloqueada'] += f.actividades_bloqueadas
+            fases_data.append({
+                'id': f.id,
+                'nombre': f.nombre,
+                'orden': f.orden,
+                'estado': f.estado,
+                'porcentaje_completado': f.porcentaje_completado,
+                'total_actividades': f.total_actividades,
+                'actividades_completadas': f.actividades_completadas,
+                'actividades_en_progreso': f.actividades_en_progreso,
+                'actividades_bloqueadas': f.actividades_bloqueadas,
+                'actividades_pendientes': pendientes,
+            })
+
+        return Response({
+            'id_proyecto': proyecto.pk,
+            'nombre': proyecto.nombre,
+            'estado': proyecto.estado,
+            'porcentaje_progreso': porcentaje_progreso,
+            'total_fases': len(fases),
+            'fases': fases_data,
+            'actividades_por_estado': totales,
+        })

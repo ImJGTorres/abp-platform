@@ -1,6 +1,13 @@
 from django.urls import path
 
-from .views import FaseListCreateView, HitoListCreateView, ObjetivoListCreateView, ProyectoDetailView, RapListCreateView
+from .views import (
+    FaseListCreateView,
+    HitoListCreateView,
+    ObjetivoListCreateView,
+    ProyectoDetailView,
+    ProyectoProgresoView,
+    RapListCreateView,
+)
 
 urlpatterns = [
     # GET/PUT/PATCH  /api/proyectos/<pk>/
@@ -21,4 +28,7 @@ urlpatterns = [
     # GET  /api/proyectos/<proyecto_id>/fases/  — lista fases del proyecto ordenadas por orden.
     # POST /api/proyectos/<proyecto_id>/fases/  — crea una fase (solo docente propietario).
     path('<int:proyecto_id>/fases/', FaseListCreateView.as_view(), name='fase-list-create'),
+
+    # GET  /api/proyectos/<pk>/progreso/  — resumen de progreso del proyecto (BE 01).
+    path('<int:pk>/progreso/', ProyectoProgresoView.as_view(), name='proyecto-progreso'),
 ]

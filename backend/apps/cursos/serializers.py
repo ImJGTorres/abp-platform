@@ -151,6 +151,10 @@ class ProyectoSerializer(serializers.ModelSerializer):
     fecha_fin = serializers.DateField(source='fecha_fin_estimada')
     cantidad_equipos = serializers.SerializerMethodField()
     equipo = serializers.SerializerMethodField()
+    porcentaje_progreso = serializers.SerializerMethodField()
+    total_fases = serializers.SerializerMethodField()
+    total_actividades = serializers.SerializerMethodField()
+    actividades_completadas = serializers.SerializerMethodField()
 
     class Meta:
         model = Proyecto
@@ -164,6 +168,10 @@ class ProyectoSerializer(serializers.ModelSerializer):
             'fecha_fin',
             'cantidad_equipos',
             'equipo',
+            'porcentaje_progreso',
+            'total_fases',
+            'total_actividades',
+            'actividades_completadas',
             'fecha_creacion',
         ]
         read_only_fields = fields
@@ -176,6 +184,33 @@ class ProyectoSerializer(serializers.ModelSerializer):
         if not equipo:
             return None
         return EquipoDetalleSerializer(equipo).data
+
+    def get_porcentaje_progreso(self, obj):
+        # Usa el valor anotado por ProyectoQuerySet.con_progreso() si está disponible.
+        if hasattr(obj, 'porcentaje_progreso'):
+            val = obj.porcentaje_progreso
+            return val if val is not None else 0
+        fases = list(obj.fases.all())
+        if not fases:
+            return 0
+        return round(sum(f.porcentaje_completado for f in fases) / len(fases))
+
+    def get_total_fases(self, obj):
+        if hasattr(obj, 'total_fases'):
+            return obj.total_fases
+        return obj.fases.count()
+
+    def get_total_actividades(self, obj):
+        if hasattr(obj, 'total_actividades'):
+            return obj.total_actividades
+        from .models import Actividad
+        return Actividad.objects.filter(id_fase__id_proyecto=obj).count()
+
+    def get_actividades_completadas(self, obj):
+        if hasattr(obj, 'actividades_completadas'):
+            return obj.actividades_completadas
+        from .models import Actividad
+        return Actividad.objects.filter(id_fase__id_proyecto=obj, estado='completada').count()
 
 
 class ProyectoCreateSerializer(serializers.ModelSerializer):
