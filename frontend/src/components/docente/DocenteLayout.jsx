@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { NavLink, Outlet, useNavigate, Link, useLocation } from 'react-router-dom'
+import { Outlet, useNavigate, Link, useLocation } from 'react-router-dom'
 import { authApi, session, buildMediaUrl } from '../../services/api'
 
 function IconBook() {
@@ -35,14 +35,6 @@ function IconX() {
     )
 }
 
-function IconChevron() {
-    return (
-        <svg viewBox="0 0 20 20" fill="none" className="w-4 h-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M13 8l-3 3-3-3" />
-        </svg>
-    )
-}
-
 function IconProfile() {
     return (
         <svg viewBox="0 0 20 20" fill="none" className="w-4 h-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
@@ -73,28 +65,47 @@ function IconTeam() {
     )
 }
 
+function IconShuffle() {
+    return (
+        <svg viewBox="0 0 20 20" fill="none" className="w-5 h-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 6h11M11 4l3 2-3 2" />
+            <path d="M17 14H6M9 12l-3 2 3 2" />
+        </svg>
+    )
+}
+
+function IconChevronLeft() {
+    return (
+        <svg viewBox="0 0 20 20" fill="none" className="w-4 h-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 4L6 10l6 6" />
+        </svg>
+    )
+}
+
+function IconChevronRight() {
+    return (
+        <svg viewBox="0 0 20 20" fill="none" className="w-4 h-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M8 4l6 6-6 6" />
+        </svg>
+    )
+}
+
 // ── Navegación ────────────────────────────────────────────────────────────
 
 function isNavLinkActive(to, pathname, cursoId) {
-    // Si es el enlace a "Mis cursos"
     if (to === '/docente/cursos') {
-        // Activo solo si estamos exactamente en /docente/cursos
         return pathname === '/docente/cursos'
     }
-    // Si es el enlace a estudiantes
     if (to === `/docente/cursos/${cursoId}/estudiantes`) {
-        // Activo solo si estamos en /docente/cursos/:id/estudiantes
         return pathname === `/docente/cursos/${cursoId}/estudiantes`
     }
-    // Si es el enlace a equipos (ahora lleva a la página del curso)
     if (to === `/docente/cursos/${cursoId}`) {
-        // Activo si estamos en /docente/cursos/:id
         return pathname === `/docente/cursos/${cursoId}`
     }
     return false
 }
 
-function SidebarContent({ collapsed, user, userMenuOpen, setUserMenuOpen, loggingOut, handleLogout, onNavClick, cursoId }) {
+function SidebarContent({ collapsed, onCollapse, loggingOut, handleLogout, onNavClick, cursoId }) {
     const location = useLocation()
     const NAV_ITEMS = [
         { label: 'Mis cursos', to: '/docente/cursos', icon: <IconBook /> },
@@ -104,24 +115,41 @@ function SidebarContent({ collapsed, user, userMenuOpen, setUserMenuOpen, loggin
         NAV_ITEMS.push(
             { label: 'Estudiantes', to: `/docente/cursos/${cursoId}/estudiantes`, icon: <IconUsers /> },
             { label: 'Proyectos', to: `/docente/cursos/${cursoId}`, icon: <IconTeam /> },
-            { label: 'Reorganizar equipos', to: `/docente/cursos/${cursoId}/reorganizar`, icon: <IconTeam /> }
+            { label: 'Reorganizar equipos', to: `/docente/cursos/${cursoId}/reorganizar`, icon: <IconShuffle /> }
         )
     }
 
     return (
         <>
-            {/* Marca */}
-            <div className="flex items-center gap-2.5 px-4 h-[60px] border-b border-[#e1e3e4] flex-shrink-0">
-                <div className="flex-shrink-0 w-8 h-8 bg-[#d32f2f] rounded-lg flex items-center justify-center shadow-sm">
-                    <svg viewBox="0 0 24 24" className="w-8 h-6 text-white" fill="currentColor">
-                        <path d="M12 2L2 7l10 5 10-5-10-5z" />
-                        <path d="M6 10v4c0 2.5 3.5 4 6 4s6-1.5 6-4v-4l-6 3-6-3z" opacity="0.9" />
-                    </svg>
+            {/* Marca + Collapse */}
+            {collapsed ? (
+                <div className="flex items-center justify-center h-[60px] border-b border-[#e1e3e4] flex-shrink-0">
+                    {onCollapse && (
+                        <button onClick={onCollapse}
+                            className="flex items-center justify-center w-8 h-8 rounded-lg text-[#9ba7ae] hover:bg-[#f0f2f3] hover:text-[#4c616c] transition-colors"
+                            title="Expandir menú">
+                            <IconChevronRight />
+                        </button>
+                    )}
                 </div>
-                {!collapsed && (
+            ) : (
+                <div className="flex items-center gap-2.5 px-4 h-[60px] border-b border-[#e1e3e4] flex-shrink-0">
+                    <div className="flex-shrink-0 w-8 h-8 bg-[#d32f2f] rounded-lg flex items-center justify-center shadow-sm">
+                        <svg viewBox="0 0 24 24" className="w-8 h-6 text-white" fill="currentColor">
+                            <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                            <path d="M6 10v4c0 2.5 3.5 4 6 4s6-1.5 6-4v-4l-6 3-6-3z" opacity="0.9" />
+                        </svg>
+                    </div>
                     <span className="text-[15px] font-extrabold text-[#191c1d] tracking-tight whitespace-nowrap">Projex ABP</span>
-                )}
-            </div>
+                    {onCollapse && (
+                        <button onClick={onCollapse}
+                            className="ml-auto flex items-center justify-center w-7 h-7 rounded-lg text-[#9ba7ae] hover:bg-[#f0f2f3] hover:text-[#4c616c] transition-colors"
+                            title="Colapsar menú">
+                            <IconChevronLeft />
+                        </button>
+                    )}
+                </div>
+            )}
 
             {/* Navegación */}
             <nav className="flex-1 overflow-y-auto py-3 px-2 flex flex-col gap-0.5">
@@ -134,13 +162,7 @@ function SidebarContent({ collapsed, user, userMenuOpen, setUserMenuOpen, loggin
                         ? 'flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] font-medium transition-all duration-150 select-none cursor-pointer bg-[#d32f2f] text-white shadow-[0_4px_12px_rgba(211,47,47,0.30)]'
                         : 'flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] font-medium transition-all duration-150 select-none cursor-pointer text-[#4c616c] hover:bg-[#f0f2f3] hover:text-[#191c1d]'
                     return (
-                        <Link
-                            key={to}
-                            to={to}
-                            className={classes}
-                            title={collapsed ? label : undefined}
-                            onClick={onNavClick}
-                        >
+                        <Link key={to} to={to} className={classes} title={collapsed ? label : undefined} onClick={onNavClick}>
                             <span className="flex-shrink-0">{icon}</span>
                             {!collapsed && <span>{label}</span>}
                         </Link>
@@ -148,37 +170,18 @@ function SidebarContent({ collapsed, user, userMenuOpen, setUserMenuOpen, loggin
                 })}
             </nav>
 
-            {/* Usuario + Logout */}
+            {/* Perfil + Logout */}
             <div className="border-t border-[#e1e3e4] p-2 flex-shrink-0">
-                {!collapsed && user && (
-                    <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-[#f0f2f3] cursor-pointer transition-colors mb-1 relative"
-                        onClick={e => { e.stopPropagation(); setUserMenuOpen(o => !o) }}>
-                        <div className="w-7 h-7 rounded-full bg-[#ffdad6] flex items-center justify-center flex-shrink-0 overflow-hidden">
-                            {user.foto_perfil
-                                ? <img src={buildMediaUrl(user.foto_perfil)} alt="" className="w-full h-full object-cover" onError={e => { e.target.style.display = 'none' }} />
-                                : <span className="text-[11px] font-bold text-[#af101a]">{user.nombre?.[0]?.toUpperCase() ?? 'D'}</span>
-                            }
-                        </div>
-                        <div className="min-w-0 flex-1">
-                            <p className="text-[12px] font-semibold text-[#191c1d] truncate leading-tight">{user.nombre ?? 'Docente'}</p>
-                            <p className="text-[10px] text-[#9ba7ae] truncate leading-tight">Docente</p>
-                        </div>
-                        <IconChevron />
-
-                        {userMenuOpen && (
-                            <div className="absolute bottom-full left-0 w-full mb-1 bg-white rounded-xl border border-[#e1e3e4] shadow-lg overflow-hidden z-30">
-                                <Link to="/perfil" onClick={e => e.stopPropagation()}
-                                    className="w-full flex items-center gap-2.5 px-3 py-2.5 text-[13px] text-[#191c1d] hover:bg-[#f0f2f3] transition-colors">
-                                    <IconProfile />Mi perfil
-                                </Link>
-                                <button onClick={e => { e.stopPropagation(); handleLogout() }} disabled={loggingOut}
-                                    className="w-full flex items-center gap-2.5 px-3 py-2.5 text-[13px] text-[#ba1a1a] hover:bg-[#fff1f0] transition-colors disabled:opacity-60">
-                                    <IconLogout />{loggingOut ? 'Cerrando...' : 'Cerrar sesión'}
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                )}
+                <Link to="/perfil" onClick={onNavClick}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] font-medium text-[#4c616c] hover:bg-[#f0f2f3] hover:text-[#191c1d] transition-colors">
+                    <span className="flex-shrink-0"><IconProfile /></span>
+                    {!collapsed && <span>Mi perfil</span>}
+                </Link>
+                <button onClick={handleLogout} disabled={loggingOut}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] font-medium text-[#ba1a1a] hover:bg-[#fff1f0] transition-colors disabled:opacity-60">
+                    <span className="flex-shrink-0"><IconLogout /></span>
+                    {!collapsed && <span>{loggingOut ? 'Cerrando...' : 'Cerrar sesión'}</span>}
+                </button>
             </div>
         </>
     )
@@ -191,7 +194,7 @@ export default function DocenteLayout() {
     const [collapsed, setCollapsed] = useState(false)
     const [mobileOpen, setMobileOpen] = useState(false)
     const [loggingOut, setLoggingOut] = useState(false)
-    const [userMenuOpen, setUserMenuOpen] = useState(false)
+    const [topbarMenuOpen, setTopbarMenuOpen] = useState(false)
 
     const cursoMatch = location.pathname.match(/^\/docente\/cursos\/(\d+)/)
     const cursoId = cursoMatch?.[1] ?? null
@@ -218,7 +221,7 @@ export default function DocenteLayout() {
 
     return (
         <div className="flex h-screen bg-[#f8f9fa] overflow-hidden" style={{ fontFamily: "'Manrope', sans-serif" }}
-            onClick={() => { setUserMenuOpen(false); setMobileOpen(false) }}>
+            onClick={() => { setTopbarMenuOpen(false); setMobileOpen(false) }}>
 
             {/* ── Overlay móvil ────────────────────────────────────────────── */}
             {mobileOpen && (
@@ -227,23 +230,15 @@ export default function DocenteLayout() {
 
             {/* ── Sidebar desktop ──────────────────────────────────────────── */}
             <aside className={`hidden lg:flex ${sidebarW} flex-shrink-0 flex-col bg-white border-r border-[#e1e3e4] transition-[width] duration-200 ease-in-out z-20 relative`}>
-                <SidebarContent collapsed={collapsed} user={user} userMenuOpen={userMenuOpen}
-                    setUserMenuOpen={setUserMenuOpen} loggingOut={loggingOut} handleLogout={handleLogout} onNavClick={undefined} cursoId={cursoId} />
-                <div className="border-t border-[#e1e3e4] p-2 flex-shrink-0">
-                    <button onClick={() => setCollapsed(c => !c)}
-                        className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-[#9ba7ae] hover:bg-[#f0f2f3] hover:text-[#4c616c] transition-colors text-[12px] font-medium"
-                        title={collapsed ? 'Expandir menú' : 'Colapsar menú'}>
-                        <IconMenu />
-                        {!collapsed && <span>Colapsar</span>}
-                    </button>
-                </div>
+                <SidebarContent collapsed={collapsed} onCollapse={() => setCollapsed(c => !c)} user={user}
+                    loggingOut={loggingOut} handleLogout={handleLogout} onNavClick={undefined} cursoId={cursoId} />
             </aside>
 
             {/* ── Sidebar móvil (drawer) ────────────────────────────────────── */}
             <aside className={`lg:hidden fixed top-0 left-0 h-full w-[260px] flex flex-col bg-white border-r border-[#e1e3e4] z-40 transition-transform duration-200 ease-in-out ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}
                 onClick={e => e.stopPropagation()}>
-                <SidebarContent collapsed={false} user={user} userMenuOpen={userMenuOpen}
-                    setUserMenuOpen={setUserMenuOpen} loggingOut={loggingOut} handleLogout={handleLogout}
+                <SidebarContent collapsed={false} onCollapse={null} user={user}
+                    loggingOut={loggingOut} handleLogout={handleLogout}
                     onNavClick={() => setMobileOpen(false)} cursoId={cursoId} />
             </aside>
 
@@ -252,25 +247,39 @@ export default function DocenteLayout() {
 
                 {/* Topbar */}
                 <header className="h-[60px] flex-shrink-0 bg-white border-b border-[#e1e3e4] flex items-center px-4 sm:px-6 gap-4">
-                    {/* Hamburger (solo móvil) */}
                     <button className="lg:hidden flex items-center justify-center w-9 h-9 rounded-xl hover:bg-[#f0f2f3] transition-colors text-[#4c616c]"
                         onClick={e => { e.stopPropagation(); setMobileOpen(o => !o) }}>
                         {mobileOpen ? <IconX /> : <IconMenu />}
                     </button>
                     <div className="flex-1" />
                     {user && (
-                        <Link to="/perfil" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
-                            <div className="w-8 h-8 rounded-full bg-[#ffdad6] flex items-center justify-center overflow-hidden">
-                                {user.foto_perfil
-                                    ? <img src={buildMediaUrl(user.foto_perfil)} alt="" className="w-full h-full object-cover" onError={e => { e.target.style.display = 'none' }} />
-                                    : <span className="text-[12px] font-bold text-[#af101a]">{user.nombre?.[0]?.toUpperCase() ?? 'D'}</span>
-                                }
-                            </div>
-                            <div className="hidden sm:block">
-                                <p className="text-[13px] font-semibold text-[#191c1d] leading-tight">{user.nombre ?? 'Docente'}</p>
-                                <p className="text-[11px] text-[#9ba7ae] leading-tight">Docente</p>
-                            </div>
-                        </Link>
+                        <div className="relative">
+                            <button onClick={e => { e.stopPropagation(); setTopbarMenuOpen(o => !o) }}
+                                className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
+                                <div className="w-8 h-8 rounded-full bg-[#ffdad6] flex items-center justify-center overflow-hidden">
+                                    {user.foto_perfil
+                                        ? <img src={buildMediaUrl(user.foto_perfil)} alt="" className="w-full h-full object-cover" onError={e => { e.target.style.display = 'none' }} />
+                                        : <span className="text-[12px] font-bold text-[#af101a]">{user.nombre?.[0]?.toUpperCase() ?? 'D'}</span>
+                                    }
+                                </div>
+                                <div className="hidden sm:block text-left">
+                                    <p className="text-[13px] font-semibold text-[#191c1d] leading-tight">{user.nombre ?? 'Docente'}</p>
+                                    <p className="text-[11px] text-[#9ba7ae] leading-tight">Docente</p>
+                                </div>
+                            </button>
+                            {topbarMenuOpen && (
+                                <div className="absolute right-0 top-full mt-1 w-44 bg-white rounded-xl border border-[#e1e3e4] shadow-lg overflow-hidden z-30">
+                                    <Link to="/perfil" onClick={() => setTopbarMenuOpen(false)}
+                                        className="flex items-center gap-2.5 px-3 py-2.5 text-[13px] text-[#191c1d] hover:bg-[#f0f2f3] transition-colors">
+                                        <IconProfile />Mi perfil
+                                    </Link>
+                                    <button onClick={() => { setTopbarMenuOpen(false); handleLogout() }} disabled={loggingOut}
+                                        className="w-full flex items-center gap-2.5 px-3 py-2.5 text-[13px] text-[#ba1a1a] hover:bg-[#fff1f0] transition-colors disabled:opacity-60">
+                                        <IconLogout />{loggingOut ? 'Cerrando...' : 'Cerrar sesión'}
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                     )}
                 </header>
 

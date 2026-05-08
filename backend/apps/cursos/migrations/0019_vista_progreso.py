@@ -24,7 +24,7 @@ GROUP BY
     fp.estado,
     fp.orden,
     fp.id_proyecto_id,
-    fp.porcentaje_completado
+    fp.porcentaje_completado;
 """
 
 # Vista de resumen de progreso por proyecto.
@@ -45,7 +45,7 @@ SELECT
 FROM proyecto p
 LEFT JOIN fase_proyecto fp ON fp.id_proyecto_id = p.id
 LEFT JOIN actividad a      ON a.id_fase_id = fp.id
-GROUP BY p.id, p.nombre, p.estado
+GROUP BY p.id, p.nombre, p.estado;
 """
 
 _SQL_BORRAR_VISTAS = """
