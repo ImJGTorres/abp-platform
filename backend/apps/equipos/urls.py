@@ -2,12 +2,13 @@ from django.urls import path
 from .views import (
     ActualizarRolView,
     AsignarEstudiantesView,
-    EquiposPorProyectoView,
-    EditarEquipoView,
-    EstudiantesEquipoView,
-    RetirarMiembroView,
-    MoverMiembroView,
     DisolverEquipoView,
+    EditarEquipoView,
+    EquipoProgresoView,
+    EquiposPorProyectoView,
+    EstudiantesEquipoView,
+    MoverMiembroView,
+    RetirarMiembroView,
     ActualizarRolMiembroView,
 )
 
@@ -42,4 +43,7 @@ urlpatterns = [
     # PATCH /api/miembros/<miembro_id>/
     # Actualizar rol_interno de un miembro (lider, desarrollador, analista, disenador, tester, "").
     path('miembros/<int:miembro_id>/', ActualizarRolMiembroView.as_view(), name='miembro-actualizar-rol'),
+
+    # GET /api/equipos/<equipo_id>/progreso/ — resumen de progreso del equipo (BE 02).
+    path('equipos/<int:equipo_id>/progreso/', EquipoProgresoView.as_view(), name='equipo-progreso'),
 ]
