@@ -2,7 +2,7 @@ from django.conf import settings
 
 from rest_framework import serializers
 
-from .models import ArchivoAdjunto, Entregable
+from .models import ArchivoAdjunto, Entregable, EntregableVersion
 from apps.equipos.models import MiembroEquipo
 
 
@@ -22,7 +22,37 @@ class EntregableSerializer(serializers.ModelSerializer):
             'estado',
             'fecha_envio',
             'fecha_creacion',
+            'numero_version',
+            'id_version_anterior',
         ]
+
+
+class EntregableVersionDetalleSerializer(serializers.Serializer):
+    numero_version = serializers.IntegerField()
+    id_entregable = serializers.IntegerField(source='id_version_id')
+    estado = serializers.SerializerMethodField()
+    fecha_creacion = serializers.SerializerMethodField()
+    fecha_envio = serializers.SerializerMethodField()
+    motivo_revision = serializers.CharField()
+    archivos = serializers.SerializerMethodField()
+    retroalimentacion = serializers.SerializerMethodField()
+
+    def get_estado(self, obj):
+        return obj.id_version.estado
+
+    def get_fecha_creacion(self, obj):
+        return obj.id_version.fecha_creacion
+
+    def get_fecha_envio(self, obj):
+        return obj.id_version.fecha_envio
+
+    def get_archivos(self, obj):
+        archivos = obj.id_version.archivos.all()
+        request = self.context.get('request')
+        return ArchivoAdjuntoSerializer(archivos, many=True, context={'request': request}).data
+
+    def get_retroalimentacion(self, obj):
+        return getattr(obj.id_version, 'retroalimentacion', None)
 
 
 class EntregableCreateSerializer(serializers.ModelSerializer):

@@ -17,13 +17,15 @@ from apps.bitacora.models import BitacoraSistema
 from apps.equipos.models import MiembroEquipo
 from apps.usuarios.authentication import UsuarioJWTAuthentication
 
-from .models import ArchivoAdjunto, Entregable
+from .models import ArchivoAdjunto, Entregable, EntregableVersion
 from .serializers import (
     ArchivoAdjuntoSerializer,
     EntregableCreateSerializer,
     EntregableSerializer,
+    EntregableVersionDetalleSerializer,
     SubirArchivoSerializer,
 )
+from .services import crear_nueva_version
 
 
 class EntregableListCreateView(generics.ListCreateAPIView):
@@ -270,3 +272,90 @@ class ArchivoAdjuntoEliminarView(generics.DestroyAPIView):
                 pass
 
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class NuevaVersionEntregableView(generics.GenericAPIView):
+    authentication_classes = [UsuarioJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        entregable = get_object_or_404(Entregable, pk=pk)
+        usuario = request.user
+
+        if entregable.estado != 'rechazado':
+            raise ValidationError('Solo se puede crear una nueva versión de un entregable rechazado.')
+
+        es_miembro = MiembroEquipo.objects.filter(
+            usuario=usuario,
+            equipo=entregable.id_equipo,
+            estado='activo',
+        ).exists()
+        if not es_miembro:
+            raise PermissionDenied('No perteneces al equipo dueño de este entregable.')
+
+        if usuario.tipo_rol != 'estudiante':
+            raise PermissionDenied('Solo los estudiantes pueden crear nuevas versiones.')
+
+        motivo = request.data.get('motivo_revision', '')
+
+        with transaction.atomic():
+            nuevo_entregable = crear_nueva_version(entregable, usuario, motivo)
+
+        return Response(EntregableSerializer(nuevo_entregable).data, status=status.HTTP_201_CREATED)
+
+
+class HistorialVersionesView(generics.GenericAPIView):
+    authentication_classes = [UsuarioJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def _obtener_original(self, entregable):
+        actual = entregable
+        while actual.id_version_anterior_id is not None:
+            actual = actual.id_version_anterior
+        return actual
+
+    def get(self, request, pk):
+        entregable = get_object_or_404(Entregable, pk=pk)
+        usuario = request.user
+        tipo_rol = usuario.tipo_rol
+
+        proyecto = entregable.id_actividad.id_fase.id_proyecto
+
+        if tipo_rol == 'docente':
+            if proyecto.id_curso.id_docente_id != usuario.id:
+                raise PermissionDenied('No tienes acceso a este proyecto.')
+        else:
+            es_miembro = MiembroEquipo.objects.filter(
+                usuario=usuario,
+                equipo=entregable.id_equipo,
+                estado='activo',
+            ).exists()
+            if not es_miembro:
+                raise PermissionDenied('No perteneces al equipo dueño de este entregable.')
+
+        original = self._obtener_original(entregable)
+
+        versiones_qs = EntregableVersion.objects.filter(
+            id_entregable_original=original,
+        ).select_related('id_version').order_by('numero_version')
+
+        if not versiones_qs.exists():
+            # El entregable no tiene historial en la tabla; construir respuesta mínima
+            data = [{
+                'numero_version': original.numero_version,
+                'id_entregable': original.id,
+                'estado': original.estado,
+                'fecha_creacion': original.fecha_creacion,
+                'fecha_envio': original.fecha_envio,
+                'motivo_revision': '',
+                'archivos': ArchivoAdjuntoSerializer(
+                    original.archivos.all(), many=True, context={'request': request}
+                ).data,
+                'retroalimentacion': getattr(original, 'retroalimentacion', None),
+            }]
+            return Response(data, status=status.HTTP_200_OK)
+
+        serializer = EntregableVersionDetalleSerializer(
+            versiones_qs, many=True, context={'request': request}
+        )
+        return Response(serializer.data, status=status.HTTP_200_OK)

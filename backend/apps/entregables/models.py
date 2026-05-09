@@ -36,6 +36,14 @@ class Entregable(models.Model):
     estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='borrador')
     fecha_envio = models.DateTimeField(null=True, blank=True)
     fecha_creacion = models.DateTimeField(auto_now_add=True)
+    numero_version = models.PositiveIntegerField(default=1)
+    id_version_anterior = models.ForeignKey(
+        'self',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='versiones_siguientes',
+    )
 
     class Meta:
         db_table = 'entregable'
@@ -77,3 +85,33 @@ class ArchivoAdjunto(models.Model):
 
     def __str__(self):
         return f'{self.nombre_original} (v{self.version})'
+
+
+class EntregableVersion(models.Model):
+    id_entregable_original = models.ForeignKey(
+        Entregable,
+        on_delete=models.CASCADE,
+        related_name='hilo_versiones',
+    )
+    id_version = models.ForeignKey(
+        Entregable,
+        on_delete=models.CASCADE,
+        related_name='registro_version',
+    )
+    numero_version = models.PositiveIntegerField()
+    fecha = models.DateTimeField(auto_now_add=True)
+    id_usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='versiones_creadas',
+    )
+    motivo_revision = models.TextField(blank=True)
+
+    class Meta:
+        db_table = 'entregable_versiones'
+        ordering = ['numero_version']
+
+    def __str__(self):
+        return f'v{self.numero_version} de entregable {self.id_entregable_original_id}'

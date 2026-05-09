@@ -22,4 +22,15 @@ urlpatterns = [
         views.ArchivoAdjuntoEliminarView.as_view(),
         name='archivo-eliminar',
     ),
+    # HU-021 — Versionado de entregables
+    path(
+        'entregables/<int:pk>/nueva-version/',
+        views.NuevaVersionEntregableView.as_view(),
+        name='entregable-nueva-version',
+    ),
+    path(
+        'entregables/<int:pk>/versiones/',
+        views.HistorialVersionesView.as_view(),
+        name='entregable-versiones',
+    ),
 ]
