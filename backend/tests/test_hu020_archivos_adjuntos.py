@@ -1,0 +1,1 @@
+# Archivo eliminado - no usable debido a constraints NOT NULL en tablas existentes
