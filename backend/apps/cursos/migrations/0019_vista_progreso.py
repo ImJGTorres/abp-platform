@@ -62,7 +62,7 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.RunSQL(
-            sql=_SQL_VISTA_FASE + _SQL_VISTA_PROYECTO,
+            sql=_SQL_VISTA_FASE + ';\n' + _SQL_VISTA_PROYECTO,
             reverse_sql=_SQL_BORRAR_VISTAS,
         ),
     ]

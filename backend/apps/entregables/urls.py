@@ -17,4 +17,9 @@ urlpatterns = [
         views.ArchivoListCreateView.as_view(),
         name='archivo-list-create',
     ),
+    path(
+        'archivos/<int:archivo_id>/',
+        views.ArchivoAdjuntoEliminarView.as_view(),
+        name='archivo-eliminar',
+    ),
 ]

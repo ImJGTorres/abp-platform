@@ -62,13 +62,22 @@ MIME_EXTENSION_MAP = {
 
 
 class ArchivoAdjuntoSerializer(serializers.ModelSerializer):
+    url_descarga = serializers.SerializerMethodField()
+
     class Meta:
         model = ArchivoAdjunto
         fields = [
             'id', 'id_entregable', 'nombre_original', 'nombre_almacenado',
             'ruta', 'tipo_mime', 'tamaño_bytes', 'version', 'fecha_subida',
+            'url_descarga'
         ]
         read_only_fields = fields
+
+    def get_url_descarga(self, obj):
+        request = self.context.get('request')
+        if request:
+            return request.build_absolute_uri(f"{settings.MEDIA_URL}{obj.ruta}")
+        return f"{settings.MEDIA_URL}{obj.ruta}"
 
 
 class SubirArchivoSerializer(serializers.Serializer):

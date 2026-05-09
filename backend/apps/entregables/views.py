@@ -177,7 +177,7 @@ class ArchivoListCreateView(generics.GenericAPIView):
                 raise PermissionDenied('No perteneces a este proyecto.')
 
         archivos = ArchivoAdjunto.objects.filter(id_entregable=entregable)
-        serializer = ArchivoAdjuntoSerializer(archivos, many=True)
+        serializer = ArchivoAdjuntoSerializer(archivos, many=True, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def post(self, request, id_entregable):
@@ -228,4 +228,45 @@ class ArchivoListCreateView(generics.GenericAPIView):
             except Exception:
                 pass
 
-        return Response(ArchivoAdjuntoSerializer(adjunto).data, status=status.HTTP_201_CREATED)
+        return Response(ArchivoAdjuntoSerializer(adjunto, context={'request': request}).data, status=status.HTTP_201_CREATED)
+
+
+class ArchivoAdjuntoEliminarView(generics.DestroyAPIView):
+    authentication_classes = [UsuarioJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, archivo_id):
+        try:
+            archivo = ArchivoAdjunto.objects.select_related('id_entregable').get(pk=archivo_id)
+        except ArchivoAdjunto.DoesNotExist:
+            return Response({'error': 'Archivo no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        entregable = archivo.id_entregable
+        if entregable.estado != 'borrador':
+            return Response(
+                {'error': 'Solo se pueden eliminar archivos de entregables en estado borrador.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        with transaction.atomic():
+            ruta = archivo.ruta
+            nombre_original = archivo.nombre_original
+            entregable_id = entregable.id
+            archivo.delete()
+
+            if default_storage.exists(ruta):
+                default_storage.delete(ruta)
+
+            try:
+                BitacoraSistema.objects.create(
+                    id_usuario=request.user,
+                    nombre_usuario=f'{request.user.nombre} {request.user.apellido}',
+                    accion='DELETE',
+                    modulo='Archivos',
+                    descripcion=f'Archivo "{nombre_original}" eliminado del entregable {entregable_id}',
+                    ip_origen=request.META.get('REMOTE_ADDR'),
+                )
+            except Exception:
+                pass
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
