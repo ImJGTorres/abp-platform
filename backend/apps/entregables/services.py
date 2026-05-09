@@ -52,3 +52,29 @@ def crear_nueva_version(entregable_rechazado, usuario, motivo=''):
             pass
 
     return nuevo
+
+
+# BE-01 y BE-02 (Emerson) deben importar y llamar esta función desde sus endpoints de aprobar/rechazar:
+#   from apps.entregables.services import registrar_validacion_bitacora
+#   registrar_validacion_bitacora(entregable, request.user, 'APROBAR_ENTREGABLE')
+#   registrar_validacion_bitacora(entregable, request.user, 'RECHAZAR_ENTREGABLE')
+def registrar_validacion_bitacora(entregable, usuario, accion: str):
+    """
+    accion: 'APROBAR_ENTREGABLE' o 'RECHAZAR_ENTREGABLE'
+    Llamar SIEMPRE dentro de try/except para no romper el flujo principal.
+    """
+    try:
+        from apps.bitacora.models import BitacoraSistema
+        BitacoraSistema.objects.create(
+            id_usuario=usuario,
+            nombre_usuario=f'{usuario.nombre} {usuario.apellido}',
+            accion=accion,
+            modulo='entregables',
+            descripcion=(
+                f"Entregable ID {entregable.id} ({entregable.titulo}) "
+                f"{accion.lower().replace('_', ' ')} por {usuario.nombre}. "
+                f"Retroalimentación: {entregable.retroalimentacion or 'Sin comentarios'}"
+            ),
+        )
+    except Exception:
+        pass

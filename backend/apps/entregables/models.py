@@ -36,6 +36,15 @@ class Entregable(models.Model):
     estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='borrador')
     fecha_envio = models.DateTimeField(null=True, blank=True)
     fecha_creacion = models.DateTimeField(auto_now_add=True)
+    retroalimentacion = models.TextField(null=True, blank=True)
+    id_docente_validador = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='entregables_validados',
+    )
+    fecha_validacion = models.DateTimeField(null=True, blank=True)
     numero_version = models.PositiveIntegerField(default=1)
     id_version_anterior = models.ForeignKey(
         'self',
