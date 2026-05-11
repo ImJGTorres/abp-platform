@@ -33,4 +33,20 @@ urlpatterns = [
         views.HistorialVersionesView.as_view(),
         name='entregable-versiones',
     ),
+    # HU-022 — Validación de entregables
+    path(
+        'entregables/<int:entregable_id>/aprobar/',
+        views.EntregableAprobarView.as_view(),
+        name='entregable-aprobar',
+    ),
+    path(
+        'entregables/<int:entregable_id>/rechazar/',
+        views.EntregableRechazarView.as_view(),
+        name='entregable-rechazar',
+    ),
+    path(
+        'proyectos/<int:proyecto_id>/entregables-pendientes/',
+        views.EntregablesPendientesView.as_view(),
+        name='entregables-pendientes',
+    ),
 ]

@@ -110,6 +110,30 @@ class ArchivoAdjuntoSerializer(serializers.ModelSerializer):
         return f"{settings.MEDIA_URL}{obj.ruta}"
 
 
+class EntregableValidacionSerializer(serializers.ModelSerializer):
+    """Serializador de lectura para respuesta post-validación."""
+    class Meta:
+        model = Entregable
+        fields = [
+            'id', 'titulo', 'estado', 'retroalimentacion',
+            'fecha_validacion', 'id_docente_validador', 'numero_version'
+        ]
+        read_only_fields = fields
+
+
+class EntregablePendienteSerializer(serializers.ModelSerializer):
+    """Serializador para listado de entregables pendientes del docente."""
+    nombre_equipo = serializers.CharField(source='id_equipo.nombre', read_only=True)
+    nombre_actividad = serializers.CharField(source='id_actividad.nombre', read_only=True)
+
+    class Meta:
+        model = Entregable
+        fields = [
+            'id', 'titulo', 'estado', 'fecha_envio',
+            'numero_version', 'nombre_equipo', 'nombre_actividad'
+        ]
+
+
 class SubirArchivoSerializer(serializers.Serializer):
     archivo = serializers.FileField()
 
