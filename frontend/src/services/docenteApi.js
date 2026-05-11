@@ -162,7 +162,7 @@ export const proyectosApi = {
         return data
     },
 
-    async editarHito(hitoId, campos) {
+    async editarHito(_proyectoId, hitoId, campos) {
         const response = await request(`/api/hitos/${hitoId}/`, {
             method: 'PUT',
             body: JSON.stringify(campos),

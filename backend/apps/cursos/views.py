@@ -195,7 +195,7 @@ class ProyectoListCreateView(generics.ListCreateAPIView):
 
 class ProyectoDetailView(generics.RetrieveUpdateDestroyAPIView):
     """
-    GET    /api/proyectos/<pk>/ — Detalle del proyecto.
+    GET    /api/proyectos/<pk>/ — Detalle del proyecto
     PUT    /api/proyectos/<pk>/ — Actualiza nombre, descripción, estado y fechas.
     PATCH  /api/proyectos/<pk>/ — Actualización parcial.
     DELETE /api/proyectos/<pk>/ — Elimina el proyecto (409 si tiene equipos vinculados).
