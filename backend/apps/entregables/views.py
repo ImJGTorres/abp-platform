@@ -17,13 +17,15 @@ from apps.bitacora.models import BitacoraSistema
 from apps.equipos.models import MiembroEquipo
 from apps.usuarios.authentication import UsuarioJWTAuthentication
 
-from .models import ArchivoAdjunto, Entregable, EntregableVersion
+from .models import ArchivoAdjunto, Entregable, EntregableVersion, Notificacion
 from .serializers import (
     ArchivoAdjuntoSerializer,
     EntregableCreateSerializer,
     EntregableSerializer,
     EntregableVersionDetalleSerializer,
+    NotificacionSerializer,
     SubirArchivoSerializer,
+    ValidarEntregableSerializer,
 )
 from .services import crear_nueva_version
 
@@ -302,6 +304,92 @@ class NuevaVersionEntregableView(generics.GenericAPIView):
             nuevo_entregable = crear_nueva_version(entregable, usuario, motivo)
 
         return Response(EntregableSerializer(nuevo_entregable).data, status=status.HTTP_201_CREATED)
+
+
+class ValidarEntregableView(generics.GenericAPIView):
+    """PATCH /api/entregables/<pk>/validar/ — docente aprueba o rechaza un entregable."""
+    authentication_classes = [UsuarioJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, pk):
+        entregable = get_object_or_404(Entregable, pk=pk)
+        usuario = request.user
+
+        if usuario.tipo_rol != 'docente':
+            raise PermissionDenied('Solo los docentes pueden validar entregables.')
+
+        proyecto = entregable.id_actividad.id_fase.id_proyecto
+        if proyecto.id_curso.id_docente_id != usuario.id:
+            raise PermissionDenied('No eres el docente de este proyecto.')
+
+        if entregable.estado != 'enviado':
+            raise ValidationError('Solo se pueden validar entregables en estado "enviado".')
+
+        serializer = ValidarEntregableSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        accion = serializer.validated_data['accion']
+        retroalimentacion = serializer.validated_data.get('retroalimentacion', '')
+
+        nuevo_estado = 'aprobado' if accion == 'aprobar' else 'rechazado'
+
+        with transaction.atomic():
+            entregable.estado = nuevo_estado
+            entregable.retroalimentacion = retroalimentacion
+            entregable.id_docente_validador = usuario
+            entregable.fecha_validacion = timezone.now()
+            entregable.save(update_fields=['estado', 'retroalimentacion', 'id_docente_validador', 'fecha_validacion'])
+
+            miembros = entregable.id_equipo.miembros.filter(estado='activo').select_related('usuario')
+            notificaciones = [
+                Notificacion(
+                    id_usuario_destino=m.usuario,
+                    tipo=nuevo_estado,
+                    titulo_entregable=entregable.titulo,
+                    retroalimentacion=retroalimentacion,
+                    id_entregable=entregable,
+                )
+                for m in miembros
+            ]
+            if notificaciones:
+                Notificacion.objects.bulk_create(notificaciones)
+
+            from apps.entregables.services import registrar_validacion_bitacora
+            accion_bitacora = 'APROBAR_ENTREGABLE' if accion == 'aprobar' else 'RECHAZAR_ENTREGABLE'
+            registrar_validacion_bitacora(entregable, usuario, accion_bitacora)
+
+        return Response(EntregableSerializer(entregable).data, status=status.HTTP_200_OK)
+
+
+class NotificacionesView(generics.ListAPIView):
+    """GET /api/notificaciones/ — notificaciones del usuario autenticado."""
+    authentication_classes = [UsuarioJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+    serializer_class = NotificacionSerializer
+
+    def get_queryset(self):
+        return Notificacion.objects.filter(id_usuario_destino=self.request.user)
+
+
+class MarcarNotificacionLeidaView(generics.GenericAPIView):
+    """PATCH /api/notificaciones/<pk>/leer/ — marca como leída."""
+    authentication_classes = [UsuarioJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, pk):
+        notificacion = get_object_or_404(Notificacion, pk=pk, id_usuario_destino=request.user)
+        notificacion.leida = True
+        notificacion.save(update_fields=['leida'])
+        return Response(NotificacionSerializer(notificacion).data, status=status.HTTP_200_OK)
+
+
+class MarcarTodasLeidasView(generics.GenericAPIView):
+    """PATCH /api/notificaciones/leer-todas/ — marca todas las notificaciones como leídas."""
+    authentication_classes = [UsuarioJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request):
+        Notificacion.objects.filter(id_usuario_destino=request.user, leida=False).update(leida=True)
+        return Response({'detail': 'Todas las notificaciones marcadas como leídas.'}, status=status.HTTP_200_OK)
 
 
 class HistorialVersionesView(generics.GenericAPIView):

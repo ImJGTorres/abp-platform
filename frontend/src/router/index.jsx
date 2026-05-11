@@ -32,6 +32,11 @@ import CronogramaHitos from '../components/docente/CronogramaHitos'
 import EquiposCurso from '../components/docente/EquiposCurso'
 import GestionFases from '../components/docente/GestionFases'
 import GestionActividades from '../components/docente/GestionActividades'
+import PanelRevisionEntregables from '../components/docente/PanelRevisionEntregables'
+
+import EstudianteLayout from '../components/estudiante/EstudianteLayout'
+import DashboardEstudiante from '../components/estudiante/DashboardEstudiante'
+import EntregablesActividad from '../components/estudiante/EntregablesActividad'
 
 import LiderLayout from '../components/LiderEquipo/LiderLayout'
 import DashboardLider from '../components/LiderEquipo/DashboardLider'
@@ -112,6 +117,7 @@ export default function AppRouter() {
             <Route path="/docente/proyectos/:proyectoId/cronograma" element={<CronogramaProyecto />} />
             <Route path="/docente/proyectos/:proyectoId/fases" element={<GestionFases />} />
             <Route path="/docente/proyectos/:proyectoId/fases/:faseId/actividades" element={<GestionActividades />} />
+            <Route path="/docente/proyectos/:proyectoId/fases/:faseId/actividades/:actividadId/entregables" element={<PanelRevisionEntregables />} />
             <Route path="/docente/proyectos/:proyectoId/perfiles-roles" element={<PerfilesRolesProyecto />} />
           </Route>
         </Route>
@@ -123,7 +129,11 @@ export default function AppRouter() {
 
         {/* ESTUDIANTE */}
         <Route element={<PrivateRoute allowedRoles={['estudiante']} />}>
-          <Route path="/estudiante" element={<PanelEstudiante />} />
+          <Route element={<EstudianteLayout />}>
+            <Route path="/estudiante" element={<Navigate to="/estudiante/dashboard" replace />} />
+            <Route path="/estudiante/dashboard" element={<DashboardEstudiante />} />
+            <Route path="/estudiante/actividades/:actividadId/entregables" element={<EntregablesActividad />} />
+          </Route>
         </Route>
 
         {/* LÍDER */}

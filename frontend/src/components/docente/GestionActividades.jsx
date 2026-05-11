@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useParams, Link, useLocation } from 'react-router-dom'
+import { useParams, Link, useLocation, useNavigate } from 'react-router-dom'
 import { actividadesApi } from '../../services/docenteApi'
 
 function IconPlus() {
@@ -30,6 +30,14 @@ function IconChevron() {
     return (
         <svg className="w-3 h-3 text-[#9ba7ae]" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <path d="M6 3l5 5-5 5" />
+        </svg>
+    )
+}
+
+function IconInbox() {
+    return (
+        <svg viewBox="0 0 20 20" fill="none" className="w-3.5 h-3.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M2 13l2-8h12l2 8H2z" /><path d="M2 13h4l1 2h6l1-2h4" />
         </svg>
     )
 }
@@ -82,6 +90,7 @@ function Modal({ open, title, children }) {
 export default function GestionActividades() {
     const { proyectoId, faseId } = useParams()
     const location = useLocation()
+    const navigate = useNavigate()
     const cursoId = location.state?.cursoId
     const cursoNombre = location.state?.cursoNombre
     const proyectoNombre = location.state?.nombre
@@ -289,6 +298,15 @@ export default function GestionActividades() {
                                     )}
                                 </div>
                                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                                    <button
+                                        onClick={() => navigate(
+                                            `/docente/proyectos/${proyectoId}/fases/${faseId}/actividades/${a.id}/entregables`,
+                                            { state: location.state }
+                                        )}
+                                        className="p-2 rounded-lg hover:bg-[#f0f2f3] text-[#4c616c] hover:text-[#191c1d] transition-colors"
+                                        title="Ver entregables">
+                                        <IconInbox />
+                                    </button>
                                     <button onClick={() => abrirModal(a)}
                                         className="p-2 rounded-lg hover:bg-[#f0f2f3] text-[#4c616c] hover:text-[#191c1d] transition-colors">
                                         <IconEdit />

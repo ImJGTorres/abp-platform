@@ -96,6 +96,36 @@ class ArchivoAdjunto(models.Model):
         return f'{self.nombre_original} (v{self.version})'
 
 
+class Notificacion(models.Model):
+    TIPO_CHOICES = [
+        ('aprobado', 'Aprobado'),
+        ('rechazado', 'Rechazado'),
+    ]
+
+    id_usuario_destino = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='notificaciones',
+    )
+    tipo = models.CharField(max_length=20, choices=TIPO_CHOICES)
+    titulo_entregable = models.CharField(max_length=255)
+    retroalimentacion = models.TextField(blank=True, default='')
+    id_entregable = models.ForeignKey(
+        Entregable,
+        on_delete=models.CASCADE,
+        related_name='notificaciones',
+    )
+    leida = models.BooleanField(default=False)
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'notificacion'
+        ordering = ['-fecha_creacion']
+
+    def __str__(self):
+        return f'{self.tipo} — {self.titulo_entregable} → {self.id_usuario_destino_id}'
+
+
 class EntregableVersion(models.Model):
     id_entregable_original = models.ForeignKey(
         Entregable,

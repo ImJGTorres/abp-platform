@@ -33,4 +33,26 @@ urlpatterns = [
         views.HistorialVersionesView.as_view(),
         name='entregable-versiones',
     ),
+    # HU-022 — Validación de entregables (docente)
+    path(
+        'entregables/<int:pk>/validar/',
+        views.ValidarEntregableView.as_view(),
+        name='entregable-validar',
+    ),
+    # HU-022 — Notificaciones
+    path(
+        'notificaciones/',
+        views.NotificacionesView.as_view(),
+        name='notificaciones-list',
+    ),
+    path(
+        'notificaciones/<int:pk>/leer/',
+        views.MarcarNotificacionLeidaView.as_view(),
+        name='notificacion-leer',
+    ),
+    path(
+        'notificaciones/leer-todas/',
+        views.MarcarTodasLeidasView.as_view(),
+        name='notificaciones-leer-todas',
+    ),
 ]
