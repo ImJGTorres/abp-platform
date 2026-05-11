@@ -193,11 +193,12 @@ class ProyectoListCreateView(generics.ListCreateAPIView):
         )
 
 
-class ProyectoDetailView(generics.RetrieveUpdateAPIView):
+class ProyectoDetailView(generics.RetrieveUpdateDestroyAPIView):
     """
-    GET   /api/proyectos/<pk>/ — Detalle del proyecto.
-    PUT   /api/proyectos/<pk>/ — Actualiza nombre, descripción, estado y fechas.
-    PATCH /api/proyectos/<pk>/ — Actualización parcial.
+    GET    /api/proyectos/<pk>/ — Detalle del proyecto.
+    PUT    /api/proyectos/<pk>/ — Actualiza nombre, descripción, estado y fechas.
+    PATCH  /api/proyectos/<pk>/ — Actualización parcial.
+    DELETE /api/proyectos/<pk>/ — Elimina el proyecto (409 si tiene equipos vinculados).
 
     Solo el docente propietario del curso al que pertenece el proyecto puede modificarlo.
     """
@@ -216,6 +217,22 @@ class ProyectoDetailView(generics.RetrieveUpdateAPIView):
         if self.request.method in ('PUT', 'PATCH'):
             return ProyectoUpdateSerializer
         return ProyectoSerializer
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if instance.equipos.exists():
+            return Response(
+                {'detail': 'No se puede eliminar el proyecto porque tiene equipos vinculados.'},
+                status=status.HTTP_409_CONFLICT,
+            )
+        registrar_evento(
+            request=request,
+            accion=BitacoraSistema.Accion.DELETE,
+            modulo='proyectos',
+            descripcion=f'Proyecto eliminado: ID={instance.id}, nombre={instance.nombre}',
+        )
+        self.perform_destroy(instance)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 # ---------------------------------------------------------------------------

@@ -55,7 +55,7 @@ export const cursosApi = {
     },
 
     async eliminarProyecto(cursoId, proyectoId) {
-        const response = await request(`/api/cursos/${cursoId}/proyectos/${proyectoId}/`, {
+        const response = await request(`/api/proyectos/${proyectoId}/`, {
             method: 'DELETE',
         })
         if (!response.ok) {
