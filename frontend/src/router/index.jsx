@@ -43,8 +43,6 @@ import DashboardLider from '../components/LiderEquipo/DashboardLider'
 import DistribucionTrabajo from '../components/LiderEquipo/DistribucionTrabajo'
 import CargaTrabajoMiembros from '../components/LiderEquipo/CargaTrabajoMiembros'
 
-
-import EstudianteLayout from '../components/Estudiante/EstudianteLayout'
 import DetalleProyectoEstudiante from '../components/Estudiante/DetalleProyectoEstudiante'
 import TableroKanban from '../components/Compartidos/TableroKanban'
 import DashboardProgreso from '../components/Estudiante/DashboardProgreso'
