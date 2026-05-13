@@ -144,7 +144,7 @@ export default function AppRouter() {
             <Route path="/estudiante/proyectos/:proyectoId/progreso" element={<DashboardProgreso />} />
             <Route path="/estudiante/proyectos/:proyectoId/kanban" element={<TableroKanban />} />
             <Route path="/estudiante/actividades/:actividadId/entregables" element={<EntregablesActividad />} />
-          </Route>
+          </Route>git
         </Route>
 
         {/* LÍDER */}

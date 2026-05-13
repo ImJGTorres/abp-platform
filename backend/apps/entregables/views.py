@@ -11,6 +11,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from apps.cursos.models import Actividad
 from apps.bitacora.models import BitacoraSistema
@@ -21,7 +22,9 @@ from .models import ArchivoAdjunto, Entregable, EntregableVersion, Notificacion
 from .serializers import (
     ArchivoAdjuntoSerializer,
     EntregableCreateSerializer,
+    EntregablePendienteSerializer,
     EntregableSerializer,
+    EntregableValidacionSerializer,
     EntregableVersionDetalleSerializer,
     NotificacionSerializer,
     SubirArchivoSerializer,
@@ -446,4 +449,139 @@ class HistorialVersionesView(generics.GenericAPIView):
         serializer = EntregableVersionDetalleSerializer(
             versiones_qs, many=True, context={'request': request}
         )
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+# HU-022 — Validación de entregables por docente
+def _solo_docente(usuario):
+    """Retorna True si el usuario tiene rol Docente."""
+    return usuario.tipo_rol == 'docente'
+
+
+class EntregableAprobarView(APIView):
+    """BE-01: PATCH /api/entregables/:id/aprobar/"""
+    authentication_classes = [UsuarioJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, entregable_id):
+        usuario = request.user
+        if not _solo_docente(usuario):
+            return Response(
+                {'error': 'Solo los docentes pueden aprobar entregables.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        try:
+            entregable = Entregable.objects.get(pk=entregable_id)
+        except Entregable.DoesNotExist:
+            return Response({'error': 'Entregable no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if entregable.estado != 'enviado':
+            return Response(
+                {'error': 'Solo se pueden aprobar entregables en estado enviado.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        retroalimentacion = request.data.get('retroalimentacion', '')
+
+        with transaction.atomic():
+            entregable.estado = 'aprobado'
+            entregable.retroalimentacion = retroalimentacion
+            entregable.id_docente_validador_id = usuario.id
+            entregable.fecha_validacion = timezone.now()
+            entregable.save(update_fields=[
+                'estado', 'retroalimentacion', 'id_docente_validador_id', 'fecha_validacion'
+            ])
+
+            try:
+                BitacoraSistema.objects.create(
+                    nombre_usuario=f'{usuario.nombre} {usuario.apellido}',
+                    accion='UPDATE',
+                    modulo='entregables',
+                    descripcion=f'Entregable {entregable_id} aprobado por docente.',
+                    id_usuario=usuario,
+                )
+            except Exception:
+                pass
+
+        serializer = EntregableValidacionSerializer(entregable)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class EntregableRechazarView(APIView):
+    """BE-02: PATCH /api/entregables/:id/rechazar/"""
+    authentication_classes = [UsuarioJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, entregable_id):
+        usuario = request.user
+        if not _solo_docente(usuario):
+            return Response(
+                {'error': 'Solo los docentes pueden rechazar entregables.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        try:
+            entregable = Entregable.objects.get(pk=entregable_id)
+        except Entregable.DoesNotExist:
+            return Response({'error': 'Entregable no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if entregable.estado != 'enviado':
+            return Response(
+                {'error': 'Solo se pueden rechazar entregables en estado enviado.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        retroalimentacion = request.data.get('retroalimentacion', '').strip()
+        if not retroalimentacion:
+            return Response(
+                {'error': 'La retroalimentación es obligatoria al rechazar un entregable.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        with transaction.atomic():
+            entregable.estado = 'rechazado'
+            entregable.retroalimentacion = retroalimentacion
+            entregable.id_docente_validador_id = usuario.id
+            entregable.fecha_validacion = timezone.now()
+            entregable.save(update_fields=[
+                'estado', 'retroalimentacion', 'id_docente_validador_id', 'fecha_validacion'
+            ])
+
+            try:
+                BitacoraSistema.objects.create(
+                    nombre_usuario=f'{usuario.nombre} {usuario.apellido}',
+                    accion='UPDATE',
+                    modulo='entregables',
+                    descripcion=f'Entregable {entregable_id} rechazado por docente.',
+                    id_usuario=usuario,
+                )
+            except Exception:
+                pass
+
+        serializer = EntregableValidacionSerializer(entregable)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class EntregablesPendientesView(APIView):
+    """BE-03: GET /api/proyectos/:id/entregables-pendientes/"""
+    authentication_classes = [UsuarioJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, proyecto_id):
+        usuario = request.user
+        if not _solo_docente(usuario):
+            return Response(
+                {'error': 'Solo los docentes pueden ver entregables pendientes.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # Filtrar entregables en estado 'enviado' que pertenezcan al proyecto
+        # Cadena: entregable → actividad → fase_proyecto → proyecto
+        entregables = Entregable.objects.filter(
+            estado='enviado',
+            id_actividad__id_fase__id_proyecto_id=proyecto_id
+        ).select_related('id_equipo', 'id_actividad').order_by('id_actividad__nombre', 'id_equipo__nombre')
+
+        serializer = EntregablePendienteSerializer(entregables, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
