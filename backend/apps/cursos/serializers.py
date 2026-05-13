@@ -2,8 +2,9 @@ from rest_framework import serializers
 
 from apps.configuracion.models import PeriodoAcademico
 from apps.usuarios.models import Usuario
+from apps.equipos.models import MiembroEquipo
 from apps.equipos.serializers import EquipoDetalleSerializer
-from .models import Curso, HitoProyecto, ObjetivoProyecto, Proyecto
+from .models import Actividad, AvanceActividad, Curso, FaseProyecto, HitoProyecto, ObjetivoProyecto, Proyecto
 
 
 # ---------------------------------------------------------------------------
@@ -150,6 +151,10 @@ class ProyectoSerializer(serializers.ModelSerializer):
     fecha_fin = serializers.DateField(source='fecha_fin_estimada')
     cantidad_equipos = serializers.SerializerMethodField()
     equipo = serializers.SerializerMethodField()
+    porcentaje_progreso = serializers.SerializerMethodField()
+    total_fases = serializers.SerializerMethodField()
+    total_actividades = serializers.SerializerMethodField()
+    actividades_completadas = serializers.SerializerMethodField()
 
     class Meta:
         model = Proyecto
@@ -163,6 +168,10 @@ class ProyectoSerializer(serializers.ModelSerializer):
             'fecha_fin',
             'cantidad_equipos',
             'equipo',
+            'porcentaje_progreso',
+            'total_fases',
+            'total_actividades',
+            'actividades_completadas',
             'fecha_creacion',
         ]
         read_only_fields = fields
@@ -175,6 +184,33 @@ class ProyectoSerializer(serializers.ModelSerializer):
         if not equipo:
             return None
         return EquipoDetalleSerializer(equipo).data
+
+    def get_porcentaje_progreso(self, obj):
+        # Usa el valor anotado por ProyectoQuerySet.con_progreso() si está disponible.
+        if hasattr(obj, 'porcentaje_progreso'):
+            val = obj.porcentaje_progreso
+            return val if val is not None else 0
+        fases = list(obj.fases.all())
+        if not fases:
+            return 0
+        return round(sum(f.porcentaje_completado for f in fases) / len(fases))
+
+    def get_total_fases(self, obj):
+        if hasattr(obj, 'total_fases'):
+            return obj.total_fases
+        return obj.fases.count()
+
+    def get_total_actividades(self, obj):
+        if hasattr(obj, 'total_actividades'):
+            return obj.total_actividades
+        from .models import Actividad
+        return Actividad.objects.filter(id_fase__id_proyecto=obj).count()
+
+    def get_actividades_completadas(self, obj):
+        if hasattr(obj, 'actividades_completadas'):
+            return obj.actividades_completadas
+        from .models import Actividad
+        return Actividad.objects.filter(id_fase__id_proyecto=obj, estado='completada').count()
 
 
 class ProyectoCreateSerializer(serializers.ModelSerializer):
@@ -437,7 +473,7 @@ class HitoUpdateSerializer(serializers.ModelSerializer):
 # ResultadoAprendizaje (RAP)
 # ---------------------------------------------------------------------------
 
-from .models import ResultadoAprendizaje
+from .models import Actividad, FaseProyecto, ResultadoAprendizaje
 
 
 class RapSerializer(serializers.ModelSerializer):
@@ -452,3 +488,350 @@ class RapCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = ResultadoAprendizaje
         fields = ['nombre', 'descripcion', 'competencia_asociada', 'porcentaje_evaluacion']
+
+
+# ---------------------------------------------------------------------------
+# FaseProyecto
+# ---------------------------------------------------------------------------
+
+def _validate_fechas_fase(attrs, instance=None, proyecto=None):
+    """Valida coherencia interna de fechas y rango respecto al proyecto."""
+    fecha_inicio = attrs.get('fecha_inicio') or getattr(instance, 'fecha_inicio', None)
+    fecha_fin = attrs.get('fecha_fin') or getattr(instance, 'fecha_fin', None)
+
+    if fecha_inicio and fecha_fin and fecha_fin <= fecha_inicio:
+        raise serializers.ValidationError(
+            {'fecha_fin': 'La fecha de fin debe ser posterior a la fecha de inicio.'}
+        )
+
+    if proyecto is None and instance is not None:
+        proyecto = instance.id_proyecto
+
+    if proyecto and fecha_inicio and fecha_inicio < proyecto.fecha_inicio:
+        raise serializers.ValidationError(
+            {'fecha_inicio': 'La fecha de inicio de la fase no puede ser anterior a la del proyecto.'}
+        )
+    if proyecto and fecha_fin and fecha_fin > proyecto.fecha_fin_estimada:
+        raise serializers.ValidationError(
+            {'fecha_fin': 'La fecha de fin de la fase no puede superar la fecha fin estimada del proyecto.'}
+        )
+
+
+class FaseSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FaseProyecto
+        fields = [
+            'id',
+            'id_proyecto',
+            'nombre',
+            'descripcion',
+            'orden',
+            'fecha_inicio',
+            'fecha_fin',
+            'estado',
+            'fecha_creacion',
+            'porcentaje_completado',
+        ]
+        read_only_fields = fields
+
+
+class FaseCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FaseProyecto
+        fields = ['nombre', 'descripcion', 'orden', 'fecha_inicio', 'fecha_fin', 'estado']
+
+    def validate_orden(self, value):
+        if value < 1:
+            raise serializers.ValidationError('El orden debe ser un número positivo (mínimo 1).')
+        return value
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        proyecto = self.context.get('proyecto')
+        _validate_fechas_fase(attrs, proyecto=proyecto)
+        if proyecto:
+            orden = attrs.get('orden')
+            if orden and FaseProyecto.objects.filter(id_proyecto=proyecto, orden=orden).exists():
+                raise serializers.ValidationError(
+                    {'orden': f'Ya existe una fase con orden {orden} en este proyecto.'}
+                )
+        return attrs
+
+    def to_representation(self, instance):
+        return FaseSerializer(instance, context=self.context).data
+
+
+class FaseUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FaseProyecto
+        fields = ['nombre', 'descripcion', 'orden', 'fecha_inicio', 'fecha_fin', 'estado']
+
+    def validate_orden(self, value):
+        if value < 1:
+            raise serializers.ValidationError('El orden debe ser un número positivo (mínimo 1).')
+        return value
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        fecha_inicio = attrs.get('fecha_inicio') or getattr(self.instance, 'fecha_inicio', None)
+        fecha_fin = attrs.get('fecha_fin') or getattr(self.instance, 'fecha_fin', None)
+        if fecha_inicio and fecha_fin and fecha_fin <= fecha_inicio:
+            raise serializers.ValidationError(
+                {'fecha_fin': 'La fecha de fin debe ser posterior a la fecha de inicio.'}
+            )
+        if self.instance is not None:
+            orden = attrs.get('orden', self.instance.orden)
+            duplicado = (
+                FaseProyecto.objects
+                .filter(id_proyecto=self.instance.id_proyecto, orden=orden)
+                .exclude(pk=self.instance.pk)
+                .exists()
+            )
+            if duplicado:
+                raise serializers.ValidationError(
+                    {'orden': f'Ya existe una fase con orden {orden} en este proyecto.'}
+                )
+        return attrs
+
+    def to_representation(self, instance):
+        return FaseSerializer(instance, context=self.context).data
+
+
+# ---------------------------------------------------------------------------
+# Actividad
+# ---------------------------------------------------------------------------
+
+def _validate_fecha_limite_actividad(attrs, instance=None, fase=None):
+    """Valida que fecha_límite esté dentro del rango de la fase y del proyecto."""
+    fecha_limite = attrs.get('fecha_limite') or getattr(instance, 'fecha_limite', None)
+
+    if fase is None and instance is not None:
+        fase = instance.id_fase
+
+    if not fase or not fecha_limite:
+        return
+
+    if fecha_limite < fase.fecha_inicio:
+        raise serializers.ValidationError(
+            {'fecha_limite': 'La fecha límite no puede ser anterior a la fecha de inicio de la fase.'}
+        )
+    if fecha_limite > fase.fecha_fin:
+        raise serializers.ValidationError(
+            {'fecha_limite': 'La fecha límite no puede superar la fecha de fin de la fase.'}
+        )
+
+    proyecto = fase.id_proyecto
+    if fecha_limite < proyecto.fecha_inicio:
+        raise serializers.ValidationError(
+            {'fecha_limite': 'La fecha límite no puede ser anterior a la fecha de inicio del proyecto.'}
+        )
+    if fecha_limite > proyecto.fecha_fin_estimada:
+        raise serializers.ValidationError(
+            {'fecha_limite': 'La fecha límite no puede superar la fecha fin estimada del proyecto.'}
+        )
+
+
+class ActividadSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Actividad
+        fields = [
+            'id',
+            'id_fase',
+            'nombre',
+            'descripcion',
+            'fecha_limite',
+            'prioridad',
+            'estado',
+            'fecha_creacion',
+            'id_responsable',
+            'id_equipo_asignado',
+            'responsables',
+        ]
+        read_only_fields = fields
+
+
+class ActividadCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Actividad
+        fields = ['nombre', 'descripcion', 'fecha_limite', 'prioridad', 'estado']
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        _validate_fecha_limite_actividad(attrs, fase=self.context.get('fase'))
+        return attrs
+
+    def to_representation(self, instance):
+        return ActividadSerializer(instance, context=self.context).data
+
+
+class ActividadUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Actividad
+        fields = ['nombre', 'descripcion', 'fecha_limite', 'prioridad', 'estado']
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        _validate_fecha_limite_actividad(attrs, instance=self.instance)
+        return attrs
+
+    def to_representation(self, instance):
+        return ActividadSerializer(instance, context=self.context).data
+
+
+# ---------------------------------------------------------------------------
+# AvanceActividad
+# ---------------------------------------------------------------------------
+
+class AvanceActividadSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AvanceActividad
+        fields = [
+            'id',
+            'id_actividad',
+            'id_usuario',
+            'descripcion',
+            'porcentaje_completado',
+            'fecha_registro',
+            'tipo',
+            'url_referencia',
+        ]
+        read_only_fields = fields
+
+
+class AvanceActividadCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AvanceActividad
+        fields = ['descripcion', 'porcentaje_completado', 'tipo', 'url_referencia']
+
+    def validate_porcentaje_completado(self, value):
+        if not (0 <= value <= 100):
+            raise serializers.ValidationError('El porcentaje debe estar entre 0 y 100.')
+        return value
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+
+        if attrs.get('tipo') == AvanceActividad.Tipo.ENLACE and not attrs.get('url_referencia'):
+            raise serializers.ValidationError(
+                {'url_referencia': 'Se requiere una URL cuando el tipo es "enlace".'}
+            )
+
+        actividad = self.context['actividad']
+        usuario = self.context['request'].user
+
+        es_responsable = (
+            actividad.id_responsable_id is not None
+            and actividad.id_responsable_id == usuario.pk
+        )
+        if not es_responsable:
+            equipo = actividad.id_equipo_asignado
+            if equipo is None:
+                raise serializers.ValidationError(
+                    'Solo el responsable o un miembro del equipo asignado puede registrar avances.'
+                )
+            es_miembro = MiembroEquipo.objects.filter(
+                equipo=equipo,
+                usuario=usuario,
+                estado='activo',
+            ).exists()
+            if not es_miembro:
+                raise serializers.ValidationError(
+                    'Solo el responsable o un miembro activo del equipo asignado puede registrar avances.'
+                )
+
+        return attrs
+
+    def to_representation(self, instance):
+        return AvanceActividadSerializer(instance, context=self.context).data
+
+
+class ActividadAsignarResponsableSerializer(serializers.ModelSerializer):
+    """PATCH exclusivo para líderes de equipo: asignar id_responsable."""
+
+    class Meta:
+        model = Actividad
+        fields = ['id_responsable']
+
+    def validate_id_responsable(self, usuario):
+        actividad = self.instance
+        equipo = actividad.id_equipo_asignado
+        if equipo is None:
+            raise serializers.ValidationError(
+                'La actividad no tiene un equipo asignado.'
+            )
+        es_miembro = MiembroEquipo.objects.filter(
+            equipo=equipo,
+            usuario=usuario,
+            estado='activo',
+        ).exists()
+        if not es_miembro:
+            raise serializers.ValidationError(
+                'El responsable debe ser un miembro activo del equipo asignado a esta actividad.'
+            )
+        return usuario
+
+    def to_representation(self, instance):
+        return ActividadSerializer(instance, context=self.context).data
+
+
+class ActividadAsignarSerializer(serializers.Serializer):
+    """
+    PATCH /api/actividades/<pk>/asignar/
+    Líder de equipo asigna uno o más responsables a la actividad.
+    Todos deben ser miembros activos del equipo asignado.
+    """
+
+    responsables = serializers.ListField(
+        child=serializers.IntegerField(min_value=1),
+        allow_empty=True,
+    )
+
+    def validate(self, attrs):
+        actividad = self.context['actividad']
+        equipo = actividad.id_equipo_asignado
+        if equipo is None:
+            raise serializers.ValidationError(
+                {'responsables': 'La actividad no tiene un equipo asignado.'}
+            )
+        ids = attrs['responsables']
+        if not ids:
+            return attrs
+        miembros_activos = set(
+            MiembroEquipo.objects
+            .filter(equipo=equipo, estado='activo')
+            .values_list('usuario_id', flat=True)
+        )
+        no_miembros = [uid for uid in ids if uid not in miembros_activos]
+        if no_miembros:
+            raise serializers.ValidationError(
+                {'responsables': f'Los siguientes usuarios no son miembros activos del equipo: {no_miembros}'}
+            )
+        return attrs
+
+
+class ActividadPorEquipoSerializer(serializers.ModelSerializer):
+    """Serializer para listar actividades de un equipo con sus responsables."""
+
+    es_responsable = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Actividad
+        fields = [
+            'id',
+            'id_fase',
+            'nombre',
+            'descripcion',
+            'fecha_limite',
+            'prioridad',
+            'estado',
+            'fecha_creacion',
+            'id_responsable',
+            'id_equipo_asignado',
+            'responsables',
+            'es_responsable',
+        ]
+        read_only_fields = fields
+
+    def get_es_responsable(self, obj):
+        usuario = self.context['request'].user
+        return obj.responsables.filter(pk=usuario.pk).exists()

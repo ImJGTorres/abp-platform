@@ -1,20 +1,19 @@
 import io
 
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
+from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404
 
 from rest_framework import generics, status
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import IsAuthenticated
-from django.shortcuts import get_object_or_404
-from django.db import transaction
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.bitacora.models import BitacoraSistema
 from apps.bitacora.utils import registrar_evento
 from .models import Equipo, MiembroEquipo
-from apps.cursos.models import Proyecto
+from apps.cursos.models import Actividad, Proyecto
 from apps.usuarios.authentication import UsuarioJWTAuthentication
 from apps.usuarios.models import Usuario
 from apps.usuarios.permissions import EsDocente
@@ -720,3 +719,179 @@ class DisolverEquipoView(generics.GenericAPIView):
         )
 
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# ---------------------------------------------------------------------------
+# BE 02 — Progreso del equipo
+# ---------------------------------------------------------------------------
+
+class EquipoProgresoView(APIView):
+    """
+    GET /api/equipos/<equipo_id>/progreso/
+
+    Retorna el resumen de progreso del equipo:
+      - Conteos globales de actividades asignadas al equipo por estado.
+      - porcentaje_progreso: actividades_completadas / total * 100.
+      - miembros: progreso individual de cada miembro activo según actividades
+        en las que figura como responsable dentro de este equipo.
+
+    Acceso: administrador, docente propietario del curso o miembro activo
+    de cualquier equipo del mismo proyecto.
+    """
+
+    authentication_classes = [UsuarioJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def _check_acceso(self, equipo):
+        usuario = self.request.user
+        tipo_rol = getattr(usuario, 'tipo_rol', None)
+        if tipo_rol == 'administrador':
+            return
+        curso = equipo.proyecto.id_curso
+        if tipo_rol == 'docente':
+            if curso.id_docente_id != usuario.pk:
+                raise PermissionDenied('No eres el docente propietario de este proyecto.')
+        elif tipo_rol == 'estudiante':
+            tiene_acceso = MiembroEquipo.objects.filter(
+                equipo__proyecto=equipo.proyecto,
+                usuario=usuario,
+                estado='activo',
+            ).exists()
+            if not tiene_acceso:
+                raise PermissionDenied('No perteneces a ningún equipo de este proyecto.')
+        else:
+            raise PermissionDenied('Acceso no permitido.')
+
+    def get(self, request, equipo_id):
+        equipo = get_object_or_404(
+            Equipo.objects.select_related('proyecto__id_curso'),
+            pk=equipo_id,
+        )
+        self._check_acceso(equipo)
+
+        # Conteos globales de actividades asignadas al equipo (1 query)
+        stats = (
+            Actividad.objects
+            .filter(id_equipo_asignado=equipo)
+            .aggregate(
+                total=Count('id'),
+                completadas=Count('id', filter=Q(estado='completada')),
+                en_progreso=Count('id', filter=Q(estado='en_progreso')),
+                bloqueadas=Count('id', filter=Q(estado='bloqueada')),
+                pendientes=Count('id', filter=Q(estado='pendiente')),
+            )
+        )
+        total = stats['total'] or 0
+        completadas = stats['completadas'] or 0
+        porcentaje = round(completadas * 100 / total) if total else 0
+
+        # Progreso por miembro activo: actividades donde figura como responsable
+        # dentro de este equipo (1 query con JOINs y COUNT condicional)
+        miembros_qs = (
+            MiembroEquipo.objects
+            .filter(equipo=equipo, estado='activo')
+            .select_related('usuario')
+            .annotate(
+                actividades_asignadas=Count(
+                    'usuario__actividades_responsable',
+                    filter=Q(usuario__actividades_responsable__id_equipo_asignado=equipo),
+                    distinct=True,
+                ),
+                actividades_completadas=Count(
+                    'usuario__actividades_responsable',
+                    filter=Q(
+                        usuario__actividades_responsable__id_equipo_asignado=equipo,
+                        usuario__actividades_responsable__estado='completada',
+                    ),
+                    distinct=True,
+                ),
+                actividades_en_progreso=Count(
+                    'usuario__actividades_responsable',
+                    filter=Q(
+                        usuario__actividades_responsable__id_equipo_asignado=equipo,
+                        usuario__actividades_responsable__estado='en_progreso',
+                    ),
+                    distinct=True,
+                ),
+                actividades_pendientes=Count(
+                    'usuario__actividades_responsable',
+                    filter=Q(
+                        usuario__actividades_responsable__id_equipo_asignado=equipo,
+                        usuario__actividades_responsable__estado='pendiente',
+                    ),
+                    distinct=True,
+                ),
+            )
+            .order_by('usuario__nombre', 'usuario__apellido')
+        )
+
+        miembros_data = [
+            {
+                'id_usuario': m.usuario.pk,
+                'nombre': f'{m.usuario.nombre} {m.usuario.apellido}',
+                'rol_interno': m.rol_interno,
+                'actividades_asignadas': m.actividades_asignadas,
+                'actividades_completadas': m.actividades_completadas,
+                'actividades_en_progreso': m.actividades_en_progreso,
+                'actividades_pendientes': m.actividades_pendientes,
+            }
+            for m in miembros_qs
+        ]
+
+        return Response({
+            'id_equipo': equipo.pk,
+            'nombre': equipo.nombre,
+            'total_actividades': total,
+            'actividades_completadas': completadas,
+            'actividades_en_progreso': stats['en_progreso'] or 0,
+            'actividades_bloqueadas': stats['bloqueadas'] or 0,
+            'actividades_pendientes': stats['pendientes'] or 0,
+            'porcentaje_progreso': porcentaje,
+            'miembros': miembros_data,
+        })
+
+
+class MisEquiposView(APIView):
+    authentication_classes = [UsuarioJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from django.db.models import Q
+        membresias = MiembroEquipo.objects.filter(
+            usuario=request.user, estado='activo'
+        ).select_related('equipo', 'equipo__proyecto', 'equipo__proyecto__id_curso')
+
+        resultado = []
+        for m in membresias:
+            equipo = m.equipo
+            proyecto = equipo.proyecto
+            actividades = (
+                Actividad.objects
+                .filter(Q(id_equipo_asignado=equipo) | Q(id_fase__id_proyecto=proyecto))
+                .select_related('id_fase').order_by('id_fase__orden', 'id').distinct()
+            )
+            fases = {}
+            for actividad in actividades:
+                fase = actividad.id_fase
+                if fase.id not in fases:
+                    fases[fase.id] = {
+                        'id': fase.id,
+                        'nombre': fase.nombre,
+                        'orden': fase.orden,
+                        'actividades': [],
+                    }
+                fases[fase.id]['actividades'].append({
+                    'id': actividad.id,
+                    'nombre': actividad.nombre,
+                    'descripcion': actividad.descripcion,
+                    'estado': actividad.estado,
+                    'prioridad': actividad.prioridad,
+                    'fecha_limite': str(actividad.fecha_limite) if actividad.fecha_limite else None,
+                })
+            resultado.append({
+                'equipo': {'id': equipo.id, 'nombre': equipo.nombre},
+                'proyecto': {'id': proyecto.id, 'nombre': proyecto.nombre},
+                'curso': {'id': proyecto.id_curso.id, 'nombre': proyecto.id_curso.nombre},
+                'fases': sorted(fases.values(), key=lambda f: f['orden']),
+            })
+        return Response(resultado)

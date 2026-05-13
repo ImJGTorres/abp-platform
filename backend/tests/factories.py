@@ -7,6 +7,8 @@ from apps.usuarios.models import Usuario
 from apps.roles.models import Rol, Permiso
 from apps.cursos.models import Curso, Proyecto
 from apps.configuracion.models import PeriodoAcademico
+from apps.cursos.models import FaseProyecto, Actividad
+from apps.equipos.models import Equipo, MiembroEquipo
 
 class UsuarioFactory(DjangoModelFactory):
     class Meta:
@@ -34,7 +36,6 @@ class RolFactory(factory.django.DjangoModelFactory):
     nombre = factory.Sequence(lambda n: f"Rol_{n}")
     descripcion = factory.Faker("sentence")
     estado = "activo"
-
 
 class PermisoFactory(factory.django.DjangoModelFactory):
     class Meta:
@@ -88,3 +89,47 @@ class ProyectoFactory(DjangoModelFactory):
     fecha_inicio = date(2026, 2, 1)
     fecha_fin_estimada = date(2026, 5, 31)
     estado = Proyecto.Estado.PLANIFICADO
+
+
+class FaseProyectoFactory(DjangoModelFactory):
+    class Meta:
+        model = FaseProyecto
+
+    id_proyecto = factory.SubFactory(ProyectoFactory)
+    nombre = factory.Sequence(lambda n: f"Fase {n}")
+    descripcion = factory.Faker("sentence")
+    orden = factory.Sequence(lambda n: n + 1)
+    fecha_inicio = date(2026, 2, 1)
+    fecha_fin = date(2026, 3, 31)
+    estado = FaseProyecto.Estado.PENDIENTE
+
+
+class EquipoFactory(DjangoModelFactory):
+    class Meta:
+        model = Equipo
+
+    nombre = factory.Sequence(lambda n: f"Equipo {n}")
+    proyecto = factory.SubFactory(ProyectoFactory)
+    cupo_maximo = 5
+
+
+class MiembroEquipoFactory(DjangoModelFactory):
+    class Meta:
+        model = MiembroEquipo
+
+    equipo = factory.SubFactory(EquipoFactory)
+    usuario = factory.SubFactory(UsuarioFactory)
+    rol_interno = 'desarrollador'
+    estado = 'activo'
+
+
+class ActividadFactory(DjangoModelFactory):
+    class Meta:
+        model = Actividad
+
+    id_fase = factory.SubFactory(FaseProyectoFactory)
+    nombre = factory.Sequence(lambda n: f"Actividad {n}")
+    descripcion = factory.Faker("sentence")
+    fecha_limite = date(2026, 3, 15)
+    prioridad = Actividad.Prioridad.MEDIA
+    estado = Actividad.Estado.PENDIENTE
