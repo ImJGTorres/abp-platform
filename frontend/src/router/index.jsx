@@ -36,7 +36,13 @@ import GestionActividades from '../components/docente/GestionActividades'
 import LiderLayout from '../components/LiderEquipo/LiderLayout'
 import DashboardLider from '../components/LiderEquipo/DashboardLider'
 import DistribucionTrabajo from '../components/LiderEquipo/DistribucionTrabajo'
+import CargaTrabajoMiembros from '../components/LiderEquipo/CargaTrabajoMiembros'
 
+
+import EstudianteLayout from '../components/Estudiante/EstudianteLayout'
+import DetalleProyectoEstudiante from '../components/Estudiante/DetalleProyectoEstudiante'
+import TableroKanban from '../components/Compartidos/TableroKanban'
+import DashboardProgreso from '../components/Estudiante/DashboardProgreso'
 
 function PanelDirector() { return <div className="p-10">Director</div> }
 function PanelEstudiante() { return <div className="p-10">Estudiante</div> }
@@ -112,6 +118,7 @@ export default function AppRouter() {
             <Route path="/docente/proyectos/:proyectoId/cronograma" element={<CronogramaProyecto />} />
             <Route path="/docente/proyectos/:proyectoId/fases" element={<GestionFases />} />
             <Route path="/docente/proyectos/:proyectoId/fases/:faseId/actividades" element={<GestionActividades />} />
+            <Route path="/docente/proyectos/:proyectoId/kanban" element={<TableroKanban />} />
             <Route path="/docente/proyectos/:proyectoId/perfiles-roles" element={<PerfilesRolesProyecto />} />
           </Route>
         </Route>
@@ -123,7 +130,13 @@ export default function AppRouter() {
 
         {/* ESTUDIANTE */}
         <Route element={<PrivateRoute allowedRoles={['estudiante']} />}>
-          <Route path="/estudiante" element={<PanelEstudiante />} />
+          <Route element={<EstudianteLayout />}>
+            <Route path="/estudiante" element={<Navigate to="/estudiante/dashboard" replace />} />
+            <Route path="/estudiante/dashboard" element={<DashboardProgreso />} />
+            <Route path="/estudiante/proyectos/:proyectoId" element={<DetalleProyectoEstudiante />} />
+            <Route path="/estudiante/proyectos/:proyectoId/progreso" element={<DashboardProgreso />} />
+            <Route path="/estudiante/proyectos/:proyectoId/kanban" element={<TableroKanban />} />
+          </Route>
         </Route>
 
         {/* LÍDER */}
@@ -132,6 +145,7 @@ export default function AppRouter() {
             <Route path="/lider" element={<Navigate to="/lider/dashboard" replace />} />
             <Route path="/lider/dashboard" element={<DashboardLider />} />
             <Route path="/lider/distribucion" element={<DistribucionTrabajo />} />
+            <Route path="/lider/carga-trabajo" element={<CargaTrabajoMiembros />} />
           </Route>
         </Route>
 

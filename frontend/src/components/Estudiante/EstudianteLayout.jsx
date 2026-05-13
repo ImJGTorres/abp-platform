@@ -1,20 +1,32 @@
 import { useState, useEffect } from 'react'
-import { NavLink, Outlet, useNavigate, Link, useParams, useLocation } from 'react-router-dom'
+import { NavLink, Outlet, useNavigate, Link, useLocation } from 'react-router-dom'
 import { authApi, session, buildMediaUrl } from '../../services/api'
 
-function IconTarget() {
+function IconDashboard() {
     return (
         <svg viewBox="0 0 20 20" fill="none" className="w-5 h-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="10" cy="10" r="8" /><circle cx="10" cy="10" r="5" /><circle cx="10" cy="10" r="2" />
+            <rect x="2" y="2" width="7" height="7" rx="1.5" />
+            <rect x="11" y="2" width="7" height="7" rx="1.5" />
+            <rect x="2" y="11" width="7" height="7" rx="1.5" />
+            <rect x="11" y="11" width="7" height="7" rx="1.5" />
         </svg>
     )
 }
 
-function IconClipboard() {
+function IconTrend() {
     return (
         <svg viewBox="0 0 20 20" fill="none" className="w-5 h-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="5" y="2" width="10" height="3" rx="1" /><rect x="3" y="4" width="14" height="14" rx="2" />
-            <path d="M7 10h6M7 13h4" />
+            <path d="M3 14l4-4 4 4 6-6M17 8v-4h-4" />
+        </svg>
+    )
+}
+
+function IconKanban() {
+    return (
+        <svg viewBox="0 0 20 20" fill="none" className="w-5 h-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="2" y="3" width="4" height="14" rx="1" />
+            <rect x="8" y="3" width="4" height="8" rx="1" />
+            <rect x="14" y="3" width="4" height="11" rx="1" />
         </svg>
     )
 }
@@ -51,35 +63,6 @@ function IconProfile() {
     )
 }
 
-function IconCalendar() {
-    return (
-        <svg viewBox="0 0 20 20" fill="none" className="w-5 h-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="2" y="3" width="16" height="14" rx="2" />
-            <path d="M2 7h16M6 2v3M14 2v3" />
-        </svg>
-    )
-}
-
-function IconPhases() {
-    return (
-        <svg viewBox="0 0 20 20" fill="none" className="w-5 h-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M2 5h16M2 10h16M2 15h16" />
-            <circle cx="5" cy="5" r="1.5" fill="currentColor" />
-            <circle cx="5" cy="10" r="1.5" fill="currentColor" />
-            <circle cx="5" cy="15" r="1.5" fill="currentColor" />
-        </svg>
-    )
-}
-
-function IconUsers() {
-    return (
-        <svg viewBox="0 0 20 20" fill="none" className="w-5 h-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="8" cy="6" r="3" /><path d="M1 17a7 7 0 0114 0" />
-            <circle cx="15" cy="7" r="2.5" /><path d="M15 13c2.5 0 4 1.5 4 4" />
-        </svg>
-    )
-}
-
 function IconChevronLeft() {
     return (
         <svg viewBox="0 0 20 20" fill="none" className="w-4 h-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -96,16 +79,6 @@ function IconChevronRight() {
     )
 }
 
-function IconKanban() {
-    return (
-        <svg viewBox="0 0 20 20" fill="none" className="w-5 h-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="2" y="3" width="4" height="14" rx="1" />
-            <rect x="8" y="3" width="4" height="8" rx="1" />
-            <rect x="14" y="3" width="4" height="11" rx="1" />
-        </svg>
-    )
-}
-
 function navLinkClass({ isActive }) {
     const base = 'flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] font-medium transition-all duration-150 select-none cursor-pointer'
     return isActive
@@ -113,19 +86,21 @@ function navLinkClass({ isActive }) {
         : `${base} text-[#4c616c] hover:bg-[#f0f2f3] hover:text-[#191c1d]`
 }
 
-function SidebarContent({ collapsed, onCollapse, loggingOut, handleLogout, onNavClick, proyectoId, nombreProyecto, periodoNombre, cursoId, cursoNombre, navState }) {
+function SidebarContent({ collapsed, onCollapse, loggingOut, handleLogout, onNavClick, proyectoId }) {
     const NAV_ITEMS = [
-        { label: 'Objetivos', to: `/docente/proyectos/${proyectoId}/objetivos`, icon: <IconTarget /> },
-        { label: 'Resultados de Aprendizaje', to: `/docente/proyectos/${proyectoId}/raps`, icon: <IconClipboard /> },
-        { label: 'Cronograma', to: `/docente/proyectos/${proyectoId}/cronograma`, icon: <IconCalendar /> },
-        { label: 'Fases', to: `/docente/proyectos/${proyectoId}/fases`, icon: <IconPhases /> },
-        { label: 'Tablero Kanban', to: `/docente/proyectos/${proyectoId}/kanban`, icon: <IconKanban /> },
-        { label: 'Perfiles y Roles', to: `/docente/proyectos/${proyectoId}/perfiles-roles`, icon: <IconUsers /> },
+        { label: 'Dashboard', to: '/estudiante/dashboard', icon: <IconDashboard /> },
     ]
+
+    if (proyectoId) {
+        NAV_ITEMS.push(
+            { label: 'Progreso', to: `/estudiante/proyectos/${proyectoId}/progreso`, icon: <IconTrend /> },
+            { label: 'Tablero Kanban', to: `/estudiante/proyectos/${proyectoId}/kanban`, icon: <IconKanban /> },
+        )
+    }
 
     return (
         <>
-            {/* Header proyecto + Collapse */}
+            {/* Marca + Collapse */}
             {collapsed ? (
                 <div className="flex items-center justify-center h-[60px] border-b border-[#e1e3e4] flex-shrink-0">
                     {onCollapse && (
@@ -137,46 +112,33 @@ function SidebarContent({ collapsed, onCollapse, loggingOut, handleLogout, onNav
                     )}
                 </div>
             ) : (
-                <div className="px-4 py-4 border-b border-[#e1e3e4] flex-shrink-0">
-                    <div className="flex items-center gap-2.5 mb-3">
-                        <div className="flex-shrink-0 w-8 h-8 bg-[#d32f2f] rounded-lg flex items-center justify-center shadow-sm">
-                            <svg viewBox="0 0 24 24" className="w-8 h-6 text-white" fill="currentColor">
-                                <path d="M12 2L2 7l10 5 10-5-10-5z" />
-                                <path d="M6 10v4c0 2.5 3.5 4 6 4s6-1.5 6-4v-4l-6 3-6-3z" opacity="0.9" />
-                                <path d="M22 7v6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                                <circle cx="22" cy="14" r="1" fill="currentColor" />
-                            </svg>
-                        </div>
-                        <span className="text-[15px] font-extrabold text-[#191c1d] tracking-tight whitespace-nowrap">Projex ABP</span>
-                        {onCollapse && (
-                            <button onClick={onCollapse}
-                                className="ml-auto flex items-center justify-center w-7 h-7 rounded-lg text-[#9ba7ae] hover:bg-[#f0f2f3] hover:text-[#4c616c] transition-colors"
-                                title="Colapsar menú">
-                                <IconChevronLeft />
-                            </button>
-                        )}
+                <div className="flex items-center gap-2.5 px-4 h-[60px] border-b border-[#e1e3e4] flex-shrink-0">
+                    <div className="flex-shrink-0 w-8 h-8 bg-[#d32f2f] rounded-lg flex items-center justify-center shadow-sm">
+                        <svg viewBox="0 0 24 24" className="w-8 h-6 text-white" fill="currentColor">
+                            <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                            <path d="M6 10v4c0 2.5 3.5 4 6 4s6-1.5 6-4v-4l-6 3-6-3z" opacity="0.9" />
+                            <path d="M22 7v6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                            <circle cx="22" cy="14" r="1" fill="currentColor" />
+                        </svg>
                     </div>
-                    <h2 className="text-[14px] font-bold text-[#191c1d] leading-tight mb-1 line-clamp-2">{nombreProyecto || 'Proyecto'}</h2>
-                    <p className="text-[11px] text-[#9ba7ae]">{periodoNombre || 'Sin periodo'}</p>
+                    <span className="text-[15px] font-extrabold text-[#191c1d] tracking-tight whitespace-nowrap">Projex ABP</span>
+                    {onCollapse && (
+                        <button onClick={onCollapse}
+                            className="ml-auto flex items-center justify-center w-7 h-7 rounded-lg text-[#9ba7ae] hover:bg-[#f0f2f3] hover:text-[#4c616c] transition-colors"
+                            title="Colapsar menú">
+                            <IconChevronLeft />
+                        </button>
+                    )}
                 </div>
             )}
 
             {/* Navegación */}
             <nav className="flex-1 overflow-y-auto py-3 px-2 flex flex-col gap-0.5">
-                {!collapsed && cursoId && (
-                    <Link
-                        to={`/docente/cursos/${cursoId}`}
-                        onClick={onNavClick}
-                        className="flex items-center gap-2 px-3 py-2 rounded-xl text-[11px] font-semibold text-[#9ba7ae] tracking-[0.6px] uppercase hover:bg-[#f0f2f3] hover:text-[#4c616c] transition-all mb-1 truncate">
-                        <svg viewBox="0 0 16 16" fill="none" className="w-3 h-3 flex-shrink-0" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M10 3L5 8l5 5" /></svg>
-                        <span className="truncate">{cursoNombre || 'Curso'}</span>
-                    </Link>
-                )}
                 {!collapsed && (
-                    <p className="text-[10px] font-semibold text-[#9ba7ae] tracking-[0.8px] uppercase px-3 pb-1.5 pt-1">Proyecto</p>
+                    <p className="text-[10px] font-semibold text-[#9ba7ae] tracking-[0.8px] uppercase px-3 pb-1.5 pt-1">Estudiante</p>
                 )}
                 {NAV_ITEMS.map(({ label, to, icon }) => (
-                    <NavLink key={to} to={to} state={navState} className={navLinkClass} title={collapsed ? label : undefined} onClick={onNavClick}>
+                    <NavLink key={to} to={to} className={navLinkClass} title={collapsed ? label : undefined} onClick={onNavClick}>
                         <span className="flex-shrink-0">{icon}</span>
                         {!collapsed && <span>{label}</span>}
                     </NavLink>
@@ -200,31 +162,23 @@ function SidebarContent({ collapsed, onCollapse, loggingOut, handleLogout, onNav
     )
 }
 
-export default function ProyectoLayout() {
+export default function EstudianteLayout() {
     const navigate = useNavigate()
     const location = useLocation()
-    const { proyectoId } = useParams()
     const [user, setUser] = useState(() => session.getUser())
     const [collapsed, setCollapsed] = useState(false)
     const [mobileOpen, setMobileOpen] = useState(false)
     const [loggingOut, setLoggingOut] = useState(false)
     const [topbarMenuOpen, setTopbarMenuOpen] = useState(false)
-    const [proyecto, setProyecto] = useState(null)
-    const [savedNavState, setSavedNavState] = useState(null)
+
+    const proyectoMatch = location.pathname.match(/^\/estudiante\/proyectos\/(\d+)/)
+    const proyectoId = proyectoMatch?.[1] ?? null
 
     useEffect(() => {
         const refresh = () => setUser(session.getUser())
         window.addEventListener('user-updated', refresh)
         return () => window.removeEventListener('user-updated', refresh)
     }, [])
-
-    useEffect(() => {
-        const state = location.state
-        if (state?.nombre) {
-            setProyecto({ nombre: state.nombre, periodo: state.periodo ?? '' })
-            setSavedNavState(state)
-        }
-    }, [location.state, proyectoId])
 
     async function handleLogout() {
         setLoggingOut(true)
@@ -249,10 +203,7 @@ export default function ProyectoLayout() {
             {/* Sidebar desktop */}
             <aside className={`hidden lg:flex ${sidebarW} flex-shrink-0 flex-col bg-white border-r border-[#e1e3e4] transition-[width] duration-200 ease-in-out z-20 relative`}>
                 <SidebarContent collapsed={collapsed} onCollapse={() => setCollapsed(c => !c)}
-                    loggingOut={loggingOut} handleLogout={handleLogout} onNavClick={undefined}
-                    proyectoId={proyectoId} nombreProyecto={proyecto?.nombre} periodoNombre={proyecto?.periodo}
-                    cursoId={savedNavState?.cursoId} cursoNombre={savedNavState?.cursoNombre}
-                    navState={savedNavState} />
+                    loggingOut={loggingOut} handleLogout={handleLogout} onNavClick={undefined} proyectoId={proyectoId} />
             </aside>
 
             {/* Sidebar móvil */}
@@ -260,9 +211,7 @@ export default function ProyectoLayout() {
                 onClick={e => e.stopPropagation()}>
                 <SidebarContent collapsed={false} onCollapse={null}
                     loggingOut={loggingOut} handleLogout={handleLogout}
-                    onNavClick={() => setMobileOpen(false)} proyectoId={proyectoId} nombreProyecto={proyecto?.nombre} periodoNombre={proyecto?.periodo}
-                    cursoId={savedNavState?.cursoId} cursoNombre={savedNavState?.cursoNombre}
-                    navState={savedNavState} />
+                    onNavClick={() => setMobileOpen(false)} proyectoId={proyectoId} />
             </aside>
 
             {/* Contenido */}
@@ -280,12 +229,12 @@ export default function ProyectoLayout() {
                                 <div className="w-8 h-8 rounded-full bg-[#ffdad6] flex items-center justify-center overflow-hidden">
                                     {user.foto_perfil
                                         ? <img src={buildMediaUrl(user.foto_perfil)} alt="" className="w-full h-full object-cover" onError={e => { e.target.style.display = 'none' }} />
-                                        : <span className="text-[12px] font-bold text-[#af101a]">{user.nombre?.[0]?.toUpperCase() ?? 'D'}</span>
+                                        : <span className="text-[12px] font-bold text-[#af101a]">{user.nombre?.[0]?.toUpperCase() ?? 'E'}</span>
                                     }
                                 </div>
                                 <div className="hidden sm:block text-left">
-                                    <p className="text-[13px] font-semibold text-[#191c1d] leading-tight">{user.nombre ?? 'Docente'}</p>
-                                    <p className="text-[11px] text-[#9ba7ae] leading-tight">Docente</p>
+                                    <p className="text-[13px] font-semibold text-[#191c1d] leading-tight">{user.nombre ?? 'Estudiante'}</p>
+                                    <p className="text-[11px] text-[#9ba7ae] leading-tight">Estudiante</p>
                                 </div>
                             </button>
                             {topbarMenuOpen && (

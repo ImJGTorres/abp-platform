@@ -1,18 +1,19 @@
 import { useState, useEffect } from 'react'
 import { distribucionApi } from '../../services/liderEquipoApi'
-import { session, buildMediaUrl } from '../../services/api'
+import { session } from '../../services/api'
 
 const ESTADO_CONFIG = {
-    pendiente: { label: 'Pendiente', color: 'bg-gray-100 text-gray-600' },
+    pendiente:   { label: 'Pendiente',   color: 'bg-gray-100 text-gray-600' },
     en_progreso: { label: 'En Progreso', color: 'bg-blue-100 text-blue-700' },
-    completada: { label: 'Completada', color: 'bg-green-100 text-green-700' },
-    bloqueada: { label: 'Bloqueada', color: 'bg-red-100 text-red-700' },
+    completada:  { label: 'Completada',  color: 'bg-green-100 text-green-700' },
+    bloqueada:   { label: 'Bloqueada',   color: 'bg-red-100 text-red-700' },
 }
 
 export default function DistribucionTrabajo() {
     const [loading, setLoading] = useState(true)
     const [miembros, setMiembros] = useState([])
     const [actividades, setActividades] = useState([])
+    const [totalActividades, setTotalActividades] = useState(0)
     const user = session.getUser()
 
     useEffect(() => {
@@ -24,24 +25,32 @@ export default function DistribucionTrabajo() {
         try {
             const equipoId = user?.equipo_id
             if (!equipoId) return
-            const distribucion = await distribucionApi.obtenerPorEquipo(equipoId)
-            setMiembros(distribucion.miembros || [])
-            setActividades(distribucion.actividades || [])
+            // GET /api/equipos/:id/progreso/ — miembros con conteos de actividades
+            // GET /api/equipos/:id/actividades/ — lista completa para la tabla
+            const [progreso, acts] = await Promise.all([
+                distribucionApi.obtenerPorEquipo(equipoId),
+                distribucionApi.obtenerActividades(equipoId),
+            ])
+            setMiembros(progreso.miembros || [])
+            setTotalActividades(progreso.total_actividades || 0)
+            setActividades(acts)
         } catch {
-            // backend not yet implemented
+            // sin equipo asignado o error de red
         } finally {
             setLoading(false)
         }
     }
 
     function getCargaPorcentaje(miembro) {
-        const actividadesMiembro = actividades.filter(a => a.responsable_id === miembro.id)
-        return actividades.length > 0 ? Math.round((actividadesMiembro.length / actividades.length) * 100) : 0
+        // actividades_asignadas viene directo del endpoint de progreso
+        return totalActividades > 0
+            ? Math.round((miembro.actividades_asignadas / totalActividades) * 100)
+            : 0
     }
 
     function getEstadoCarga(porcentaje) {
         if (porcentaje > 80) return { label: 'Carga Critica', color: 'text-red-600 bg-red-100' }
-        if (porcentaje > 50) return { label: 'Carga Alta', color: 'text-yellow-600 bg-yellow-100' }
+        if (porcentaje > 50) return { label: 'Carga Alta',    color: 'text-yellow-600 bg-yellow-100' }
         return { label: 'Carga Ligera', color: 'text-green-600 bg-green-100' }
     }
 
@@ -56,6 +65,8 @@ export default function DistribucionTrabajo() {
 
             {loading ? (
                 <div className="text-center py-12 text-[#9ba7ae]">Cargando distribucion...</div>
+            ) : !user?.equipo_id ? (
+                <div className="text-center py-12 text-[#9ba7ae]">No tienes un equipo asignado.</div>
             ) : miembros.length === 0 ? (
                 <div className="text-center py-12 text-[#9ba7ae]">No hay miembros en el equipo.</div>
             ) : (
@@ -65,15 +76,10 @@ export default function DistribucionTrabajo() {
                             const porcentaje = getCargaPorcentaje(m)
                             const { label, color } = getEstadoCarga(porcentaje)
                             return (
-                                <div key={m.id} className="bg-white border border-[#e1e3e4] rounded-xl p-5 hover:shadow-md transition-shadow">
+                                <div key={m.id_usuario} className="bg-white border border-[#e1e3e4] rounded-xl p-5 hover:shadow-md transition-shadow">
                                     <div className="flex items-center gap-3 mb-4">
-                                        <div className="w-12 h-12 rounded-full bg-[#ffdad6] flex items-center justify-center overflow-hidden flex-shrink-0">
-                                            {m.foto_perfil ? (
-                                                <img src={buildMediaUrl(m.foto_perfil)} alt="" className="w-full h-full object-cover"
-                                                    onError={e => { e.target.style.display = 'none' }} />
-                                            ) : (
-                                                <span className="text-[14px] font-bold text-[#af101a]">{m.nombre?.[0]?.toUpperCase()}</span>
-                                            )}
+                                        <div className="w-12 h-12 rounded-full bg-[#ffdad6] flex items-center justify-center flex-shrink-0">
+                                            <span className="text-[14px] font-bold text-[#af101a]">{m.nombre?.[0]?.toUpperCase()}</span>
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <p className="text-[15px] font-bold text-[#191c1d] truncate">{m.nombre}</p>

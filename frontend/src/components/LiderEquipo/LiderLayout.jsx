@@ -103,6 +103,38 @@ function IconChevronRight() {
     )
 }
 
+function IconUsers() {
+    return (
+        <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            className="w-5 h-5"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+        >
+            {/* Usuarios */}
+            <path d="M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
+            <path d="M15 13a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" />
+
+            {/* Base usuarios */}
+            <path d="M4 19c0-3 2.5-5 5-5s5 2 5 5" />
+            <path d="M14 19c.3-2 1.8-3.5 4-3.5 1 0 1.9.3 2.6.8" />
+        </svg>
+    )
+}
+
+function IconKanban() {
+    return (
+        <svg viewBox="0 0 20 20" fill="none" className="w-5 h-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="2" y="3" width="4" height="14" rx="1" />
+            <rect x="8" y="3" width="4" height="8" rx="1" />
+            <rect x="14" y="3" width="4" height="11" rx="1" />
+        </svg>
+    )
+}
+
 function navLinkClass({ isActive }) {
     const base = 'flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] font-medium transition-all duration-150 select-none cursor-pointer'
     return isActive
@@ -114,10 +146,12 @@ function SidebarContent({ collapsed, onCollapse, loggingOut, handleLogout, onNav
     const NAV_ITEMS = [
         { label: 'Dashboard', to: '/lider/dashboard', icon: <IconDashboard /> },
         { label: 'Distribución', to: '/lider/distribucion', icon: <IconDistribute /> },
+        { label: 'Carga de Trabajo', to: '/lider/carga-trabajo', icon: <IconUsers /> },
     ]
 
     if (proyectoId) {
         NAV_ITEMS.push(
+            { label: 'Tablero Kanban', to: `/lider/proyectos/${proyectoId}/kanban`, icon: <IconKanban /> },
             { label: 'Objetivos', to: `/lider/proyectos/${proyectoId}/objetivos`, icon: <IconTarget /> },
             { label: 'Fases', to: `/lider/proyectos/${proyectoId}/fases`, icon: <IconPhases /> },
             { label: 'Cronograma', to: `/lider/proyectos/${proyectoId}/cronograma`, icon: <IconSchedule /> }
