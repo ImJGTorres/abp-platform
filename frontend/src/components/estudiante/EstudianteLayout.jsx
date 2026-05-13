@@ -1,13 +1,32 @@
 import { useState, useEffect } from 'react'
 import { NavLink, Outlet, useNavigate, Link, useLocation } from 'react-router-dom'
 import { authApi, session, buildMediaUrl } from '../../services/api'
-import NotificacionesBell from '../NotificacionesBell'
 
-function IconHome() {
+function IconDashboard() {
     return (
         <svg viewBox="0 0 20 20" fill="none" className="w-5 h-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 9L10 2l7 7" />
-            <path d="M5 8v9a1 1 0 001 1h8a1 1 0 001-1V8" />
+            <rect x="2" y="2" width="7" height="7" rx="1.5" />
+            <rect x="11" y="2" width="7" height="7" rx="1.5" />
+            <rect x="2" y="11" width="7" height="7" rx="1.5" />
+            <rect x="11" y="11" width="7" height="7" rx="1.5" />
+        </svg>
+    )
+}
+
+function IconTrend() {
+    return (
+        <svg viewBox="0 0 20 20" fill="none" className="w-5 h-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 14l4-4 4 4 6-6M17 8v-4h-4" />
+        </svg>
+    )
+}
+
+function IconKanban() {
+    return (
+        <svg viewBox="0 0 20 20" fill="none" className="w-5 h-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="2" y="3" width="4" height="14" rx="1" />
+            <rect x="8" y="3" width="4" height="8" rx="1" />
+            <rect x="14" y="3" width="4" height="11" rx="1" />
         </svg>
     )
 }
@@ -67,13 +86,21 @@ function navLinkClass({ isActive }) {
         : `${base} text-[#4c616c] hover:bg-[#f0f2f3] hover:text-[#191c1d]`
 }
 
-function SidebarContent({ collapsed, onCollapse, loggingOut, handleLogout, onNavClick }) {
+function SidebarContent({ collapsed, onCollapse, loggingOut, handleLogout, onNavClick, proyectoId }) {
     const NAV_ITEMS = [
-        { label: 'Inicio', to: '/estudiante', icon: <IconHome /> },
+        { label: 'Dashboard', to: '/estudiante/dashboard', icon: <IconDashboard /> },
     ]
+
+    if (proyectoId) {
+        NAV_ITEMS.push(
+            { label: 'Progreso', to: `/estudiante/proyectos/${proyectoId}/progreso`, icon: <IconTrend /> },
+            { label: 'Tablero Kanban', to: `/estudiante/proyectos/${proyectoId}/kanban`, icon: <IconKanban /> },
+        )
+    }
 
     return (
         <>
+            {/* Marca + Collapse */}
             {collapsed ? (
                 <div className="flex items-center justify-center h-[60px] border-b border-[#e1e3e4] flex-shrink-0">
                     {onCollapse && (
@@ -90,6 +117,8 @@ function SidebarContent({ collapsed, onCollapse, loggingOut, handleLogout, onNav
                         <svg viewBox="0 0 24 24" className="w-8 h-6 text-white" fill="currentColor">
                             <path d="M12 2L2 7l10 5 10-5-10-5z" />
                             <path d="M6 10v4c0 2.5 3.5 4 6 4s6-1.5 6-4v-4l-6 3-6-3z" opacity="0.9" />
+                            <path d="M22 7v6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                            <circle cx="22" cy="14" r="1" fill="currentColor" />
                         </svg>
                     </div>
                     <span className="text-[15px] font-extrabold text-[#191c1d] tracking-tight whitespace-nowrap">Projex ABP</span>
@@ -103,18 +132,20 @@ function SidebarContent({ collapsed, onCollapse, loggingOut, handleLogout, onNav
                 </div>
             )}
 
+            {/* Navegación */}
             <nav className="flex-1 overflow-y-auto py-3 px-2 flex flex-col gap-0.5">
                 {!collapsed && (
                     <p className="text-[10px] font-semibold text-[#9ba7ae] tracking-[0.8px] uppercase px-3 pb-1.5 pt-1">Estudiante</p>
                 )}
                 {NAV_ITEMS.map(({ label, to, icon }) => (
-                    <NavLink key={to} to={to} end className={navLinkClass} title={collapsed ? label : undefined} onClick={onNavClick}>
+                    <NavLink key={to} to={to} className={navLinkClass} title={collapsed ? label : undefined} onClick={onNavClick}>
                         <span className="flex-shrink-0">{icon}</span>
                         {!collapsed && <span>{label}</span>}
                     </NavLink>
                 ))}
             </nav>
 
+            {/* Perfil + Logout */}
             <div className="border-t border-[#e1e3e4] p-2 flex-shrink-0">
                 <Link to="/perfil" onClick={onNavClick}
                     className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] font-medium text-[#4c616c] hover:bg-[#f0f2f3] hover:text-[#191c1d] transition-colors">
@@ -133,11 +164,15 @@ function SidebarContent({ collapsed, onCollapse, loggingOut, handleLogout, onNav
 
 export default function EstudianteLayout() {
     const navigate = useNavigate()
+    const location = useLocation()
     const [user, setUser] = useState(() => session.getUser())
     const [collapsed, setCollapsed] = useState(false)
     const [mobileOpen, setMobileOpen] = useState(false)
     const [loggingOut, setLoggingOut] = useState(false)
     const [topbarMenuOpen, setTopbarMenuOpen] = useState(false)
+
+    const proyectoMatch = location.pathname.match(/^\/estudiante\/proyectos\/(\d+)/)
+    const proyectoId = proyectoMatch?.[1] ?? null
 
     useEffect(() => {
         const refresh = () => setUser(session.getUser())
@@ -160,30 +195,33 @@ export default function EstudianteLayout() {
         <div className="flex h-screen bg-[#f8f9fa] overflow-hidden" style={{ fontFamily: "'Manrope', sans-serif" }}
             onClick={() => { setTopbarMenuOpen(false); setMobileOpen(false) }}>
 
+            {/* Overlay móvil */}
             {mobileOpen && (
                 <div className="fixed inset-0 bg-black/40 z-30 lg:hidden" onClick={() => setMobileOpen(false)} />
             )}
 
+            {/* Sidebar desktop */}
             <aside className={`hidden lg:flex ${sidebarW} flex-shrink-0 flex-col bg-white border-r border-[#e1e3e4] transition-[width] duration-200 ease-in-out z-20 relative`}>
                 <SidebarContent collapsed={collapsed} onCollapse={() => setCollapsed(c => !c)}
-                    loggingOut={loggingOut} handleLogout={handleLogout} onNavClick={undefined} />
+                    loggingOut={loggingOut} handleLogout={handleLogout} onNavClick={undefined} proyectoId={proyectoId} />
             </aside>
 
+            {/* Sidebar móvil */}
             <aside className={`lg:hidden fixed top-0 left-0 h-full w-[260px] flex flex-col bg-white border-r border-[#e1e3e4] z-40 transition-transform duration-200 ease-in-out ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}
                 onClick={e => e.stopPropagation()}>
                 <SidebarContent collapsed={false} onCollapse={null}
                     loggingOut={loggingOut} handleLogout={handleLogout}
-                    onNavClick={() => setMobileOpen(false)} />
+                    onNavClick={() => setMobileOpen(false)} proyectoId={proyectoId} />
             </aside>
 
+            {/* Contenido */}
             <main className="flex-1 flex flex-col overflow-hidden min-w-0">
-                <header className="h-[60px] flex-shrink-0 bg-white border-b border-[#e1e3e4] flex items-center px-4 sm:px-6 gap-3">
+                <header className="h-[60px] flex-shrink-0 bg-white border-b border-[#e1e3e4] flex items-center px-4 sm:px-6 gap-4">
                     <button className="lg:hidden flex items-center justify-center w-9 h-9 rounded-xl hover:bg-[#f0f2f3] transition-colors text-[#4c616c]"
                         onClick={e => { e.stopPropagation(); setMobileOpen(o => !o) }}>
                         {mobileOpen ? <IconX /> : <IconMenu />}
                     </button>
                     <div className="flex-1" />
-                    <NotificacionesBell />
                     {user && (
                         <div className="relative">
                             <button onClick={e => { e.stopPropagation(); setTopbarMenuOpen(o => !o) }}
