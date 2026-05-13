@@ -8,6 +8,7 @@ from .views import (
     EquipoProgresoView,
     EquiposPorProyectoView,
     EstudiantesEquipoView,
+    MisEquiposView,
     MoverMiembroView,
     RetirarMiembroView,
     ActualizarRolMiembroView,
@@ -49,4 +50,6 @@ urlpatterns = [
 
     # GET /api/equipos/<equipo_id>/progreso/ — resumen de progreso del equipo (BE 02).
     path('equipos/<int:equipo_id>/progreso/', EquipoProgresoView.as_view(), name='equipo-progreso'),
+    # GET /api/mis-equipos/ — equipos y actividades del estudiante autenticado.
+    path('mis-equipos/', MisEquiposView.as_view(), name='mis-equipos'),
 ]

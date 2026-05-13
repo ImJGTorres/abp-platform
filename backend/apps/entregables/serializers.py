@@ -2,7 +2,7 @@ from django.conf import settings
 
 from rest_framework import serializers
 
-from .models import ArchivoAdjunto, Entregable, EntregableVersion
+from .models import ArchivoAdjunto, Entregable, EntregableVersion, Notificacion
 from apps.equipos.models import MiembroEquipo
 
 
@@ -55,10 +55,25 @@ class EntregableVersionDetalleSerializer(serializers.Serializer):
         return getattr(obj.id_version, 'retroalimentacion', None)
 
 
+class ValidarEntregableSerializer(serializers.Serializer):
+    accion = serializers.ChoiceField(choices=['aprobar', 'rechazar'])
+    retroalimentacion = serializers.CharField(required=False, allow_blank=True, default='')
+
+
+class NotificacionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Notificacion
+        fields = ['id', 'tipo', 'titulo_entregable', 'retroalimentacion', 'id_entregable', 'leida', 'fecha_creacion']
+        read_only_fields = fields
+
+
 class EntregableCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Entregable
         fields = ['titulo', 'descripcion', 'tipo']
+        extra_kwargs = {
+            'descripcion': {'required': False, 'allow_blank': True, 'default': ''},
+        }
 
     def validate(self, attrs):
         request = self.context['request']

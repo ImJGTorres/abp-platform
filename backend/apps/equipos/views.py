@@ -849,3 +849,49 @@ class EquipoProgresoView(APIView):
             'porcentaje_progreso': porcentaje,
             'miembros': miembros_data,
         })
+
+
+class MisEquiposView(APIView):
+    authentication_classes = [UsuarioJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from django.db.models import Q
+        membresias = MiembroEquipo.objects.filter(
+            usuario=request.user, estado='activo'
+        ).select_related('equipo', 'equipo__proyecto', 'equipo__proyecto__id_curso')
+
+        resultado = []
+        for m in membresias:
+            equipo = m.equipo
+            proyecto = equipo.proyecto
+            actividades = (
+                Actividad.objects
+                .filter(Q(id_equipo_asignado=equipo) | Q(id_fase__id_proyecto=proyecto))
+                .select_related('id_fase').order_by('id_fase__orden', 'id').distinct()
+            )
+            fases = {}
+            for actividad in actividades:
+                fase = actividad.id_fase
+                if fase.id not in fases:
+                    fases[fase.id] = {
+                        'id': fase.id,
+                        'nombre': fase.nombre,
+                        'orden': fase.orden,
+                        'actividades': [],
+                    }
+                fases[fase.id]['actividades'].append({
+                    'id': actividad.id,
+                    'nombre': actividad.nombre,
+                    'descripcion': actividad.descripcion,
+                    'estado': actividad.estado,
+                    'prioridad': actividad.prioridad,
+                    'fecha_limite': str(actividad.fecha_limite) if actividad.fecha_limite else None,
+                })
+            resultado.append({
+                'equipo': {'id': equipo.id, 'nombre': equipo.nombre},
+                'proyecto': {'id': proyecto.id, 'nombre': proyecto.nombre},
+                'curso': {'id': proyecto.id_curso.id, 'nombre': proyecto.id_curso.nombre},
+                'fases': sorted(fases.values(), key=lambda f: f['orden']),
+            })
+        return Response(resultado)
