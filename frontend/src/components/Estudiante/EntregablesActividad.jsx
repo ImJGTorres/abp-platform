@@ -671,7 +671,7 @@ export default function EntregablesActividad() {
                                         {e.estado === 'rechazado' && (
                                             <div className="pt-1">
                                                 <button
-                                                    onClick={() => { setMotivoVersion(''); setConfirmNuevaVersion(e) }}
+                                                    onClick={() => setConfirmNuevaVersion(e)}
                                                     className="flex items-center gap-2 px-4 py-2.5 border-2 border-[#d32f2f] text-[#d32f2f] rounded-xl hover:bg-[#fff1f0] transition-colors text-[13px] font-semibold"
                                                 >
                                                     <IconRefresh />Nueva versión
