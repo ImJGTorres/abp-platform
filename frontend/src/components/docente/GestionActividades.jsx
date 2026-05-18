@@ -161,7 +161,7 @@ export default function GestionActividades() {
                 fecha_limite: actividad.fecha_limite || '',
                 prioridad: actividad.prioridad,
                 estado: actividad.estado,
-                responsables: actividad.responsables || [],
+                responsables: (actividad.responsables || []).map(r => typeof r === 'object' ? r.id : r),
             })
         } else {
             setEditando(null)

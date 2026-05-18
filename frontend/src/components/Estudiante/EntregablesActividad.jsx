@@ -226,7 +226,7 @@ function ZonaArchivos({ archivos, subiendo, onArchivosNuevos, onEliminar, entreg
                     )}
                     <div className="flex-1 min-w-0">
                         <p className="text-[13px] font-semibold text-[#191c1d] truncate">{a.nombre_original}</p>
-                        <p className="text-[11px] text-[#9ba7ae]">{formatBytes(a.tamaño_bytes)} · v{a.version}</p>
+                        <p className="text-[11px] text-[#9ba7ae]">{formatBytes(a.tamaño_bytes)} · versión {a.version}</p>
                     </div>
                     <div className="flex items-center gap-1 flex-shrink-0">
                         <a
@@ -312,7 +312,7 @@ function HistorialVersiones({ entregableId, estadoActual }) {
                                             className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[#f0f2f3] transition-colors"
                                         >
                                             <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0 ${esActual ? 'bg-[#d32f2f] text-white' : 'bg-[#f0f2f3] text-[#4c616c]'}`}>
-                                                v{v.numero_version}
+                                                {v.numero_version}
                                             </div>
                                             <div className="flex-1 text-left">
                                                 <div className="flex items-center gap-2">
@@ -402,7 +402,6 @@ export default function EntregablesActividad() {
 
     // Confirmación nueva versión
     const [confirmNuevaVersion, setConfirmNuevaVersion] = useState(null)
-    const [motivoVersion, setMotivoVersion] = useState('')
     const [creandoVersion, setCreandoVersion] = useState(false)
 
     useEffect(() => { cargar() }, [actividadId])
@@ -524,10 +523,9 @@ export default function EntregablesActividad() {
         if (!confirmNuevaVersion) return
         setCreandoVersion(true)
         try {
-            const nuevo = await entregablesApi.crearNuevaVersion(confirmNuevaVersion.id, motivoVersion)
+            const nuevo = await entregablesApi.crearNuevaVersion(confirmNuevaVersion.id)
             setEntregables(p => [nuevo, ...p])
             setConfirmNuevaVersion(null)
-            setMotivoVersion('')
         } catch (err) {
             setConfirmNuevaVersion(p => ({ ...p, error: err.data?.detail || 'Error al crear nueva versión.' }))
         } finally {
@@ -598,7 +596,7 @@ export default function EntregablesActividad() {
                                             </span>
                                             {e.numero_version > 1 && (
                                                 <span className="text-[11px] text-[#4c616c] bg-[#f0f2f3] px-2 py-0.5 rounded-md">
-                                                    v{e.numero_version}
+                                                    versión {e.numero_version}
                                                 </span>
                                             )}
                                         </div>
@@ -770,16 +768,6 @@ export default function EntregablesActividad() {
                         Se creará una nueva versión del entregable <strong className="text-[#191c1d]">{confirmNuevaVersion?.titulo}</strong>.
                         Podrás subir nuevos archivos y enviarlo nuevamente.
                     </p>
-                    <div>
-                        <label className="block text-[13px] font-semibold text-[#191c1d] mb-1.5">Motivo de la revisión</label>
-                        <textarea
-                            value={motivoVersion}
-                            onChange={e => setMotivoVersion(e.target.value)}
-                            rows={3}
-                            placeholder="Describe los cambios realizados..."
-                            className="w-full px-3 py-2.5 border border-[#e1e3e4] rounded-xl text-[14px] resize-none focus:outline-none focus:ring-2 focus:ring-[#d32f2f]/20 focus:border-[#d32f2f]"
-                        />
-                    </div>
                 </div>
                 <div className="flex gap-2 px-6 py-4 bg-[#f8f9fa] border-t border-[#e1e3e4]">
                     <button onClick={() => setConfirmNuevaVersion(null)} disabled={creandoVersion}
