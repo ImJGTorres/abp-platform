@@ -76,7 +76,7 @@ export default function AsignarResponsables() {
     function abrirModal(actividad) {
         setModalError('')
         setModalAct(actividad)
-        setSeleccionados(actividad.responsables || [])
+        setSeleccionados((actividad.responsables || []).map(r => typeof r === 'object' ? r.id : r))
     }
 
     function cerrarModal() {
@@ -107,8 +107,10 @@ export default function AsignarResponsables() {
         }
     }
 
-    // Nombre del miembro por su usuario_id
     function nombreMiembro(uid) {
+        if (typeof uid === 'object' && uid !== null) {
+            return uid.nombre ?? `Usuario #${uid.id}`
+        }
         return miembros.find(m => m.id_usuario === uid)?.nombre ?? `Usuario #${uid}`
     }
 
@@ -163,14 +165,17 @@ export default function AsignarResponsables() {
                                         )}
                                         {tieneResponsables ? (
                                             <div className="flex flex-wrap gap-1.5">
-                                                {a.responsables.map(uid => (
-                                                    <span key={uid} className="inline-flex items-center gap-1.5 px-2 py-1 bg-[#ffdad6] text-[#af101a] rounded-lg text-[11px] font-semibold">
-                                                        <span className="w-4 h-4 rounded-full bg-[#af101a] text-white flex items-center justify-center text-[9px] font-bold flex-shrink-0">
-                                                            {nombreMiembro(uid)?.[0]?.toUpperCase()}
+                                                {a.responsables.map(uid => {
+                                                    const key = typeof uid === 'object' ? uid.id : uid
+                                                    return (
+                                                        <span key={key} className="inline-flex items-center gap-1.5 px-2 py-1 bg-[#ffdad6] text-[#af101a] rounded-lg text-[11px] font-semibold">
+                                                            <span className="w-4 h-4 rounded-full bg-[#af101a] text-white flex items-center justify-center text-[9px] font-bold flex-shrink-0">
+                                                                {nombreMiembro(uid)?.[0]?.toUpperCase()}
+                                                            </span>
+                                                            {nombreMiembro(uid)}
                                                         </span>
-                                                        {nombreMiembro(uid)}
-                                                    </span>
-                                                ))}
+                                                    )
+                                                })}
                                             </div>
                                         ) : (
                                             <p className="text-[12px] text-[#9ba7ae] italic">Sin responsables asignados</p>
