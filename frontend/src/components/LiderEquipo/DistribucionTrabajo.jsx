@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { distribucionApi } from '../../services/liderEquipoApi'
-import { session } from '../../services/api'
+import { distribucionApi, getMiEquipo } from '../../services/liderEquipoApi'
+import RegistroAvance from '../Estudiante/RegistroAvances'
 
 const ESTADO_CONFIG = {
     pendiente:   { label: 'Pendiente',   color: 'bg-gray-100 text-gray-600' },
@@ -11,25 +11,24 @@ const ESTADO_CONFIG = {
 
 export default function DistribucionTrabajo() {
     const [loading, setLoading] = useState(true)
+    const [equipoId, setEquipoId] = useState(null)
     const [miembros, setMiembros] = useState([])
     const [actividades, setActividades] = useState([])
     const [totalActividades, setTotalActividades] = useState(0)
-    const user = session.getUser()
+    const [avancesModal, setAvancesModal] = useState(null)
 
-    useEffect(() => {
-        cargarDatos()
-    }, [])
+    useEffect(() => { cargarDatos() }, [])
 
     async function cargarDatos() {
         setLoading(true)
         try {
-            const equipoId = user?.equipo_id
-            if (!equipoId) return
-            // GET /api/equipos/:id/progreso/ — miembros con conteos de actividades
-            // GET /api/equipos/:id/actividades/ — lista completa para la tabla
+            const miEquipo = await getMiEquipo()
+            if (!miEquipo) return
+            const id = miEquipo.equipo.id
+            setEquipoId(id)
             const [progreso, acts] = await Promise.all([
-                distribucionApi.obtenerPorEquipo(equipoId),
-                distribucionApi.obtenerActividades(equipoId),
+                distribucionApi.obtenerPorEquipo(id),
+                distribucionApi.obtenerActividades(id),
             ])
             setMiembros(progreso.miembros || [])
             setTotalActividades(progreso.total_actividades || 0)
@@ -65,7 +64,7 @@ export default function DistribucionTrabajo() {
 
             {loading ? (
                 <div className="text-center py-12 text-[#9ba7ae]">Cargando distribucion...</div>
-            ) : !user?.equipo_id ? (
+            ) : !equipoId ? (
                 <div className="text-center py-12 text-[#9ba7ae]">No tienes un equipo asignado.</div>
             ) : miembros.length === 0 ? (
                 <div className="text-center py-12 text-[#9ba7ae]">No hay miembros en el equipo.</div>
@@ -85,6 +84,10 @@ export default function DistribucionTrabajo() {
                                             <p className="text-[15px] font-bold text-[#191c1d] truncate">{m.nombre}</p>
                                             <p className="text-[12px] text-[#9ba7ae] truncate">{m.rol_interno || 'Miembro'}</p>
                                         </div>
+                                        <div className="bg-[#f8f9fa] rounded-lg p-2 text-center flex-shrink-0">
+                                            <p className="text-[9px] text-[#9ba7ae] uppercase mb-0.5">Total</p>
+                                            <p className="text-[15px] font-extrabold text-[#191c1d]">{m.actividades_asignadas ?? 0}</p>
+                                        </div>
                                     </div>
 
                                     <div className="mb-3">
@@ -98,8 +101,23 @@ export default function DistribucionTrabajo() {
                                         </div>
                                     </div>
 
-                                    <div className={`px-3 py-1.5 rounded-lg text-[10px] font-semibold uppercase tracking-wide text-center ${color}`}>
+                                    <div className={`px-3 py-1.5 rounded-lg text-[10px] font-semibold uppercase tracking-wide text-center mb-3 ${color}`}>
                                         {label}
+                                    </div>
+
+                                    <div className="grid grid-cols-3 gap-1.5 text-center border-t border-[#f0f2f3] pt-3">
+                                        <div className="bg-gray-50 rounded-lg p-2">
+                                            <p className="text-[9px] text-[#9ba7ae] uppercase mb-0.5">Pendiente</p>
+                                            <p className="text-[15px] font-bold text-gray-600">{m.actividades_pendientes ?? 0}</p>
+                                        </div>
+                                        <div className="bg-blue-50 rounded-lg p-2">
+                                            <p className="text-[9px] text-[#9ba7ae] uppercase mb-0.5">En Progreso</p>
+                                            <p className="text-[15px] font-bold text-blue-600">{m.actividades_en_progreso ?? 0}</p>
+                                        </div>
+                                        <div className="bg-green-50 rounded-lg p-2">
+                                            <p className="text-[9px] text-[#9ba7ae] uppercase mb-0.5">Completado</p>
+                                            <p className="text-[15px] font-bold text-green-600">{m.actividades_completadas ?? 0}</p>
+                                        </div>
                                     </div>
                                 </div>
                             )
@@ -122,6 +140,7 @@ export default function DistribucionTrabajo() {
                                             <th className="px-4 py-3 text-left text-[11px] font-semibold text-[#9ba7ae] uppercase tracking-wide">Actividad</th>
                                             <th className="px-4 py-3 text-center text-[11px] font-semibold text-[#9ba7ae] uppercase tracking-wide">Entrega</th>
                                             <th className="px-4 py-3 text-center text-[11px] font-semibold text-[#9ba7ae] uppercase tracking-wide">Estado</th>
+                                            <th className="px-4 py-3 text-center text-[11px] font-semibold text-[#9ba7ae] uppercase tracking-wide">Avances</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -138,6 +157,13 @@ export default function DistribucionTrabajo() {
                                                             {est.label}
                                                         </span>
                                                     </td>
+                                                    <td className="px-4 py-3 text-center">
+                                                        <button
+                                                            onClick={() => setAvancesModal({ actividadId: a.id, actividadNombre: a.nombre })}
+                                                            className="px-2.5 py-1 bg-[#d32f2f]/10 border border-[#d32f2f]/30 text-[#d32f2f] rounded-lg text-[11px] font-semibold hover:bg-[#d32f2f]/20 transition-colors">
+                                                            Ver avances
+                                                        </button>
+                                                    </td>
                                                 </tr>
                                             )
                                         })}
@@ -146,6 +172,13 @@ export default function DistribucionTrabajo() {
                             </div>
                         </div>
                     )}
+                    <RegistroAvance
+                        open={!!avancesModal}
+                        actividadId={avancesModal?.actividadId}
+                        actividadNombre={avancesModal?.actividadNombre ?? ''}
+                        onClose={() => setAvancesModal(null)}
+                        modoLectura={true}
+                    />
                 </>
             )}
         </div>

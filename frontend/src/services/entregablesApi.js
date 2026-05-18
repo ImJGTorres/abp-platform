@@ -77,7 +77,7 @@ export const entregablesApi = {
 
             xhr.onerror = () => reject({ status: 0, data: { detail: 'Error de conexión.' } })
 
-            const baseUrl = import.meta.env.VITE_API_BASE_URL || ''
+            const baseUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
             xhr.open('POST', `${baseUrl}/api/entregables/${entregableId}/archivos/`)
             if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`)
             xhr.send(formData)

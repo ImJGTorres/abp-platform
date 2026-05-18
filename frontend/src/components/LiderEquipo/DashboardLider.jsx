@@ -1,6 +1,12 @@
 import { useState, useEffect } from 'react'
-import { distribucionApi } from '../../services/liderEquipoApi'
-import { session } from '../../services/api'
+import { distribucionApi, getMiEquipo } from '../../services/liderEquipoApi'
+
+const ESTADO_CONFIG = {
+    pendiente:   { label: 'Pendiente',   color: 'bg-gray-100 text-gray-600' },
+    en_progreso: { label: 'En Progreso', color: 'bg-blue-100 text-blue-700' },
+    completada:  { label: 'Completada',  color: 'bg-green-100 text-green-700' },
+    bloqueada:   { label: 'Bloqueada',   color: 'bg-red-100 text-red-700' },
+}
 
 function StatCard({ icon, iconBg, iconColor, label, value }) {
     return (
@@ -16,8 +22,27 @@ function StatCard({ icon, iconBg, iconColor, label, value }) {
     )
 }
 
+function ResponsablesBadges({ responsables }) {
+    if (!responsables || responsables.length === 0) {
+        return <span className="text-[12px] text-[#9ba7ae]">Sin asignar</span>
+    }
+    return (
+        <div className="flex items-center gap-1 flex-wrap">
+            {responsables.map(r => (
+                <div key={r.id} className="flex items-center gap-1 bg-[#ffdad6] text-[#af101a] rounded-full px-2 py-0.5">
+                    <span className="w-4 h-4 rounded-full bg-[#d32f2f] text-white text-[9px] font-bold flex items-center justify-center flex-shrink-0">
+                        {r.nombre?.[0]?.toUpperCase()}
+                    </span>
+                    <span className="text-[11px] font-semibold max-w-[60px] truncate">{r.nombre}</span>
+                </div>
+            ))}
+        </div>
+    )
+}
+
 export default function DashboardLider() {
     const [loading, setLoading] = useState(true)
+    const [equipoId, setEquipoId] = useState(null)
     const [stats, setStats] = useState({
         miembros: 0,
         actividadesTotal: 0,
@@ -25,19 +50,21 @@ export default function DashboardLider() {
         actividadesEnProgreso: 0,
         actividadesCompletadas: 0,
     })
-    const user = session.getUser()
+    const [actividades, setActividades] = useState([])
 
-    useEffect(() => {
-        cargarDatos()
-    }, [])
+    useEffect(() => { cargarDatos() }, [])
 
     async function cargarDatos() {
         setLoading(true)
         try {
-            const equipoId = user?.equipo_id
-            if (!equipoId) return
-            // GET /api/equipos/:id/progreso/
-            const progreso = await distribucionApi.obtenerPorEquipo(equipoId)
+            const miEquipo = await getMiEquipo()
+            if (!miEquipo) return
+            const id = miEquipo.equipo.id
+            setEquipoId(id)
+            const [progreso, acts] = await Promise.all([
+                distribucionApi.obtenerPorEquipo(id),
+                distribucionApi.obtenerActividades(id),
+            ])
             setStats({
                 miembros: progreso.miembros?.length ?? 0,
                 actividadesTotal: progreso.total_actividades ?? 0,
@@ -45,12 +72,31 @@ export default function DashboardLider() {
                 actividadesEnProgreso: progreso.actividades_en_progreso ?? 0,
                 actividadesCompletadas: progreso.actividades_completadas ?? 0,
             })
+            setActividades(Array.isArray(acts) ? acts : [])
         } catch {
-            // equipo_id no disponible en sesión — vista en blanco
+            // sin equipo asignado
         } finally {
             setLoading(false)
         }
     }
+
+    // Agrupar actividades por fase ordenadas por fase_orden
+    const fases = (() => {
+        const mapa = new Map()
+        for (const a of actividades) {
+            const key = a.id_fase ?? 'sin-fase'
+            if (!mapa.has(key)) {
+                mapa.set(key, {
+                    id: key,
+                    nombre: a.fase_nombre ?? 'Sin fase',
+                    orden: a.fase_orden ?? 0,
+                    actividades: [],
+                })
+            }
+            mapa.get(key).actividades.push(a)
+        }
+        return [...mapa.values()].sort((a, b) => a.orden - b.orden)
+    })()
 
     return (
         <div className="flex-1 overflow-y-auto p-4 sm:p-6">
@@ -59,7 +105,7 @@ export default function DashboardLider() {
 
             {loading ? (
                 <div className="text-center py-12 text-[#9ba7ae]">Cargando datos...</div>
-            ) : !user?.equipo_id ? (
+            ) : !equipoId ? (
                 <div className="text-center py-12 text-[#9ba7ae]">No tienes un equipo asignado.</div>
             ) : (
                 <>
@@ -91,6 +137,62 @@ export default function DashboardLider() {
                         <p className="text-[36px] font-extrabold">{stats.actividadesEnProgreso}</p>
                         <p className="text-[13px] opacity-80">Actividades actualmente en ejecucion por el equipo.</p>
                     </div>
+
+                    {fases.length > 0 && (
+                        <div className="mt-6">
+                            <h2 className="text-[20px] font-bold text-[#191c1d] mb-4">Actividades por Fase</h2>
+                            <div className="space-y-4">
+                                {fases.map(fase => (
+                                    <div key={fase.id} className="bg-white border border-[#e1e3e4] rounded-xl overflow-hidden">
+                                        <div className="px-4 py-3 bg-[#f8f9fa] border-b border-[#e1e3e4] flex items-center justify-between">
+                                            <p className="text-[13px] font-bold text-[#191c1d]">{fase.nombre}</p>
+                                            <span className="text-[11px] text-[#9ba7ae] font-semibold">
+                                                {fase.actividades.length} actividad{fase.actividades.length !== 1 ? 'es' : ''}
+                                            </span>
+                                        </div>
+                                        <table className="w-full">
+                                            <thead>
+                                                <tr className="border-b border-[#f0f2f3]">
+                                                    <th className="px-4 py-2 text-left text-[10px] font-semibold text-[#9ba7ae] uppercase tracking-wide">Actividad</th>
+                                                    <th className="px-4 py-2 text-left text-[10px] font-semibold text-[#9ba7ae] uppercase tracking-wide">Responsable(s)</th>
+                                                    <th className="px-4 py-2 text-center text-[10px] font-semibold text-[#9ba7ae] uppercase tracking-wide w-32">Avance</th>
+                                                    <th className="px-4 py-2 text-center text-[10px] font-semibold text-[#9ba7ae] uppercase tracking-wide">Estado</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {fase.actividades.map(a => {
+                                                    const est = ESTADO_CONFIG[a.estado] ?? { label: a.estado, color: 'bg-gray-100 text-gray-600' }
+                                                    const pct = a.ultimo_porcentaje_avance ?? 0
+                                                    const barColor = pct >= 100 ? 'bg-green-500' : pct >= 60 ? 'bg-[#d32f2f]' : 'bg-amber-500'
+                                                    return (
+                                                        <tr key={a.id} className="border-b border-[#f0f2f3] last:border-0 hover:bg-[#fafafa] transition-colors">
+                                                            <td className="px-4 py-3 text-[13px] font-semibold text-[#191c1d]">{a.nombre}</td>
+                                                            <td className="px-4 py-3">
+                                                                <ResponsablesBadges responsables={a.responsables_detalle} />
+                                                            </td>
+                                                            <td className="px-4 py-3">
+                                                                <div className="flex items-center gap-2">
+                                                                    <div className="flex-1 bg-[#e1e3e4] rounded-full h-1.5 overflow-hidden">
+                                                                        <div className={`h-full rounded-full ${barColor}`} style={{ width: `${pct}%` }} />
+                                                                    </div>
+                                                                    <span className="text-[11px] font-bold text-[#191c1d] w-8 text-right flex-shrink-0">{pct}%</span>
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-4 py-3 text-center">
+                                                                <span className={`px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase ${est.color}`}>
+                                                                    {est.label}
+                                                                </span>
+                                                            </td>
+                                                        </tr>
+                                                    )
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </>
             )}
         </div>

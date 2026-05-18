@@ -20,6 +20,17 @@ def crear_nueva_version(entregable_rechazado, usuario, motivo=''):
         original = _obtener_original(entregable_rechazado)
         numero_version = entregable_rechazado.numero_version + 1
 
+        # Registrar la versión rechazada en el historial si aún no tiene registro
+        EntregableVersion.objects.get_or_create(
+            id_entregable_original=original,
+            id_version=entregable_rechazado,
+            defaults={
+                'numero_version': entregable_rechazado.numero_version,
+                'id_usuario': None,
+                'motivo_revision': '',
+            },
+        )
+
         nuevo = Entregable.objects.create(
             titulo=entregable_rechazado.titulo,
             descripcion=entregable_rechazado.descripcion,

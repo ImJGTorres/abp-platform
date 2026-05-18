@@ -266,10 +266,10 @@ export const actividadesApi = {
         return data
     },
 
-    async crear(faseId, { nombre, descripcion, fecha_limite, prioridad, estado }) {
+    async crear(faseId, payload) {
         const response = await request(`/api/fases/${faseId}/actividades/`, {
             method: 'POST',
-            body: JSON.stringify({ nombre, descripcion, fecha_limite, prioridad, estado }),
+            body: JSON.stringify(payload),
         })
         const data = await parseJSON(response)
         if (!response.ok) throw { status: response.status, data }

@@ -26,9 +26,6 @@ function IconCheck() {
 function IconX() {
     return <svg viewBox="0 0 20 20" fill="none" className="w-4 h-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 4l12 12M16 4L4 16" /></svg>
 }
-function IconRefresh() {
-    return <svg viewBox="0 0 20 20" fill="none" className="w-4 h-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M16.5 9A6.5 6.5 0 105 15.2" /><path d="M3 18v-5h5" /></svg>
-}
 
 // ── Constantes ────────────────────────────────────────────────────────────────
 
@@ -147,22 +144,13 @@ export default function PanelRevisionEntregables() {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')
 
-    // Archivos por entregable
     const [archivos, setArchivos] = useState({})
     const [expandidos, setExpandidos] = useState({})
-
-    // Retroalimentación por entregable
     const [feedback, setFeedback] = useState({})
-
-    // Estados de validación
     const [validando, setValidando] = useState({})
     const [erroresValidacion, setErroresValidacion] = useState({})
     const [exitos, setExitos] = useState({})
-
-    // Modal confirmación
-    const [confirmModal, setConfirmModal] = useState(null) // { entregable, accion: 'aprobar'|'rechazar' }
-
-    // Filtro
+    const [confirmModal, setConfirmModal] = useState(null)
     const [filtroEstado, setFiltroEstado] = useState('enviado')
 
     useEffect(() => { cargar() }, [actividadId])
@@ -291,9 +279,9 @@ export default function PanelRevisionEntregables() {
 
             {error && <ErrorBanner message={error} />}
 
-            {/* Filtro texto */}
+            {/* Filtro activo */}
             <div className="flex items-center gap-2 mb-4">
-                {filtroEstado && (
+                {filtroEstado ? (
                     <button
                         onClick={() => setFiltroEstado('')}
                         className="flex items-center gap-1.5 px-3 py-1.5 bg-[#f0f2f3] text-[#4c616c] rounded-lg text-[12px] font-semibold hover:bg-[#e1e3e4] transition-colors"
@@ -301,8 +289,7 @@ export default function PanelRevisionEntregables() {
                         Filtro: {ESTADO_CONFIG[filtroEstado]?.label}
                         <IconX />
                     </button>
-                )}
-                {!filtroEstado && (
+                ) : (
                     <span className="text-[13px] text-[#9ba7ae]">Mostrando todos ({contadores.todos})</span>
                 )}
             </div>
@@ -332,7 +319,6 @@ export default function PanelRevisionEntregables() {
 
                         return (
                             <div key={e.id} className="bg-white border border-[#e1e3e4] rounded-xl overflow-hidden hover:shadow-sm transition-shadow">
-                                {/* Cabecera */}
                                 <div
                                     className="flex items-start gap-3 p-4 cursor-pointer"
                                     onClick={() => toggleExpand(e)}
@@ -361,7 +347,6 @@ export default function PanelRevisionEntregables() {
                                     </div>
                                 </div>
 
-                                {/* Detalle */}
                                 {abierto && (
                                     <div className="border-t border-[#f0f2f3] p-4 space-y-4">
                                         {e.descripcion && (
@@ -371,13 +356,11 @@ export default function PanelRevisionEntregables() {
                                             </div>
                                         )}
 
-                                        {/* Archivos */}
                                         <div>
                                             <p className="text-[11px] font-semibold text-[#9ba7ae] mb-2">Archivos adjuntos</p>
                                             <ListaArchivos archivos={archivosE} />
                                         </div>
 
-                                        {/* Retroalimentación anterior */}
                                         {e.retroalimentacion && (
                                             <div className={`rounded-xl p-3 ${e.estado === 'aprobado' ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
                                                 <p className={`text-[11px] font-semibold mb-1 ${e.estado === 'aprobado' ? 'text-green-600' : 'text-red-600'}`}>
@@ -390,11 +373,9 @@ export default function PanelRevisionEntregables() {
                                             </div>
                                         )}
 
-                                        {/* Mensajes de resultado */}
                                         {erroresValidacion[e.id] && <ErrorBanner message={erroresValidacion[e.id]} />}
                                         {exitos[e.id] && <SuccessBanner message={exitos[e.id]} />}
 
-                                        {/* Panel de revisión — solo si está enviado */}
                                         {esValidable && (
                                             <div className="bg-[#f8f9fa] border border-[#e1e3e4] rounded-xl p-4 space-y-3">
                                                 <p className="text-[13px] font-bold text-[#191c1d]">Escribir retroalimentación</p>
@@ -424,7 +405,6 @@ export default function PanelRevisionEntregables() {
                                             </div>
                                         )}
 
-                                        {/* Validado — mostrar info */}
                                         {!esValidable && e.fecha_validacion && (
                                             <div className="text-[12px] text-[#9ba7ae]">
                                                 Validado el {formatFecha(e.fecha_validacion)}
