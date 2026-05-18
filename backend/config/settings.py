@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'corsheaders',
     'rest_framework',
+    'anymail',
     # SimpleJWT: Librería para autenticación JWT (BE-01)
     # Provee views ready-to-use para login, refresh y logout
     'rest_framework_simplejwt',
@@ -255,6 +256,10 @@ EMAIL_HOST_USER    = config('EMAIL_HOST_USER',    default='')
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='ABP Platform <noreply@ufps.edu.co>')
 EMAIL_TIMEOUT      = config('EMAIL_TIMEOUT',      default=10, cast=int)
+
+SENDGRID_API_KEY = config('SENDGRID_API_KEY', default='')
+if SENDGRID_API_KEY:
+    ANYMAIL = {'SENDGRID_API_KEY': SENDGRID_API_KEY}
 
 # =============================================================================
 # ARCHIVOS DE MEDIA (fotos de perfil, etc.)
