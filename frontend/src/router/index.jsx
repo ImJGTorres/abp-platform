@@ -136,13 +136,12 @@ export default function AppRouter() {
         <Route element={<PrivateRoute allowedRoles={['estudiante']} />}>
           <Route element={<EstudianteLayout />}>
             <Route path="/estudiante" element={<Navigate to="/estudiante/dashboard" replace />} />
-            <Route path="/estudiante/dashboard" element={<DashboardProgreso />} />
-            {/* OVALLOS --> <Route path="/estudiante/dashboard" element={<DashboardEstudiante />} /> */}
+            <Route path="/estudiante/dashboard" element={<DashboardEstudiante />} />
             <Route path="/estudiante/proyectos/:proyectoId" element={<DetalleProyectoEstudiante />} />
             <Route path="/estudiante/proyectos/:proyectoId/progreso" element={<DashboardProgreso />} />
             <Route path="/estudiante/proyectos/:proyectoId/kanban" element={<TableroKanban />} />
             <Route path="/estudiante/actividades/:actividadId/entregables" element={<EntregablesActividad />} />
-          </Route>git
+          </Route>
         </Route>
 
         {/* LÍDER */}

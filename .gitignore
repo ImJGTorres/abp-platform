@@ -53,3 +53,14 @@ logs/
 .kilo
 .claude
 docs/
+
+
+# ========================
+# Otros
+# ========================
+*.docx
+*.pdf
+*.xlsx
+*.zip
+*.tar.gz
+*.rar
