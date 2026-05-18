@@ -41,3 +41,17 @@ class EsDocenteOAdministrador(BasePermission):
             and usuario.is_authenticated
             and getattr(usuario, 'tipo_rol', None) in ('docente', 'administrador')
         )
+
+
+class EsLiderEquipo(BasePermission):
+    """Permite acceso solo a usuarios con tipo_rol == 'lider_equipo'."""
+
+    message = 'Se requiere rol de líder de equipo.'
+
+    def has_permission(self, request, view):
+        usuario = request.user
+        return (
+            usuario is not None
+            and usuario.is_authenticated
+            and getattr(usuario, 'tipo_rol', None) == 'lider_equipo'
+        )

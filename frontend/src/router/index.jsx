@@ -30,9 +30,25 @@ import EquipoProyecto from '../components/docente/EquipoProyecto'
 import ReorganizarEquipos from '../components/docente/ReorganizarEquipos'
 import CronogramaHitos from '../components/docente/CronogramaHitos'
 import EquiposCurso from '../components/docente/EquiposCurso'
+import GestionFases from '../components/docente/GestionFases'
+import GestionActividades from '../components/docente/GestionActividades'
+import PanelRevisionEntregables from '../components/docente/PanelRevisionEntregables'
+
+import EstudianteLayout from '../components/Estudiante/EstudianteLayout'
+import DashboardEstudiante from '../components/Estudiante/DashboardEstudiante'
+import EntregablesActividad from '../components/Estudiante/EntregablesActividad'
+
+import LiderLayout from '../components/LiderEquipo/LiderLayout'
+import DashboardLider from '../components/LiderEquipo/DashboardLider'
+import DistribucionTrabajo from '../components/LiderEquipo/DistribucionTrabajo'
+import AsignarResponsables from '../components/LiderEquipo/AsignarResponsables'
+
+import DetalleProyectoEstudiante from '../components/Estudiante/DetalleProyectoEstudiante'
+import TableroKanban from '../components/Compartidos/TableroKanban'
+import DashboardProgreso from '../components/Estudiante/DashboardProgreso'
+
 function PanelDirector() { return <div className="p-10">Director</div> }
 function PanelEstudiante() { return <div className="p-10">Estudiante</div> }
-function PanelLider() { return <div className="p-10">Líder</div> }
 
 function Pagina({ children }) {
   return (
@@ -103,6 +119,11 @@ export default function AppRouter() {
             <Route path="/docente/proyectos/:proyectoId/objetivos" element={<ObjetivosProyecto />} />
             <Route path="/docente/proyectos/:proyectoId/raps" element={<RAPsProyecto />} />
             <Route path="/docente/proyectos/:proyectoId/cronograma" element={<CronogramaProyecto />} />
+            <Route path="/docente/proyectos/:proyectoId/fases" element={<GestionFases />} />
+            <Route path="/docente/proyectos/:proyectoId/fases/:faseId/actividades" element={<GestionActividades />} />
+            <Route path="/docente/proyectos/:proyectoId/fases/:faseId/actividades/:actividadId/entregables" element={<PanelRevisionEntregables />} />
+            <Route path="/docente/proyectos/:proyectoId/kanban" element={<TableroKanban />} />
+
             <Route path="/docente/proyectos/:proyectoId/perfiles-roles" element={<PerfilesRolesProyecto />} />
           </Route>
         </Route>
@@ -113,13 +134,28 @@ export default function AppRouter() {
         </Route>
 
         {/* ESTUDIANTE */}
-        <Route element={<PrivateRoute allowedRoles={['estudiante']} />}>
-          <Route path="/estudiante" element={<PanelEstudiante />} />
+        <Route element={<PrivateRoute allowedRoles={['estudiante', 'lider_equipo']} />}>
+          <Route element={<EstudianteLayout />}>
+            <Route path="/estudiante" element={<Navigate to="/estudiante/dashboard" replace />} />
+            <Route path="/estudiante/dashboard" element={<DashboardEstudiante />} />
+            <Route path="/estudiante/proyectos/:proyectoId" element={<DetalleProyectoEstudiante />} />
+            <Route path="/estudiante/proyectos/:proyectoId/progreso" element={<DashboardProgreso />} />
+            <Route path="/estudiante/proyectos/:proyectoId/kanban" element={<TableroKanban />} />
+            <Route path="/estudiante/actividades/:actividadId/entregables" element={<EntregablesActividad />} />
+          </Route>
         </Route>
 
         {/* LÍDER */}
         <Route element={<PrivateRoute allowedRoles={['lider_equipo']} />}>
-          <Route path="/lider" element={<PanelLider />} />
+          <Route element={<LiderLayout />}>
+            <Route path="/lider" element={<Navigate to="/lider/inicio" replace />} />
+            <Route path="/lider/inicio" element={<DashboardEstudiante basePath="/lider" />} />
+            <Route path="/lider/dashboard" element={<DashboardLider />} />
+            <Route path="/lider/distribucion" element={<DistribucionTrabajo />} />
+            <Route path="/lider/asignar-responsables" element={<AsignarResponsables />} />
+            <Route path="/lider/actividades/:actividadId/entregables" element={<EntregablesActividad />} />
+            <Route path="/lider/proyectos/:proyectoId/kanban" element={<TableroKanban />} />
+          </Route>
         </Route>
 
         {/* DEFAULT */}

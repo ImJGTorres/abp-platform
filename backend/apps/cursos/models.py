@@ -1,6 +1,8 @@
 from django.conf import settings
 from django.db import models
 
+from .querysets import FaseProyectoQuerySet, ProyectoQuerySet
+
 
 class Curso(models.Model):
 
@@ -14,7 +16,9 @@ class Curso(models.Model):
     codigo = models.CharField(max_length=20)
     id_docente = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.PROTECT,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name='cursos_docente',
     )
     id_periodo_academico = models.ForeignKey(
@@ -23,7 +27,9 @@ class Curso(models.Model):
     )
     usuario_creo = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.PROTECT,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name='cursos_creados',
     )
     estado = models.CharField(
@@ -55,6 +61,8 @@ class Proyecto(models.Model):
         EN_EJECUCION = 'en_ejecucion', 'En Ejecución'
         FINALIZADO = 'finalizado', 'Finalizado'
 
+    objects = models.Manager.from_queryset(ProyectoQuerySet)()
+
     id_curso = models.ForeignKey(
         Curso,
         on_delete=models.PROTECT,
@@ -76,28 +84,6 @@ class Proyecto(models.Model):
 
     def __str__(self):
         return f'{self.nombre} ({self.id_curso})'
-
-
-class CursoEstudiante(models.Model):
-    curso = models.ForeignKey(
-        Curso,
-        on_delete=models.CASCADE,
-        related_name='estudiantes',
-    )
-    estudiante = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name='cursos_inscritos',
-    )
-    fecha_inscripcion = models.DateTimeField(auto_now_add=True)
-    estado = models.CharField(max_length=20, default='activo')  # activo | inactivo
-
-    class Meta:
-        db_table = 'curso_estudiante'
-        unique_together = ('curso', 'estudiante')
-
-    def __str__(self):
-        return f'{self.estudiante} en {self.curso}'
 
 
 class ObjetivoProyecto(models.Model):
@@ -192,7 +178,7 @@ class CursoEstudiante(models.Model):
     curso = models.ForeignKey(Curso, on_delete=models.CASCADE, related_name='estudiantes')
     estudiante = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='cursos_inscritos')
     fecha_inscripcion = models.DateTimeField(auto_now_add=True)
-    estado = models.CharField(max_length=20, default='activo')
+    estado = models.CharField(max_length=20, default='activo')  # activo | inactivo
 
     class Meta:
         db_table = 'curso_estudiante'
@@ -200,7 +186,181 @@ class CursoEstudiante(models.Model):
         managed = False
 
     def __str__(self):
-        return f'{self.estudiante} → {self.curso}'
+        return f'{self.estudiante} en {self.curso}'
+
+
+class FaseProyecto(models.Model):
+
+    class Estado(models.TextChoices):
+        PENDIENTE = 'pendiente', 'Pendiente'
+        EN_PROGRESO = 'en_progreso', 'En Progreso'
+        COMPLETADA = 'completada', 'Completada'
+
+    objects = models.Manager.from_queryset(FaseProyectoQuerySet)()
+
+    id_proyecto = models.ForeignKey(
+        Proyecto,
+        on_delete=models.CASCADE,
+        related_name='fases',
+    )
+    nombre = models.CharField(max_length=200)
+    descripcion = models.TextField(null=True, blank=True)
+    orden = models.PositiveIntegerField()
+    fecha_inicio = models.DateField()
+    fecha_fin = models.DateField()
+    estado = models.CharField(
+        max_length=12,
+        choices=Estado.choices,
+        default=Estado.PENDIENTE,
+    )
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    porcentaje_completado = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        db_table = 'fase_proyecto'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['id_proyecto', 'orden'],
+                name='unique_orden_por_fase_proyecto',
+            )
+        ]
+        ordering = ['orden']
+
+    def __str__(self):
+        return f'Fase {self.orden}: {self.nombre} — {self.id_proyecto}'
+
+
+class Actividad(models.Model):
+
+    class Prioridad(models.TextChoices):
+        ALTA = 'alta', 'Alta'
+        MEDIA = 'media', 'Media'
+        BAJA = 'baja', 'Baja'
+
+    class Estado(models.TextChoices):
+        PENDIENTE = 'pendiente', 'Pendiente'
+        EN_PROGRESO = 'en_progreso', 'En Progreso'
+        COMPLETADA = 'completada', 'Completada'
+        BLOQUEADA = 'bloqueada', 'Bloqueada'
+
+    id_fase = models.ForeignKey(
+        FaseProyecto,
+        on_delete=models.CASCADE,
+        related_name='actividades',
+    )
+    nombre = models.CharField(max_length=200)
+    descripcion = models.TextField(null=True, blank=True)
+    fecha_limite = models.DateField()
+    prioridad = models.CharField(
+        max_length=5,
+        choices=Prioridad.choices,
+        default=Prioridad.MEDIA,
+    )
+    estado = models.CharField(
+        max_length=12,
+        choices=Estado.choices,
+        default=Estado.PENDIENTE,
+    )
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    id_responsable = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='actividades_responsable',
+    )
+    id_equipo_asignado = models.ForeignKey(
+        'equipos.Equipo',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='actividades',
+    )
+    responsables = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        related_name='actividades_asignadas',
+        blank=True,
+    )
+
+    class Meta:
+        db_table = 'actividad'
+        ordering = ['fecha_limite', 'prioridad']
+
+    def __str__(self):
+        return f'{self.nombre} [{self.get_prioridad_display()}] — {self.id_fase}'
+
+
+class ActividadDependencia(models.Model):
+    """Relación de precedencia entre actividades (grafo dirigido acíclico)."""
+
+    id_actividad = models.ForeignKey(
+        Actividad,
+        on_delete=models.CASCADE,
+        related_name='dependencias',
+    )
+    id_actividad_predecesor = models.ForeignKey(
+        Actividad,
+        on_delete=models.CASCADE,
+        related_name='sucesores',
+    )
+
+    class Meta:
+        db_table = 'actividad_depende_de'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['id_actividad', 'id_actividad_predecesor'],
+                name='unique_dependencia_actividad',
+            ),
+            models.CheckConstraint(
+                check=~models.Q(id_actividad=models.F('id_actividad_predecesor')),
+                name='no_autoref_dependencia',
+            ),
+        ]
+
+    def __str__(self):
+        return f'Actividad {self.id_actividad_id} depende de {self.id_actividad_predecesor_id}'
+
+
+class AvanceActividad(models.Model):
+
+    class Tipo(models.TextChoices):
+        TEXTO = 'texto', 'Texto'
+        ENLACE = 'enlace', 'Enlace'
+
+    id_actividad = models.ForeignKey(
+        Actividad,
+        on_delete=models.CASCADE,
+        related_name='avances',
+    )
+    id_usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='avances_registrados',
+    )
+    descripcion = models.TextField()
+    porcentaje_completado = models.PositiveSmallIntegerField()
+    fecha_registro = models.DateTimeField(auto_now_add=True)
+    tipo = models.CharField(
+        max_length=6,
+        choices=Tipo.choices,
+        default=Tipo.TEXTO,
+    )
+    url_referencia = models.URLField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'avance_actividad'
+        ordering = ['-fecha_registro']
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(porcentaje_completado__gte=0) & models.Q(porcentaje_completado__lte=100),
+                name='avance_porcentaje_0_100',
+            )
+        ]
+
+    def __str__(self):
+        return f'Avance {self.porcentaje_completado}% — {self.id_actividad} por {self.id_usuario}'
 
 
 class ResultadoAprendizaje(models.Model):
@@ -220,3 +380,52 @@ class ResultadoAprendizaje(models.Model):
 
     def __str__(self):
         return f'{self.nombre} – {self.descripcion[:50]}'
+
+
+# ---------------------------------------------------------------------------
+# Vistas de resumen de progreso (read-only, managed=False)
+# Creadas vía migración 0019_vista_progreso. No generan tablas propias.
+# ---------------------------------------------------------------------------
+
+class VistaProgresoFase(models.Model):
+    """Lectura de vista_progreso_fase: conteos de actividades por estado por fase."""
+
+    id_fase = models.IntegerField(primary_key=True)
+    nombre_fase = models.CharField(max_length=200)
+    estado_fase = models.CharField(max_length=12)
+    orden = models.PositiveIntegerField()
+    id_proyecto = models.IntegerField()
+    porcentaje_almacenado = models.PositiveSmallIntegerField()
+    total_actividades = models.IntegerField()
+    actividades_completadas = models.IntegerField()
+    actividades_en_progreso = models.IntegerField()
+    actividades_bloqueadas = models.IntegerField()
+
+    class Meta:
+        managed = False
+        db_table = 'vista_progreso_fase'
+        ordering = ['id_proyecto', 'orden']
+
+    def __str__(self):
+        return f'Fase {self.id_fase} — {self.porcentaje_almacenado}%'
+
+
+class VistaProgresoProyecto(models.Model):
+    """Lectura de vista_progreso_proyecto: progreso agregado por proyecto."""
+
+    id_proyecto = models.IntegerField(primary_key=True)
+    nombre_proyecto = models.CharField(max_length=200)
+    estado_proyecto = models.CharField(max_length=15)
+    total_fases = models.IntegerField()
+    fases_completadas = models.IntegerField()
+    fases_en_progreso = models.IntegerField()
+    porcentaje_progreso = models.IntegerField()
+    total_actividades = models.IntegerField()
+    actividades_completadas = models.IntegerField()
+
+    class Meta:
+        managed = False
+        db_table = 'vista_progreso_proyecto'
+
+    def __str__(self):
+        return f'{self.nombre_proyecto} — {self.porcentaje_progreso}%'

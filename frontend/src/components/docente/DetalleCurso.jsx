@@ -11,6 +11,36 @@ function IconEdit() { return <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fi
 function IconTrash() { return <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M2 4h12M5 4V3a1 1 0 011-1h4a1 1 0 011 1v1M6 7v5M10 7v5M3 4l1 9a1 1 0 001 1h6a1 1 0 001-1l1-9" /></svg> }
 function IconPlus() { return <svg className="w-3 h-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M8 3v10M3 8h10" /></svg> }
 
+function ModalConfirmacion({ titulo, mensaje, onConfirmar, onCancelar, cargando }) {
+    return (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden" onClick={e => e.stopPropagation()}>
+                <div className="p-6">
+                    <div className="w-12 h-12 rounded-2xl bg-[#ffdad6] flex items-center justify-center mx-auto mb-4">
+                        <svg className="w-6 h-6 text-[#ba1a1a]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+                        </svg>
+                    </div>
+                    <h3 className="text-[17px] font-bold text-[#191c1d] text-center mb-2">{titulo}</h3>
+                    <p className="text-[13px] text-[#9ba7ae] text-center leading-relaxed">{mensaje}</p>
+                </div>
+                <div className="flex gap-2 p-4 bg-[#f8f9fa] border-t border-[#e1e3e4]">
+                    <button onClick={onCancelar} disabled={cargando}
+                        className="flex-1 h-11 rounded-xl border-2 border-[#e1e3e4] text-[#4c616c] font-semibold text-[14px] hover:bg-white transition-colors disabled:opacity-60">
+                        Cancelar
+                    </button>
+                    <button onClick={onConfirmar} disabled={cargando}
+                        className="flex-1 h-11 rounded-xl bg-[#ba1a1a] text-white font-semibold text-[14px] hover:bg-[#8b0000] transition-colors disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                        {cargando
+                            ? <><svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>Eliminando...</>
+                            : 'Eliminar'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    )
+}
+
 function ModalProyecto({ cursoId, proyecto, onGuardar, onCancelar }) {
     const esEdicion = !!proyecto
     const [form, setForm] = useState({
@@ -144,6 +174,7 @@ export default function DetalleCurso() {
     const [modalNuevoProyecto, setModalNuevoProyecto] = useState(false)
     const [proyectoEditando, setProyectoEditando] = useState(null)
     const [eliminando, setEliminando] = useState(null)
+    const [proyectoAEliminar, setProyectoAEliminar] = useState(null)
     const [proyectoViendo, setProyectoViendo] = useState(null)
 
     useEffect(() => { cargarDatos() }, [id])
@@ -216,13 +247,19 @@ export default function DetalleCurso() {
         cargarDatos()
     }
 
-    async function handleEliminar(p) {
-        if (!window.confirm(`¿Eliminar el proyecto "${p.nombre}"? Esta acción no se puede deshacer.`)) return
-        setEliminando(p.id)
+    function handleEliminar(p) {
+        setProyectoAEliminar(p)
+    }
+
+    async function confirmarEliminar() {
+        if (!proyectoAEliminar) return
+        setEliminando(proyectoAEliminar.id)
         try {
-            await cursosApi.eliminarProyecto(id, p.id)
+            await cursosApi.eliminarProyecto(id, proyectoAEliminar.id)
+            setProyectoAEliminar(null)
             cargarDatos()
         } catch (err) {
+            setProyectoAEliminar(null)
             alert(err?.data?.detail ?? 'No se pudo eliminar el proyecto.')
         } finally {
             setEliminando(null)
@@ -457,6 +494,16 @@ export default function DetalleCurso() {
             )}
             {proyectoEditando && (
                 <ModalProyecto cursoId={id} proyecto={proyectoEditando} onGuardar={handleGuardarProyecto} onCancelar={() => setProyectoEditando(null)} />
+            )}
+
+            {proyectoAEliminar && (
+                <ModalConfirmacion
+                    titulo="Eliminar proyecto"
+                    mensaje={`¿Estás seguro de que deseas eliminar "${proyectoAEliminar.nombre}"? Esta acción no se puede deshacer.`}
+                    onConfirmar={confirmarEliminar}
+                    onCancelar={() => setProyectoAEliminar(null)}
+                    cargando={eliminando === proyectoAEliminar.id}
+                />
             )}
 
             {proyectoViendo && (

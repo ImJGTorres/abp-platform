@@ -32,7 +32,9 @@ class PeriodoAcademico(models.Model):
     fecha_creacion = models.DateTimeField(auto_now_add=True)
     usuario_creo = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.PROTECT,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
     )
 
     class Meta:

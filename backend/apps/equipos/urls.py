@@ -1,13 +1,16 @@
 from django.urls import path
+from apps.cursos.views import ActividadesPorEquipoView
 from .views import (
     ActualizarRolView,
     AsignarEstudiantesView,
-    EquiposPorProyectoView,
-    EditarEquipoView,
-    EstudiantesEquipoView,
-    RetirarMiembroView,
-    MoverMiembroView,
     DisolverEquipoView,
+    EditarEquipoView,
+    EquipoProgresoView,
+    EquiposPorProyectoView,
+    EstudiantesEquipoView,
+    MisEquiposView,
+    MoverMiembroView,
+    RetirarMiembroView,
     ActualizarRolMiembroView,
 )
 
@@ -42,4 +45,11 @@ urlpatterns = [
     # PATCH /api/miembros/<miembro_id>/
     # Actualizar rol_interno de un miembro (lider, desarrollador, analista, disenador, tester, "").
     path('miembros/<int:miembro_id>/', ActualizarRolMiembroView.as_view(), name='miembro-actualizar-rol'),
+    # GET /api/equipos/<equipo_id>/actividades/ — lista actividades del equipo (HU-016 BE-03).
+    path('equipos/<int:equipo_id>/actividades/', ActividadesPorEquipoView.as_view(), name='actividades-por-equipo'),
+
+    # GET /api/equipos/<equipo_id>/progreso/ — resumen de progreso del equipo (BE 02).
+    path('equipos/<int:equipo_id>/progreso/', EquipoProgresoView.as_view(), name='equipo-progreso'),
+    # GET /api/mis-equipos/ — equipos y actividades del estudiante autenticado.
+    path('mis-equipos/', MisEquiposView.as_view(), name='mis-equipos'),
 ]

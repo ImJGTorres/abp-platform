@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     'apps.configuracion',
     'apps.cursos',
     'apps.equipos',
+    'apps.entregables',
 ]
 
 # Configuración de Django REST Framework (BE-01)
@@ -253,9 +254,16 @@ EMAIL_USE_TLS      = config('EMAIL_USE_TLS',      default=True, cast=bool)
 EMAIL_HOST_USER    = config('EMAIL_HOST_USER',    default='')
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='ABP Platform <noreply@ufps.edu.co>')
+EMAIL_TIMEOUT      = config('EMAIL_TIMEOUT',      default=10, cast=int)
 
 # =============================================================================
 # ARCHIVOS DE MEDIA (fotos de perfil, etc.)
 # =============================================================================
 MEDIA_URL  = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_ROOT = BASE_DIR / 'media'  # TODO: configurar S3 en producción vía env vars
+
+# Límite de tamaño de archivos adjuntos: 10 MB
+MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024
+
+# Subdirectorio para archivos adjuntos de entregables
+ENTREGABLES_UPLOAD_DIR = 'entregables/archivos/'
