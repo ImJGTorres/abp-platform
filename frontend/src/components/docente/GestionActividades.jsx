@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useParams, Link, useLocation } from 'react-router-dom'
+import { useParams, Link, useLocation, useNavigate } from 'react-router-dom'
 import { actividadesApi, equiposApi } from '../../services/docenteApi'
 
 function IconPlus() {
@@ -26,6 +26,16 @@ function IconTrash() {
     )
 }
 
+function IconClipboardCheck() {
+    return (
+        <svg viewBox="0 0 20 20" fill="none" className="w-4 h-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M7 3H5a1 1 0 00-1 1v12a1 1 0 001 1h10a1 1 0 001-1V4a1 1 0 00-1-1h-2" />
+            <path d="M7 3a2 2 0 014 0H7z" />
+            <path d="M7 10l2 2 4-4" />
+        </svg>
+    )
+}
+
 function IconChevron() {
     return (
         <svg className="w-3 h-3 text-[#9ba7ae]" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -33,6 +43,7 @@ function IconChevron() {
         </svg>
     )
 }
+
 
 
 const PRIORIDAD_CONFIG = {
@@ -83,6 +94,7 @@ function Modal({ open, title, children }) {
 export default function GestionActividades() {
     const { proyectoId, faseId } = useParams()
     const location = useLocation()
+    const navigate = useNavigate()
 
     const cursoId = location.state?.cursoId
     const cursoNombre = location.state?.cursoNombre
@@ -344,6 +356,18 @@ export default function GestionActividades() {
                                         <IconTrash />
                                     </button>
                                 </div>
+                            </div>
+                            <div className="border-t border-[#f0f2f3] mt-3 pt-3">
+                                <button
+                                    onClick={() => navigate(
+                                        `/docente/proyectos/${proyectoId}/fases/${faseId}/actividades/${a.id}/entregables`,
+                                        { state: { ...location.state, actividadNombre: a.nombre } }
+                                    )}
+                                    className="flex items-center gap-2 px-3 py-1.5 bg-[#eef2ff] hover:bg-[#e0e7ff] text-[#4338ca] rounded-lg transition-colors text-[12px] font-semibold"
+                                >
+                                    <IconClipboardCheck />
+                                    Revisar entregables
+                                </button>
                             </div>
                         </div>
                     ))}

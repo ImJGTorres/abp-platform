@@ -143,12 +143,11 @@ function navLinkClass({ isActive }) {
         : `${base} text-[#4c616c] hover:bg-[#f0f2f3] hover:text-[#191c1d]`
 }
 
-function SidebarContent({ collapsed, onCollapse, loggingOut, handleLogout, onNavClick, proyectoId, enEntregables }) {
+function SidebarContent({ collapsed, onCollapse, loggingOut, handleLogout, onNavClick, proyectoId, backTo, backLabel }) {
     const NAV_ITEMS = [
         { label: 'Inicio', to: '/lider/inicio', icon: <IconDashboard /> },
         { label: 'Dashboard', to: '/lider/dashboard', icon: <IconTarget /> },
         { label: 'Distribución', to: '/lider/distribucion', icon: <IconDistribute /> },
-        { label: 'Carga de Trabajo', to: '/lider/carga-trabajo', icon: <IconUsers /> },
         { label: 'Asignar Responsables', to: '/lider/asignar-responsables', icon: <IconSchedule /> },
     ]
 
@@ -194,20 +193,20 @@ function SidebarContent({ collapsed, onCollapse, loggingOut, handleLogout, onNav
 
             {/* Navegación */}
             <nav className="flex-1 overflow-y-auto py-3 px-2 flex flex-col gap-0.5">
-                {!collapsed && enEntregables && (
+                {!collapsed && backTo && (
                     <Link
-                        to="/lider/inicio"
+                        to={backTo}
                         onClick={onNavClick}
-                        className="flex items-center gap-2 px-3 py-2 rounded-xl text-[11px] font-semibold text-[#9ba7ae] tracking-[0.6px] uppercase hover:bg-[#f0f2f3] hover:text-[#4c616c] transition-all mb-1">
+                        className="flex items-center gap-2 px-3 py-2 rounded-xl text-[11px] font-semibold text-[#9ba7ae] tracking-[0.6px] uppercase hover:bg-[#f0f2f3] hover:text-[#4c616c] transition-all mb-1 truncate">
                         <svg viewBox="0 0 16 16" fill="none" className="w-3 h-3 flex-shrink-0" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M10 3L5 8l5 5" /></svg>
-                        <span>Inicio</span>
+                        <span className="truncate">{backLabel}</span>
                     </Link>
                 )}
-                {collapsed && enEntregables && (
+                {collapsed && backTo && (
                     <Link
-                        to="/lider/inicio"
+                        to={backTo}
                         onClick={onNavClick}
-                        title="Volver a Inicio"
+                        title={`← ${backLabel}`}
                         className="flex items-center justify-center w-full py-2 rounded-xl text-[#9ba7ae] hover:bg-[#f0f2f3] hover:text-[#4c616c] transition-all mb-1">
                         <svg viewBox="0 0 16 16" fill="none" className="w-4 h-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M10 3L5 8l5 5" /></svg>
                     </Link>
@@ -253,7 +252,12 @@ export default function LiderLayout() {
         return match?.[1] ?? null
     })
 
-    const enEntregables = /^\/lider\/actividades\/\d+\/entregables/.test(location.pathname)
+    const { backTo, backLabel } = (() => {
+        const path = location.pathname
+        if (/^\/lider\/(dashboard|distribucion|asignar-responsables|actividades|proyectos)/.test(path))
+            return { backTo: '/lider/inicio', backLabel: 'Inicio' }
+        return { backTo: null, backLabel: null }
+    })()
 
     useEffect(() => {
         getMiEquipo()
@@ -291,7 +295,7 @@ export default function LiderLayout() {
             <aside className={`hidden lg:flex ${sidebarW} flex-shrink-0 flex-col bg-white border-r border-[#e1e3e4] transition-[width] duration-200 ease-in-out z-20 relative`}>
                 <SidebarContent collapsed={collapsed} onCollapse={() => setCollapsed(c => !c)}
                     loggingOut={loggingOut} handleLogout={handleLogout} onNavClick={undefined}
-                    proyectoId={proyectoId} enEntregables={enEntregables} />
+                    proyectoId={proyectoId} backTo={backTo} backLabel={backLabel} />
             </aside>
 
             {/* Sidebar móvil */}
@@ -300,7 +304,7 @@ export default function LiderLayout() {
                 <SidebarContent collapsed={false} onCollapse={null}
                     loggingOut={loggingOut} handleLogout={handleLogout}
                     onNavClick={() => setMobileOpen(false)}
-                    proyectoId={proyectoId} enEntregables={enEntregables} />
+                    proyectoId={proyectoId} backTo={backTo} backLabel={backLabel} />
             </aside>
 
             {/* Contenido */}

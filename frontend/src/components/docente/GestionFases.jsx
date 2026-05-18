@@ -55,6 +55,17 @@ function IconCheck() {
     )
 }
 
+function IconList() {
+    return (
+        <svg viewBox="0 0 20 20" fill="none" className="w-4 h-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 6h12M4 10h12M4 14h8" />
+            <circle cx="2" cy="6" r="0.8" fill="currentColor" stroke="none" />
+            <circle cx="2" cy="10" r="0.8" fill="currentColor" stroke="none" />
+            <circle cx="2" cy="14" r="0.8" fill="currentColor" stroke="none" />
+        </svg>
+    )
+}
+
 function IconClock() {
     return (
         <svg viewBox="0 0 20 20" fill="none" className="w-3.5 h-3.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
@@ -325,11 +336,6 @@ export default function GestionFases() {
                                     )}
                                 </div>
                                 <div className="flex items-center gap-1 flex-shrink-0">
-                                    <button
-                                        onClick={() => navigate(`/docente/proyectos/${proyectoId}/fases/${fase.id}/actividades`, { state: { ...location.state, faseNombre: fase.nombre } })}
-                                        className="px-2.5 py-1.5 text-[12px] font-semibold text-[#d32f2f] hover:bg-[#fff1f0] rounded-lg transition-colors whitespace-nowrap">
-                                        Ver actividades
-                                    </button>
                                     <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
                                         <button onClick={() => abrirModal(fase)}
                                             className="p-2 rounded-lg hover:bg-[#f0f2f3] text-[#4c616c] hover:text-[#191c1d] transition-colors">
@@ -341,6 +347,14 @@ export default function GestionFases() {
                                         </button>
                                     </div>
                                 </div>
+                            </div>
+                            <div className="border-t border-[#f0f2f3] mt-3 pt-3">
+                                <button
+                                    onClick={() => navigate(`/docente/proyectos/${proyectoId}/fases/${fase.id}/actividades`, { state: { ...location.state, faseNombre: fase.nombre } })}
+                                    className="flex items-center gap-2 px-4 py-2 bg-[#d32f2f] hover:bg-[#ba1a1a] text-white rounded-xl transition-colors text-[13px] font-semibold shadow-sm">
+                                    <IconList />
+                                    Ver actividades
+                                </button>
                             </div>
                         </div>
                     ))}

@@ -56,6 +56,15 @@ export const distribucionApi = {
     },
 }
 
+export const avancesApi = {
+    async listarPorActividad(actividadId) {
+        const response = await request(`/api/actividades/${actividadId}/avances/`)
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+}
+
 export const progresoApi = {
     async obtenerProyecto(proyectoId) {
         const response = await request(`/api/proyectos/${proyectoId}/progreso/`)

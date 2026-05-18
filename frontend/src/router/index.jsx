@@ -32,6 +32,7 @@ import CronogramaHitos from '../components/docente/CronogramaHitos'
 import EquiposCurso from '../components/docente/EquiposCurso'
 import GestionFases from '../components/docente/GestionFases'
 import GestionActividades from '../components/docente/GestionActividades'
+import PanelRevisionEntregables from '../components/docente/PanelRevisionEntregables'
 
 import EstudianteLayout from '../components/Estudiante/EstudianteLayout'
 import DashboardEstudiante from '../components/Estudiante/DashboardEstudiante'
@@ -40,7 +41,6 @@ import EntregablesActividad from '../components/Estudiante/EntregablesActividad'
 import LiderLayout from '../components/LiderEquipo/LiderLayout'
 import DashboardLider from '../components/LiderEquipo/DashboardLider'
 import DistribucionTrabajo from '../components/LiderEquipo/DistribucionTrabajo'
-import CargaTrabajoMiembros from '../components/LiderEquipo/CargaTrabajoMiembros'
 import AsignarResponsables from '../components/LiderEquipo/AsignarResponsables'
 
 import DetalleProyectoEstudiante from '../components/Estudiante/DetalleProyectoEstudiante'
@@ -121,6 +121,7 @@ export default function AppRouter() {
             <Route path="/docente/proyectos/:proyectoId/cronograma" element={<CronogramaProyecto />} />
             <Route path="/docente/proyectos/:proyectoId/fases" element={<GestionFases />} />
             <Route path="/docente/proyectos/:proyectoId/fases/:faseId/actividades" element={<GestionActividades />} />
+            <Route path="/docente/proyectos/:proyectoId/fases/:faseId/actividades/:actividadId/entregables" element={<PanelRevisionEntregables />} />
             <Route path="/docente/proyectos/:proyectoId/kanban" element={<TableroKanban />} />
 
             <Route path="/docente/proyectos/:proyectoId/perfiles-roles" element={<PerfilesRolesProyecto />} />
@@ -151,7 +152,6 @@ export default function AppRouter() {
             <Route path="/lider/inicio" element={<DashboardEstudiante basePath="/lider" />} />
             <Route path="/lider/dashboard" element={<DashboardLider />} />
             <Route path="/lider/distribucion" element={<DistribucionTrabajo />} />
-            <Route path="/lider/carga-trabajo" element={<CargaTrabajoMiembros />} />
             <Route path="/lider/asignar-responsables" element={<AsignarResponsables />} />
             <Route path="/lider/actividades/:actividadId/entregables" element={<EntregablesActividad />} />
             <Route path="/lider/proyectos/:proyectoId/kanban" element={<TableroKanban />} />

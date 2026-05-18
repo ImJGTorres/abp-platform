@@ -757,12 +757,15 @@ class ActividadUpdateSerializer(serializers.ModelSerializer):
 # ---------------------------------------------------------------------------
 
 class AvanceActividadSerializer(serializers.ModelSerializer):
+    autor = serializers.SerializerMethodField()
+
     class Meta:
         model = AvanceActividad
         fields = [
             'id',
             'id_actividad',
             'id_usuario',
+            'autor',
             'descripcion',
             'porcentaje_completado',
             'fecha_registro',
@@ -770,6 +773,12 @@ class AvanceActividadSerializer(serializers.ModelSerializer):
             'url_referencia',
         ]
         read_only_fields = fields
+
+    def get_autor(self, obj):
+        u = obj.id_usuario
+        if u is None:
+            return None
+        return {'id': u.pk, 'nombre': u.nombre, 'apellido': u.apellido}
 
 
 class AvanceActividadCreateSerializer(serializers.ModelSerializer):
@@ -886,26 +895,44 @@ class ActividadAsignarSerializer(serializers.Serializer):
 class ActividadPorEquipoSerializer(serializers.ModelSerializer):
     """Serializer para listar actividades de un equipo con sus responsables."""
 
-    es_responsable = serializers.SerializerMethodField()
+    es_responsable           = serializers.SerializerMethodField()
+    fase_nombre              = serializers.SerializerMethodField()
+    fase_orden               = serializers.SerializerMethodField()
+    responsables_detalle     = serializers.SerializerMethodField()
+    ultimo_porcentaje_avance = serializers.SerializerMethodField()
 
     class Meta:
         model = Actividad
         fields = [
-            'id',
-            'id_fase',
-            'nombre',
-            'descripcion',
-            'fecha_limite',
-            'prioridad',
-            'estado',
-            'fecha_creacion',
-            'id_responsable',
-            'id_equipo_asignado',
-            'responsables',
-            'es_responsable',
+            'id', 'id_fase', 'fase_nombre', 'fase_orden',
+            'nombre', 'descripcion', 'fecha_limite', 'prioridad',
+            'estado', 'fecha_creacion', 'id_responsable',
+            'id_equipo_asignado', 'responsables',
+            'responsables_detalle', 'es_responsable',
+            'ultimo_porcentaje_avance',
         ]
         read_only_fields = fields
 
     def get_es_responsable(self, obj):
         usuario = self.context['request'].user
         return obj.responsables.filter(pk=usuario.pk).exists()
+
+    def get_fase_nombre(self, obj):
+        return obj.id_fase.nombre if obj.id_fase else None
+
+    def get_fase_orden(self, obj):
+        return obj.id_fase.orden if obj.id_fase else 0
+
+    def get_responsables_detalle(self, obj):
+        return [
+            {'id': u.pk, 'nombre': u.nombre, 'apellido': u.apellido}
+            for u in obj.responsables.all()
+        ]
+
+    def get_ultimo_porcentaje_avance(self, obj):
+        cache = getattr(obj, '_prefetched_objects_cache', {})
+        avances = cache.get('avances')
+        if avances is not None:
+            return avances[0].porcentaje_completado if avances else 0
+        ultimo = obj.avances.order_by('-fecha_registro').first()
+        return ultimo.porcentaje_completado if ultimo else 0

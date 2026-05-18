@@ -1,7 +1,7 @@
 import io
 
 from django.db import transaction
-from django.db.models import Count, OuterRef, Q, Subquery, Sum
+from django.db.models import Count, OuterRef, Prefetch, Q, Subquery, Sum
 from django.db.models.functions import Coalesce
 from django.shortcuts import get_object_or_404
 
@@ -1261,7 +1261,7 @@ class AvanceActividadListCreateView(generics.ListCreateAPIView):
     def get_queryset(self):
         actividad = self._get_actividad()
         self._verificar_acceso(actividad)
-        return AvanceActividad.objects.filter(id_actividad=actividad)
+        return AvanceActividad.objects.filter(id_actividad=actividad).select_related('id_usuario')
 
     def get_serializer_class(self):
         if self.request.method == 'POST':
@@ -1379,7 +1379,10 @@ class ActividadesPorEquipoView(generics.ListAPIView):
         return (
             Actividad.objects
             .filter(id_fase__id_proyecto=equipo.proyecto)
-            .prefetch_related('responsables')
+            .prefetch_related(
+                'responsables',
+                Prefetch('avances', queryset=AvanceActividad.objects.order_by('-fecha_registro')),
+            )
             .select_related('id_fase')
         )
 # BE 01 — Progreso del proyecto

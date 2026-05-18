@@ -200,14 +200,14 @@ export default function DashboardEstudiante({ basePath = '/estudiante' }) {
                                                                         </div>
                                                                     )}
                                                                 </div>
-                                                                <div className="flex items-center gap-2 flex-shrink-0 opacity-0 group-hover:opacity-100 sm:opacity-100">
+                                                                <div className="flex items-center gap-2 flex-shrink-0">
                                                                     <button
                                                                         onClick={() => setAvanceModal({ actividadId: a.id, actividadNombre: a.nombre })}
-                                                                        className="flex items-center gap-1.5 px-3 py-2 bg-white border border-[#e1e3e4] text-[#4c616c] rounded-xl hover:bg-[#f0f2f3] transition-colors text-[12px] font-semibold"
-                                                                        title="Registrar avance"
+                                                                        className="flex items-center gap-1.5 px-3 py-2 bg-[#d32f2f]/10 border border-[#d32f2f]/30 text-[#d32f2f] rounded-xl hover:bg-[#d32f2f]/20 transition-colors text-[12px] font-semibold"
+                                                                        title="Ver progreso y registrar avance"
                                                                     >
                                                                         <IconProgress />
-                                                                        <span className="hidden sm:inline">Avance</span>
+                                                                        <span className="hidden sm:inline">Progreso</span>
                                                                     </button>
                                                                     <button
                                                                         onClick={() => irAEntregables(a.id, a.nombre)}
