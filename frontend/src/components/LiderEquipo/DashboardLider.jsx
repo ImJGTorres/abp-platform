@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
-import { distribucionApi } from '../../services/liderEquipoApi'
-import { session } from '../../services/api'
+import { distribucionApi, getMiEquipo } from '../../services/liderEquipoApi'
 
 function StatCard({ icon, iconBg, iconColor, label, value }) {
     return (
@@ -18,6 +17,7 @@ function StatCard({ icon, iconBg, iconColor, label, value }) {
 
 export default function DashboardLider() {
     const [loading, setLoading] = useState(true)
+    const [equipoId, setEquipoId] = useState(null)
     const [stats, setStats] = useState({
         miembros: 0,
         actividadesTotal: 0,
@@ -25,19 +25,17 @@ export default function DashboardLider() {
         actividadesEnProgreso: 0,
         actividadesCompletadas: 0,
     })
-    const user = session.getUser()
 
-    useEffect(() => {
-        cargarDatos()
-    }, [])
+    useEffect(() => { cargarDatos() }, [])
 
     async function cargarDatos() {
         setLoading(true)
         try {
-            const equipoId = user?.equipo_id
-            if (!equipoId) return
-            // GET /api/equipos/:id/progreso/
-            const progreso = await distribucionApi.obtenerPorEquipo(equipoId)
+            const miEquipo = await getMiEquipo()
+            if (!miEquipo) return
+            const id = miEquipo.equipo.id
+            setEquipoId(id)
+            const progreso = await distribucionApi.obtenerPorEquipo(id)
             setStats({
                 miembros: progreso.miembros?.length ?? 0,
                 actividadesTotal: progreso.total_actividades ?? 0,
@@ -46,7 +44,7 @@ export default function DashboardLider() {
                 actividadesCompletadas: progreso.actividades_completadas ?? 0,
             })
         } catch {
-            // equipo_id no disponible en sesión — vista en blanco
+            // sin equipo asignado
         } finally {
             setLoading(false)
         }
@@ -59,7 +57,7 @@ export default function DashboardLider() {
 
             {loading ? (
                 <div className="text-center py-12 text-[#9ba7ae]">Cargando datos...</div>
-            ) : !user?.equipo_id ? (
+            ) : !equipoId ? (
                 <div className="text-center py-12 text-[#9ba7ae]">No tienes un equipo asignado.</div>
             ) : (
                 <>

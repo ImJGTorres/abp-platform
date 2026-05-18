@@ -2,7 +2,7 @@ from rest_framework import serializers
 
 from apps.configuracion.models import PeriodoAcademico
 from apps.usuarios.models import Usuario
-from apps.equipos.models import MiembroEquipo
+from apps.equipos.models import Equipo, MiembroEquipo
 from apps.equipos.serializers import EquipoDetalleSerializer
 from .models import Actividad, AvanceActividad, Curso, FaseProyecto, HitoProyecto, ObjetivoProyecto, Proyecto
 
@@ -54,7 +54,7 @@ class CursoSerializer(serializers.ModelSerializer):
         return sum(len(p.equipos.all()) for p in obj.proyectos.all())
 
     def get_cantidad_estudiantes_actual(self, obj):
-        from apps.equipos.models import MiembroEquipo
+        from apps.equipos.models import Equipo, MiembroEquipo
         return MiembroEquipo.objects.filter(
             equipo__proyecto__id_curso=obj,
             estado='activo',
@@ -632,6 +632,19 @@ def _validate_fecha_limite_actividad(attrs, instance=None, fase=None):
 
 
 class ActividadSerializer(serializers.ModelSerializer):
+    responsables = serializers.SerializerMethodField()
+
+    def get_responsables(self, obj):
+        return [
+            {
+                'id': u.pk,
+                'nombre': u.nombre,
+                'apellido': u.apellido,
+                'foto_perfil': u.foto_perfil or None,
+            }
+            for u in obj.responsables.all()
+        ]
+
     class Meta:
         model = Actividad
         fields = [
@@ -647,32 +660,93 @@ class ActividadSerializer(serializers.ModelSerializer):
             'id_equipo_asignado',
             'responsables',
         ]
-        read_only_fields = fields
+        read_only_fields = [
+            'id', 'id_fase', 'nombre', 'descripcion', 'fecha_limite',
+            'prioridad', 'estado', 'fecha_creacion', 'id_responsable', 'id_equipo_asignado',
+        ]
+
+
+def _validate_responsables_equipo(equipo, responsables):
+    if not responsables:
+        return
+    if not equipo:
+        raise serializers.ValidationError(
+            {'responsables': 'Debe asignar un equipo antes de seleccionar responsables.'}
+        )
+    miembros_activos = set(
+        MiembroEquipo.objects.filter(equipo=equipo, estado='activo').values_list('usuario_id', flat=True)
+    )
+    no_miembros = [u.pk for u in responsables if u.pk not in miembros_activos]
+    if no_miembros:
+        raise serializers.ValidationError(
+            {'responsables': f'Los siguientes usuarios no son miembros activos del equipo: {no_miembros}'}
+        )
 
 
 class ActividadCreateSerializer(serializers.ModelSerializer):
+    id_equipo_asignado = serializers.PrimaryKeyRelatedField(
+        queryset=Equipo.objects.all(),
+        required=False,
+        allow_null=True,
+    )
+    responsables = serializers.PrimaryKeyRelatedField(
+        queryset=Usuario.objects.all(),
+        many=True,
+        required=False,
+    )
+
     class Meta:
         model = Actividad
-        fields = ['nombre', 'descripcion', 'fecha_limite', 'prioridad', 'estado']
+        fields = ['nombre', 'descripcion', 'fecha_limite', 'prioridad', 'estado', 'id_equipo_asignado', 'responsables']
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
         _validate_fecha_limite_actividad(attrs, fase=self.context.get('fase'))
+        _validate_responsables_equipo(attrs.get('id_equipo_asignado'), attrs.get('responsables'))
         return attrs
+
+    def create(self, validated_data):
+        responsables = validated_data.pop('responsables', None)
+        instance = super().create(validated_data)
+        if responsables:
+            instance.responsables.set(responsables)
+        return instance
 
     def to_representation(self, instance):
         return ActividadSerializer(instance, context=self.context).data
 
 
 class ActividadUpdateSerializer(serializers.ModelSerializer):
+    id_equipo_asignado = serializers.PrimaryKeyRelatedField(
+        queryset=Equipo.objects.all(),
+        required=False,
+        allow_null=True,
+    )
+    responsables = serializers.PrimaryKeyRelatedField(
+        queryset=Usuario.objects.all(),
+        many=True,
+        required=False,
+    )
+
     class Meta:
         model = Actividad
-        fields = ['nombre', 'descripcion', 'fecha_limite', 'prioridad', 'estado']
+        fields = ['nombre', 'descripcion', 'fecha_limite', 'prioridad', 'estado', 'id_equipo_asignado', 'responsables']
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
         _validate_fecha_limite_actividad(attrs, instance=self.instance)
+        equipo = attrs.get('id_equipo_asignado', getattr(self.instance, 'id_equipo_asignado', None))
+        _validate_responsables_equipo(equipo, attrs.get('responsables'))
         return attrs
+
+    def update(self, instance, validated_data):
+        responsables = validated_data.pop('responsables', None)
+        instance = super().update(instance, validated_data)
+        if responsables is not None:
+            instance.responsables.set(responsables)
+        if instance.id_equipo_asignado is None:
+            instance.responsables.clear()
+        return instance
 
     def to_representation(self, instance):
         return ActividadSerializer(instance, context=self.context).data

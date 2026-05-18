@@ -267,7 +267,7 @@ class EstudiantesEquipoView(APIView):
             .values_list('usuario_id', flat=True)
         )
 
-        todos = Usuario.objects.filter(tipo_rol='estudiante', estado='activo').order_by('nombre', 'apellido')
+        todos = Usuario.objects.filter(tipo_rol__in=('estudiante', 'lider_equipo'), estado='activo').order_by('nombre', 'apellido')
         disponibles, ya_en_equipo, en_otro_equipo = [], [], []
 
         for est in todos:
@@ -323,7 +323,7 @@ class AsignarEstudiantesView(APIView):
 
         for uid in usuario_ids:
             try:
-                usuario = Usuario.objects.get(pk=uid, tipo_rol='estudiante')
+                usuario = Usuario.objects.get(pk=uid, tipo_rol__in=('estudiante', 'lider_equipo'))
             except Usuario.DoesNotExist:
                 errores.append({'usuario_id': uid, 'error': 'Estudiante no encontrado.'})
                 continue
@@ -429,7 +429,7 @@ class EstudiantesCursoView(APIView):
                 equipo__proyecto=proyecto, estado='activo'
             ).values_list('usuario_id', flat=True)
             estudiantes = Usuario.objects.filter(
-                tipo_rol='estudiante', estado='activo'
+                tipo_rol__in=('estudiante', 'lider_equipo'), estado='activo'
             ).exclude(id__in=ya_asignados).order_by('nombre', 'apellido')
             return Response(UsuarioResumenSerializer(estudiantes, many=True).data)
 
@@ -449,7 +449,7 @@ class EstudiantesCursoView(APIView):
                 'proyecto_nombre': m.equipo.proyecto.nombre,
             })
 
-        todos = Usuario.objects.filter(tipo_rol='estudiante', estado='activo').order_by('nombre', 'apellido')
+        todos = Usuario.objects.filter(tipo_rol__in=('estudiante', 'lider_equipo'), estado='activo').order_by('nombre', 'apellido')
         disponibles, en_equipo = [], []
 
         for est in todos:
@@ -478,7 +478,10 @@ class ActualizarRolMiembroView(APIView):
     permission_classes = [IsAuthenticated]
 
     def patch(self, request, miembro_id):
-        miembro = get_object_or_404(MiembroEquipo, pk=miembro_id, estado='activo')
+        miembro = get_object_or_404(
+            MiembroEquipo.objects.select_related('usuario', 'equipo__proyecto'),
+            pk=miembro_id, estado='activo',
+        )
         nuevo_rol = request.data.get('rol_interno', '')
 
         roles_validos = {'lider', 'desarrollador', 'analista', 'disenador', 'tester', ''}
@@ -486,14 +489,32 @@ class ActualizarRolMiembroView(APIView):
             return Response({'detail': f'Rol inválido: {nuevo_rol}'}, status=status.HTTP_400_BAD_REQUEST)
 
         if nuevo_rol == 'lider':
-            MiembroEquipo.objects.filter(
-                equipo=miembro.equipo,
+            # Revertir a estudiante todos los líderes actuales del proyecto
+            anteriores = MiembroEquipo.objects.filter(
+                equipo__proyecto=miembro.equipo.proyecto,
                 rol_interno='lider',
                 estado='activo',
-            ).exclude(pk=miembro_id).update(rol_interno='')
+            ).exclude(pk=miembro_id).select_related('usuario')
+            for ant in anteriores:
+                ant.rol_interno = ''
+                ant.save(update_fields=['rol_interno'])
+                if ant.usuario.tipo_rol == 'lider_equipo':
+                    ant.usuario.tipo_rol = 'estudiante'
+                    ant.usuario.save(update_fields=['tipo_rol'])
 
+        rol_anterior = miembro.rol_interno
         miembro.rol_interno = nuevo_rol
         miembro.save(update_fields=['rol_interno'])
+
+        usuario = miembro.usuario
+        if nuevo_rol == 'lider':
+            usuario.tipo_rol = 'lider_equipo'
+            usuario.save(update_fields=['tipo_rol'])
+        elif rol_anterior == 'lider' and nuevo_rol != 'lider':
+            # Solo revertir si antes era lider y ahora no lo es
+            if usuario.tipo_rol == 'lider_equipo':
+                usuario.tipo_rol = 'estudiante'
+                usuario.save(update_fields=['tipo_rol'])
 
         return Response({'id': miembro.id, 'rol_interno': miembro.rol_interno})
 
@@ -511,9 +532,9 @@ class EstudiantesDisponiblesView(generics.ListAPIView):
             ya_asignados = MiembroEquipo.objects.filter(
                 equipo__proyecto=proyecto, estado='activo'
             ).values_list('usuario_id', flat=True)
-            return Usuario.objects.filter(tipo_rol='estudiante', estado='activo').exclude(id__in=ya_asignados)
+            return Usuario.objects.filter(tipo_rol__in=('estudiante', 'lider_equipo'), estado='activo').exclude(id__in=ya_asignados)
         # No proyecto_id provided: return all active students in the course
-        return Usuario.objects.filter(tipo_rol='estudiante', estado='activo')
+        return Usuario.objects.filter(tipo_rol__in=('estudiante', 'lider_equipo'), estado='activo')
 
 
 # PUT/PATCH /api/equipos/<equipo_id>/
@@ -751,7 +772,7 @@ class EquipoProgresoView(APIView):
         if tipo_rol == 'docente':
             if curso.id_docente_id != usuario.pk:
                 raise PermissionDenied('No eres el docente propietario de este proyecto.')
-        elif tipo_rol == 'estudiante':
+        elif tipo_rol in ('estudiante', 'lider_equipo'):
             tiene_acceso = MiembroEquipo.objects.filter(
                 equipo__proyecto=equipo.proyecto,
                 usuario=usuario,
@@ -768,11 +789,13 @@ class EquipoProgresoView(APIView):
             pk=equipo_id,
         )
         self._check_acceso(equipo)
+        proyecto = equipo.proyecto
 
-        # Conteos globales de actividades asignadas al equipo (1 query)
+        # Conteos globales: todas las actividades del proyecto (no solo las que
+        # tienen id_equipo_asignado seteado, ya que muchas pueden no tenerlo)
         stats = (
             Actividad.objects
-            .filter(id_equipo_asignado=equipo)
+            .filter(id_fase__id_proyecto=proyecto)
             .aggregate(
                 total=Count('id'),
                 completadas=Count('id', filter=Q(estado='completada')),
@@ -785,58 +808,31 @@ class EquipoProgresoView(APIView):
         completadas = stats['completadas'] or 0
         porcentaje = round(completadas * 100 / total) if total else 0
 
-        # Progreso por miembro activo: actividades donde figura como responsable
-        # dentro de este equipo (1 query con JOINs y COUNT condicional)
-        miembros_qs = (
+        # Progreso por miembro: actividades del proyecto donde el usuario figura
+        # como id_responsable (FK) O en responsables (M2M), ambos campos válidos.
+        miembros = (
             MiembroEquipo.objects
             .filter(equipo=equipo, estado='activo')
             .select_related('usuario')
-            .annotate(
-                actividades_asignadas=Count(
-                    'usuario__actividades_responsable',
-                    filter=Q(usuario__actividades_responsable__id_equipo_asignado=equipo),
-                    distinct=True,
-                ),
-                actividades_completadas=Count(
-                    'usuario__actividades_responsable',
-                    filter=Q(
-                        usuario__actividades_responsable__id_equipo_asignado=equipo,
-                        usuario__actividades_responsable__estado='completada',
-                    ),
-                    distinct=True,
-                ),
-                actividades_en_progreso=Count(
-                    'usuario__actividades_responsable',
-                    filter=Q(
-                        usuario__actividades_responsable__id_equipo_asignado=equipo,
-                        usuario__actividades_responsable__estado='en_progreso',
-                    ),
-                    distinct=True,
-                ),
-                actividades_pendientes=Count(
-                    'usuario__actividades_responsable',
-                    filter=Q(
-                        usuario__actividades_responsable__id_equipo_asignado=equipo,
-                        usuario__actividades_responsable__estado='pendiente',
-                    ),
-                    distinct=True,
-                ),
-            )
             .order_by('usuario__nombre', 'usuario__apellido')
         )
+        acts_proyecto = Actividad.objects.filter(id_fase__id_proyecto=proyecto)
 
-        miembros_data = [
-            {
-                'id_usuario': m.usuario.pk,
-                'nombre': f'{m.usuario.nombre} {m.usuario.apellido}',
+        miembros_data = []
+        for m in miembros:
+            u = m.usuario
+            acts_miembro = acts_proyecto.filter(
+                Q(id_responsable=u) | Q(responsables=u)
+            ).distinct()
+            miembros_data.append({
+                'id_usuario': u.pk,
+                'nombre': f'{u.nombre} {u.apellido}',
                 'rol_interno': m.rol_interno,
-                'actividades_asignadas': m.actividades_asignadas,
-                'actividades_completadas': m.actividades_completadas,
-                'actividades_en_progreso': m.actividades_en_progreso,
-                'actividades_pendientes': m.actividades_pendientes,
-            }
-            for m in miembros_qs
-        ]
+                'actividades_asignadas': acts_miembro.count(),
+                'actividades_completadas': acts_miembro.filter(estado='completada').count(),
+                'actividades_en_progreso': acts_miembro.filter(estado='en_progreso').count(),
+                'actividades_pendientes': acts_miembro.filter(estado='pendiente').count(),
+            })
 
         return Response({
             'id_equipo': equipo.pk,
@@ -867,7 +863,12 @@ class MisEquiposView(APIView):
             proyecto = equipo.proyecto
             actividades = (
                 Actividad.objects
-                .filter(Q(id_equipo_asignado=equipo) | Q(id_fase__id_proyecto=proyecto))
+                .filter(
+                    id_equipo_asignado=equipo,
+                )
+                .filter(
+                    Q(responsables=request.user) | Q(id_responsable=request.user)
+                )
                 .select_related('id_fase').order_by('id_fase__orden', 'id').distinct()
             )
             fases = {}

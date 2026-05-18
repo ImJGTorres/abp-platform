@@ -216,7 +216,7 @@ class UsuarioCreateView(generics.ListCreateAPIView):
     pagination_class     = UsuarioPagination
 
     def get_queryset(self):
-        qs = Usuario.objects.all().order_by('-fecha_creacion')
+        qs = Usuario.objects.exclude(pk=self.request.user.pk).order_by('-fecha_creacion')
         tipo_rol = self.request.query_params.get('tipo_rol')
         if tipo_rol:
             qs = qs.filter(tipo_rol=tipo_rol)
@@ -356,13 +356,14 @@ class OlvidarContrasenaView(APIView):
         frontend_url = env_config('FRONTEND_URL', default='http://localhost:5173')
         enlace = f'{frontend_url}/recuperar-contrasena?token={token_str}'
 
-        send_mail(
-    subject='Recuperación de contraseña - ABP Platform',
-    message=f'Hola {usuario.nombre}, restablece tu contraseña aquí: {enlace}',  # fallback texto plano
-    from_email=settings.DEFAULT_FROM_EMAIL,
-    recipient_list=[correo],
-    fail_silently=False,
-    html_message=f"""
+        try:
+            send_mail(
+                subject='Recuperación de contraseña - ABP Platform',
+                message=f'Hola {usuario.nombre}, restablece tu contraseña aquí: {enlace}',
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[correo],
+                fail_silently=False,
+                html_message=f"""
     <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px; background: #f8f9fa; border-radius: 12px;">
         <h2 style="color: #191c1d; margin-bottom: 8px;">Recupera tu contraseña</h2>
         <p style="color: #5b403d; font-size: 14px;">Hola <strong>{usuario.nombre}</strong>,</p>
@@ -390,7 +391,9 @@ class OlvidarContrasenaView(APIView):
         <p style="color: #aaa; font-size: 11px; text-align: center;">ABP Platform · UFPS</p>
     </div>
     """,
-)
+            )
+        except Exception as exc:
+            logger.error('Error al enviar correo de recuperación a %s: %s', correo, exc)
 
         return Response(_RESPUESTA_GENERICA, status=status.HTTP_200_OK)
 

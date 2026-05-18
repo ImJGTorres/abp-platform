@@ -69,7 +69,9 @@ class ArchivoAdjunto(models.Model):
     )
     id_usuario = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.PROTECT,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name='archivos_subidos',
     )
     nombre_original = models.CharField(max_length=255)

@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
-import { distribucionApi } from '../../services/liderEquipoApi'
-import { session } from '../../services/api'
+import { distribucionApi, getMiEquipo } from '../../services/liderEquipoApi'
 
 const ESTADO_CONFIG = {
     pendiente:   { label: 'Pendiente',   color: 'bg-gray-100 text-gray-600' },
@@ -11,25 +10,23 @@ const ESTADO_CONFIG = {
 
 export default function DistribucionTrabajo() {
     const [loading, setLoading] = useState(true)
+    const [equipoId, setEquipoId] = useState(null)
     const [miembros, setMiembros] = useState([])
     const [actividades, setActividades] = useState([])
     const [totalActividades, setTotalActividades] = useState(0)
-    const user = session.getUser()
 
-    useEffect(() => {
-        cargarDatos()
-    }, [])
+    useEffect(() => { cargarDatos() }, [])
 
     async function cargarDatos() {
         setLoading(true)
         try {
-            const equipoId = user?.equipo_id
-            if (!equipoId) return
-            // GET /api/equipos/:id/progreso/ — miembros con conteos de actividades
-            // GET /api/equipos/:id/actividades/ — lista completa para la tabla
+            const miEquipo = await getMiEquipo()
+            if (!miEquipo) return
+            const id = miEquipo.equipo.id
+            setEquipoId(id)
             const [progreso, acts] = await Promise.all([
-                distribucionApi.obtenerPorEquipo(equipoId),
-                distribucionApi.obtenerActividades(equipoId),
+                distribucionApi.obtenerPorEquipo(id),
+                distribucionApi.obtenerActividades(id),
             ])
             setMiembros(progreso.miembros || [])
             setTotalActividades(progreso.total_actividades || 0)
@@ -65,7 +62,7 @@ export default function DistribucionTrabajo() {
 
             {loading ? (
                 <div className="text-center py-12 text-[#9ba7ae]">Cargando distribucion...</div>
-            ) : !user?.equipo_id ? (
+            ) : !equipoId ? (
                 <div className="text-center py-12 text-[#9ba7ae]">No tienes un equipo asignado.</div>
             ) : miembros.length === 0 ? (
                 <div className="text-center py-12 text-[#9ba7ae]">No hay miembros en el equipo.</div>

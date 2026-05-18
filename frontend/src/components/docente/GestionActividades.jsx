@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { useParams, Link, useLocation, useNavigate } from 'react-router-dom'
-import { actividadesApi } from '../../services/docenteApi'
+import { useParams, Link, useLocation } from 'react-router-dom'
+import { actividadesApi, equiposApi } from '../../services/docenteApi'
 
 function IconPlus() {
     return (
@@ -34,13 +34,6 @@ function IconChevron() {
     )
 }
 
-function IconInbox() {
-    return (
-        <svg viewBox="0 0 20 20" fill="none" className="w-3.5 h-3.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M2 13l2-8h12l2 8H2z" /><path d="M2 13h4l1 2h6l1-2h4" />
-        </svg>
-    )
-}
 
 const PRIORIDAD_CONFIG = {
     alta:  { label: 'Alta',  color: 'bg-red-100 text-red-700' },
@@ -77,8 +70,8 @@ function Modal({ open, title, children }) {
     if (!open) return null
     return (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
-                <div className="px-6 py-4 border-b border-[#e1e3e4]">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
+                <div className="px-6 py-4 border-b border-[#e1e3e4] flex-shrink-0">
                     <h3 className="text-[17px] font-bold text-[#191c1d]">{title}</h3>
                 </div>
                 {children}
@@ -90,13 +83,15 @@ function Modal({ open, title, children }) {
 export default function GestionActividades() {
     const { proyectoId, faseId } = useParams()
     const location = useLocation()
-    const navigate = useNavigate()
+
     const cursoId = location.state?.cursoId
     const cursoNombre = location.state?.cursoNombre
     const proyectoNombre = location.state?.nombre
     const faseNombre = location.state?.faseNombre
 
     const [actividades, setActividades] = useState([])
+    const [equipoId, setEquipoId] = useState(null)
+    const [miembros, setMiembros] = useState([])
     const [loading, setLoading] = useState(true)
     const [modalOpen, setModalOpen] = useState(false)
     const [editando, setEditando] = useState(null)
@@ -112,9 +107,13 @@ export default function GestionActividades() {
         fecha_limite: '',
         prioridad: 'media',
         estado: 'pendiente',
+        responsables: [],
     })
 
-    useEffect(() => { cargarActividades() }, [faseId])
+    useEffect(() => {
+        cargarActividades()
+        cargarEquipo()
+    }, [faseId])
 
     async function cargarActividades() {
         setLoading(true)
@@ -128,6 +127,18 @@ export default function GestionActividades() {
         }
     }
 
+    async function cargarEquipo() {
+        try {
+            const data = await equiposApi.obtenerPorProyecto(proyectoId)
+            const equipo = data.equipos?.[0]
+            if (!equipo) return
+            setEquipoId(equipo.id)
+            setMiembros(equipo.miembros || [])
+        } catch {
+            // sin equipo todavía
+        }
+    }
+
     function abrirModal(actividad = null) {
         setModalError('')
         if (actividad) {
@@ -138,10 +149,11 @@ export default function GestionActividades() {
                 fecha_limite: actividad.fecha_limite || '',
                 prioridad: actividad.prioridad,
                 estado: actividad.estado,
+                responsables: actividad.responsables || [],
             })
         } else {
             setEditando(null)
-            setForm({ nombre: '', descripcion: '', fecha_limite: '', prioridad: 'media', estado: 'pendiente' })
+            setForm({ nombre: '', descripcion: '', fecha_limite: '', prioridad: 'media', estado: 'pendiente', responsables: [] })
         }
         setModalOpen(true)
     }
@@ -155,10 +167,13 @@ export default function GestionActividades() {
                 descripcion: form.descripcion.trim() || null,
                 prioridad: form.prioridad,
                 estado: form.estado,
+                responsables: form.responsables,
             }
             if (form.fecha_limite) payload.fecha_limite = form.fecha_limite
+            if (equipoId && form.responsables.length > 0) payload.id_equipo_asignado = equipoId
 
             if (editando) {
+                payload.id_equipo_asignado = form.responsables.length > 0 ? equipoId : null
                 await actividadesApi.editar(editando.id, payload)
             } else {
                 await actividadesApi.crear(faseId, payload)
@@ -166,7 +181,7 @@ export default function GestionActividades() {
             await cargarActividades()
             setModalOpen(false)
         } catch (err) {
-            const detail = err.data?.detail || err.data?.fecha_limite?.[0] || err.data?.nombre?.[0]
+            const detail = err.data?.detail || err.data?.responsables?.[0] || err.data?.fecha_limite?.[0] || err.data?.nombre?.[0]
             setModalError(detail || 'Error al guardar la actividad.')
         } finally {
             setGuardando(false)
@@ -184,6 +199,15 @@ export default function GestionActividades() {
                 error: err.data?.detail || 'No se pudo eliminar la actividad.',
             }))
         }
+    }
+
+    function toggleResponsable(usuarioId) {
+        setForm(prev => ({
+            ...prev,
+            responsables: prev.responsables.includes(usuarioId)
+                ? prev.responsables.filter(id => id !== usuarioId)
+                : [...prev.responsables, usuarioId],
+        }))
     }
 
     const actividadesFiltradas = actividades.filter(a => {
@@ -288,25 +312,29 @@ export default function GestionActividades() {
                                     {a.descripcion && (
                                         <p className="text-[13px] text-[#4c616c] leading-relaxed">{a.descripcion}</p>
                                     )}
-                                    {a.fecha_limite && (
-                                        <div className="flex items-center gap-1.5 text-[12px] text-[#9ba7ae] mt-2">
-                                            <svg viewBox="0 0 16 16" fill="none" className="w-3 h-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-                                                <rect x="1" y="2" width="14" height="12" rx="1.5" /><path d="M1 6h14M5 1v2M11 1v2" />
-                                            </svg>
-                                            <span>Límite: {new Date(a.fecha_limite + 'T00:00:00').toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
-                                        </div>
-                                    )}
+                                    <div className="flex flex-wrap items-center gap-3 mt-2">
+                                        {a.fecha_limite && (
+                                            <div className="flex items-center gap-1.5 text-[12px] text-[#9ba7ae]">
+                                                <svg viewBox="0 0 16 16" fill="none" className="w-3 h-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                                                    <rect x="1" y="2" width="14" height="12" rx="1.5" /><path d="M1 6h14M5 1v2M11 1v2" />
+                                                </svg>
+                                                <span>Límite: {new Date(a.fecha_limite + 'T00:00:00').toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                                            </div>
+                                        )}
+                                        {a.responsables?.length > 0 && (
+                                            <div className="flex items-center gap-1.5 text-[12px] text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md">
+                                                <svg viewBox="0 0 16 16" fill="none" className="w-3 h-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                                                    <circle cx="6" cy="5" r="2.5" /><path d="M1 14a5 5 0 0110 0" />
+                                                    <path d="M11 4a2.5 2.5 0 110 5" opacity="0.6" /><path d="M14 14a4 4 0 00-3-3.9" opacity="0.6" />
+                                                </svg>
+                                                <span className="font-medium">
+                                                    {a.responsables.length} responsable{a.responsables.length !== 1 ? 's' : ''}
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                                    <button
-                                        onClick={() => navigate(
-                                            `/docente/proyectos/${proyectoId}/fases/${faseId}/actividades/${a.id}/entregables`,
-                                            { state: location.state }
-                                        )}
-                                        className="p-2 rounded-lg hover:bg-[#f0f2f3] text-[#4c616c] hover:text-[#191c1d] transition-colors"
-                                        title="Ver entregables">
-                                        <IconInbox />
-                                    </button>
                                     <button onClick={() => abrirModal(a)}
                                         className="p-2 rounded-lg hover:bg-[#f0f2f3] text-[#4c616c] hover:text-[#191c1d] transition-colors">
                                         <IconEdit />
@@ -323,9 +351,9 @@ export default function GestionActividades() {
             )}
 
             {/* Modal Crear/Editar */}
-            <Modal open={modalOpen} onClose={() => !guardando && setModalOpen(false)} title={editando ? 'Editar actividad' : 'Nueva actividad'}>
+            <Modal open={modalOpen} title={editando ? 'Editar actividad' : 'Nueva actividad'}>
                 <ErrorBanner message={modalError} />
-                <div className="p-6 space-y-4">
+                <div className="p-6 space-y-4 overflow-y-auto flex-1">
                     <div>
                         <label className="block text-[13px] font-semibold text-[#191c1d] mb-1.5">Nombre *</label>
                         <input
@@ -377,8 +405,43 @@ export default function GestionActividades() {
                             className="w-full px-3 py-2.5 border border-[#e1e3e4] rounded-xl text-[14px] focus:outline-none focus:ring-2 focus:ring-[#d32f2f]/20 focus:border-[#d32f2f]"
                         />
                     </div>
+
+                    {/* Responsables */}
+                    {miembros.length > 0 && (
+                        <div className="border-t border-[#e1e3e4] pt-4">
+                            <label className="block text-[13px] font-semibold text-[#191c1d] mb-1.5">
+                                Responsables
+                                {form.responsables.length > 0 && (
+                                    <span className="ml-1.5 text-[11px] font-normal text-[#9ba7ae]">
+                                        ({form.responsables.length} seleccionado{form.responsables.length !== 1 ? 's' : ''})
+                                    </span>
+                                )}
+                            </label>
+                            <div className="border border-[#e1e3e4] rounded-xl divide-y divide-[#e1e3e4] max-h-40 overflow-y-auto">
+                                {miembros.map(m => (
+                                    <label key={m.usuario_id} className="flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-[#f8f9fa] transition-colors">
+                                        <input
+                                            type="checkbox"
+                                            checked={form.responsables.includes(m.usuario_id)}
+                                            onChange={() => toggleResponsable(m.usuario_id)}
+                                            className="w-4 h-4 accent-[#d32f2f] flex-shrink-0"
+                                        />
+                                        <div className="flex items-center gap-2 min-w-0">
+                                            <div className="w-7 h-7 rounded-full bg-[#ffdad6] flex items-center justify-center flex-shrink-0">
+                                                <span className="text-[11px] font-bold text-[#af101a]">{m.nombre_completo?.[0]?.toUpperCase()}</span>
+                                            </div>
+                                            <span className="text-[13px] text-[#191c1d] truncate">{m.nombre_completo}</span>
+                                            {m.rol_interno && (
+                                                <span className="text-[10px] text-[#9ba7ae] capitalize flex-shrink-0">{m.rol_interno}</span>
+                                            )}
+                                        </div>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
-                <div className="px-6 py-4 border-t border-[#e1e3e4] flex gap-2">
+                <div className="px-6 py-4 border-t border-[#e1e3e4] flex gap-2 flex-shrink-0">
                     <button onClick={() => setModalOpen(false)} disabled={guardando}
                         className="flex-1 px-4 py-2.5 border border-[#e1e3e4] text-[#4c616c] rounded-xl hover:bg-[#f0f2f3] transition-colors text-[13px] font-semibold disabled:opacity-50">
                         Cancelar
@@ -391,9 +454,9 @@ export default function GestionActividades() {
             </Modal>
 
             {/* Modal Confirmar eliminar */}
-            <Modal open={!!confirmDelete} onClose={() => setConfirmDelete(null)} title="Eliminar actividad">
+            <Modal open={!!confirmDelete} title="Eliminar actividad">
                 {confirmDelete?.error && <ErrorBanner message={confirmDelete.error} />}
-                <div className="p-6">
+                <div className="p-6 flex-1">
                     <div className="w-12 h-12 rounded-full bg-[#ffdad6] flex items-center justify-center mx-auto mb-4">
                         <svg className="w-6 h-6 text-[#ba1a1a]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                             <path d="M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
@@ -404,7 +467,7 @@ export default function GestionActividades() {
                     </p>
                     <p className="text-[13px] text-[#9ba7ae] text-center">Esta acción no se puede deshacer.</p>
                 </div>
-                <div className="flex gap-2 px-6 py-4 bg-[#f8f9fa] border-t border-[#e1e3e4]">
+                <div className="flex gap-2 px-6 py-4 bg-[#f8f9fa] border-t border-[#e1e3e4] flex-shrink-0">
                     <button onClick={() => setConfirmDelete(null)}
                         className="flex-1 h-11 rounded-xl border-2 border-[#e1e3e4] text-[#4c616c] font-semibold text-[13px] hover:bg-white transition-colors">
                         Cancelar

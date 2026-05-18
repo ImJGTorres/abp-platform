@@ -16,7 +16,9 @@ class Curso(models.Model):
     codigo = models.CharField(max_length=20)
     id_docente = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.PROTECT,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name='cursos_docente',
     )
     id_periodo_academico = models.ForeignKey(
@@ -25,7 +27,9 @@ class Curso(models.Model):
     )
     usuario_creo = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.PROTECT,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name='cursos_creados',
     )
     estado = models.CharField(
@@ -330,7 +334,9 @@ class AvanceActividad(models.Model):
     )
     id_usuario = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.PROTECT,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name='avances_registrados',
     )
     descripcion = models.TextField()

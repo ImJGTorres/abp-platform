@@ -172,7 +172,7 @@ class ProyectoListCreateView(generics.ListCreateAPIView):
         if tipo_rol == 'docente':
             if curso.id_docente_id != usuario.pk:
                 raise PermissionDenied('No eres el docente propietario de este curso.')
-        elif tipo_rol == 'estudiante':
+        elif tipo_rol in ('estudiante', 'lider_equipo'):
             tiene_equipo = MiembroEquipo.objects.filter(
                 equipo__proyecto__id_curso=curso,
                 usuario=usuario,
@@ -234,11 +234,6 @@ class ProyectoDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
-        if instance.equipos.exists():
-            return Response(
-                {'detail': 'No se puede eliminar el proyecto porque tiene equipos vinculados.'},
-                status=status.HTTP_409_CONFLICT,
-            )
         registrar_evento(
             request=request,
             accion=BitacoraSistema.Accion.DELETE,
@@ -399,7 +394,7 @@ class CursoMatriculaExcelView(APIView):
                         no_encontrados.append(codigo)
                         continue
 
-                    if getattr(usuario, 'tipo_rol', None) != 'estudiante':
+                    if getattr(usuario, 'tipo_rol', None) not in ('estudiante', 'lider_equipo'):
                         rol_incorrecto.append(codigo)
                         continue
 
@@ -545,7 +540,7 @@ class ObjetivoListCreateView(generics.ListCreateAPIView):
             if curso.id_docente_id != usuario.pk:
                 raise PermissionDenied('No eres el docente propietario de este proyecto.')
 
-        elif tipo_rol == 'estudiante':
+        elif tipo_rol in ('estudiante', 'lider_equipo'):
             # Comprueba membresía activa en CUALQUIER equipo del curso
             # (no solo del proyecto solicitado).
             tiene_equipo = MiembroEquipo.objects.filter(
@@ -706,7 +701,7 @@ class HitoListCreateView(generics.ListCreateAPIView):
         if tipo_rol == 'docente':
             if curso.id_docente_id != usuario.pk:
                 raise PermissionDenied('No eres el docente propietario de este proyecto.')
-        elif tipo_rol == 'estudiante':
+        elif tipo_rol in ('estudiante', 'lider_equipo'):
             tiene_equipo = MiembroEquipo.objects.filter(
                 equipo__proyecto__id_curso=curso,
                 usuario=usuario,
@@ -980,7 +975,7 @@ class FaseListCreateView(generics.ListCreateAPIView):
         if tipo_rol == 'docente':
             if curso.id_docente_id != usuario.pk:
                 raise PermissionDenied('No eres el docente propietario de este proyecto.')
-        elif tipo_rol == 'estudiante':
+        elif tipo_rol in ('estudiante', 'lider_equipo'):
             tiene_equipo = MiembroEquipo.objects.filter(
                 equipo__proyecto__id_curso=curso,
                 usuario=usuario,
@@ -1092,7 +1087,7 @@ class ActividadListCreateView(generics.ListCreateAPIView):
         if tipo_rol == 'docente':
             if curso.id_docente_id != usuario.pk:
                 raise PermissionDenied('No eres el docente propietario de este proyecto.')
-        elif tipo_rol == 'estudiante':
+        elif tipo_rol in ('estudiante', 'lider_equipo'):
             tiene_equipo = MiembroEquipo.objects.filter(
                 equipo__proyecto__id_curso=curso,
                 usuario=usuario,
@@ -1303,26 +1298,36 @@ class ActividadAsignarView(APIView):
     PATCH /api/actividades/<pk>/asignar/
 
     Líder de equipo asigna uno o más responsables a una actividad.
-    Todos los responsables deben ser miembros activos del equipo asignado.
+    Si la actividad no tiene equipo asignado, se auto-asigna el equipo del líder.
+    Los responsables deben ser miembros activos de ese equipo.
     """
 
     permission_classes = [EsLiderEquipo]
 
-    def _get_actividad(self, pk):
-        return get_object_or_404(
-            Actividad.objects
-            .filter(
-                id_equipo_asignado__miembros__usuario=self.request.user,
-                id_equipo_asignado__miembros__estado='activo',
-                id_equipo_asignado__miembros__rol_interno='lider',
-            )
-            .select_related('id_equipo_asignado')
-            .distinct(),
-            pk=pk,
+    def _get_equipo_lider(self):
+        membresia = (
+            MiembroEquipo.objects
+            .filter(usuario=self.request.user, estado='activo', rol_interno='lider')
+            .select_related('equipo__proyecto')
+            .first()
         )
+        if not membresia:
+            raise PermissionDenied('No eres líder activo de ningún equipo.')
+        return membresia.equipo
 
     def patch(self, request, pk):
-        actividad = self._get_actividad(pk)
+        equipo = self._get_equipo_lider()
+        actividad = get_object_or_404(
+            Actividad.objects
+            .filter(id_fase__id_proyecto=equipo.proyecto)
+            .select_related('id_equipo_asignado'),
+            pk=pk,
+        )
+        # Auto-asignar el equipo si todavía no tiene uno
+        if actividad.id_equipo_asignado is None:
+            actividad.id_equipo_asignado = equipo
+            actividad.save(update_fields=['id_equipo_asignado'])
+
         serializer = ActividadAsignarSerializer(
             data=request.data,
             context={'actividad': actividad, 'request': request},
@@ -1334,9 +1339,7 @@ class ActividadAsignarView(APIView):
             request=request,
             accion=BitacoraSistema.Accion.UPDATE,
             modulo='actividades',
-            descripcion=(
-                f'Responsables asignados a actividad ID={actividad.id}: {ids}'
-            ),
+            descripcion=f'Responsables asignados a actividad ID={actividad.id}: {ids}',
         )
         return Response(ActividadSerializer(actividad).data)
 
@@ -1375,7 +1378,7 @@ class ActividadesPorEquipoView(generics.ListAPIView):
             raise PermissionDenied('Acceso no permitido.')
         return (
             Actividad.objects
-            .filter(id_equipo_asignado=equipo)
+            .filter(id_fase__id_proyecto=equipo.proyecto)
             .prefetch_related('responsables')
             .select_related('id_fase')
         )
@@ -1406,7 +1409,7 @@ class ProyectoProgresoView(APIView):
         if tipo_rol == 'docente':
             if curso.id_docente_id != usuario.pk:
                 raise PermissionDenied('No eres el docente propietario de este proyecto.')
-        elif tipo_rol == 'estudiante':
+        elif tipo_rol in ('estudiante', 'lider_equipo'):
             tiene_acceso = MiembroEquipo.objects.filter(
                 equipo__proyecto__id_curso=curso,
                 usuario=usuario,

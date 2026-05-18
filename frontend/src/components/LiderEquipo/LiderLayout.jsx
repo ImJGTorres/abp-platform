@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { NavLink, Outlet, useNavigate, Link, useLocation } from 'react-router-dom'
 import { authApi, session, buildMediaUrl } from '../../services/api'
+import { getMiEquipo } from '../../services/liderEquipoApi'
 
 function IconDashboard() {
     return (
@@ -142,19 +143,18 @@ function navLinkClass({ isActive }) {
         : `${base} text-[#4c616c] hover:bg-[#f0f2f3] hover:text-[#191c1d]`
 }
 
-function SidebarContent({ collapsed, onCollapse, loggingOut, handleLogout, onNavClick, proyectoId }) {
+function SidebarContent({ collapsed, onCollapse, loggingOut, handleLogout, onNavClick, proyectoId, enEntregables }) {
     const NAV_ITEMS = [
-        { label: 'Dashboard', to: '/lider/dashboard', icon: <IconDashboard /> },
+        { label: 'Inicio', to: '/lider/inicio', icon: <IconDashboard /> },
+        { label: 'Dashboard', to: '/lider/dashboard', icon: <IconTarget /> },
         { label: 'Distribución', to: '/lider/distribucion', icon: <IconDistribute /> },
         { label: 'Carga de Trabajo', to: '/lider/carga-trabajo', icon: <IconUsers /> },
+        { label: 'Asignar Responsables', to: '/lider/asignar-responsables', icon: <IconSchedule /> },
     ]
 
     if (proyectoId) {
         NAV_ITEMS.push(
             { label: 'Tablero Kanban', to: `/lider/proyectos/${proyectoId}/kanban`, icon: <IconKanban /> },
-            { label: 'Objetivos', to: `/lider/proyectos/${proyectoId}/objetivos`, icon: <IconTarget /> },
-            { label: 'Fases', to: `/lider/proyectos/${proyectoId}/fases`, icon: <IconPhases /> },
-            { label: 'Cronograma', to: `/lider/proyectos/${proyectoId}/cronograma`, icon: <IconSchedule /> }
         )
     }
 
@@ -194,6 +194,24 @@ function SidebarContent({ collapsed, onCollapse, loggingOut, handleLogout, onNav
 
             {/* Navegación */}
             <nav className="flex-1 overflow-y-auto py-3 px-2 flex flex-col gap-0.5">
+                {!collapsed && enEntregables && (
+                    <Link
+                        to="/lider/inicio"
+                        onClick={onNavClick}
+                        className="flex items-center gap-2 px-3 py-2 rounded-xl text-[11px] font-semibold text-[#9ba7ae] tracking-[0.6px] uppercase hover:bg-[#f0f2f3] hover:text-[#4c616c] transition-all mb-1">
+                        <svg viewBox="0 0 16 16" fill="none" className="w-3 h-3 flex-shrink-0" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M10 3L5 8l5 5" /></svg>
+                        <span>Inicio</span>
+                    </Link>
+                )}
+                {collapsed && enEntregables && (
+                    <Link
+                        to="/lider/inicio"
+                        onClick={onNavClick}
+                        title="Volver a Inicio"
+                        className="flex items-center justify-center w-full py-2 rounded-xl text-[#9ba7ae] hover:bg-[#f0f2f3] hover:text-[#4c616c] transition-all mb-1">
+                        <svg viewBox="0 0 16 16" fill="none" className="w-4 h-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M10 3L5 8l5 5" /></svg>
+                    </Link>
+                )}
                 {!collapsed && (
                     <p className="text-[10px] font-semibold text-[#9ba7ae] tracking-[0.8px] uppercase px-3 pb-1.5 pt-1">Líder de Equipo</p>
                 )}
@@ -230,9 +248,18 @@ export default function LiderLayout() {
     const [mobileOpen, setMobileOpen] = useState(false)
     const [loggingOut, setLoggingOut] = useState(false)
     const [topbarMenuOpen, setTopbarMenuOpen] = useState(false)
+    const [proyectoId, setProyectoId] = useState(() => {
+        const match = location.pathname.match(/^\/lider\/proyectos\/(\d+)/)
+        return match?.[1] ?? null
+    })
 
-    const proyectoMatch = location.pathname.match(/^\/lider\/proyectos\/(\d+)/)
-    const proyectoId = proyectoMatch?.[1] ?? null
+    const enEntregables = /^\/lider\/actividades\/\d+\/entregables/.test(location.pathname)
+
+    useEffect(() => {
+        getMiEquipo()
+            .then(data => { if (data?.proyecto?.id) setProyectoId(String(data.proyecto.id)) })
+            .catch(() => {})
+    }, [])
 
     useEffect(() => {
         const refresh = () => setUser(session.getUser())
@@ -263,7 +290,8 @@ export default function LiderLayout() {
             {/* Sidebar desktop */}
             <aside className={`hidden lg:flex ${sidebarW} flex-shrink-0 flex-col bg-white border-r border-[#e1e3e4] transition-[width] duration-200 ease-in-out z-20 relative`}>
                 <SidebarContent collapsed={collapsed} onCollapse={() => setCollapsed(c => !c)}
-                    loggingOut={loggingOut} handleLogout={handleLogout} onNavClick={undefined} proyectoId={proyectoId} />
+                    loggingOut={loggingOut} handleLogout={handleLogout} onNavClick={undefined}
+                    proyectoId={proyectoId} enEntregables={enEntregables} />
             </aside>
 
             {/* Sidebar móvil */}
@@ -271,7 +299,8 @@ export default function LiderLayout() {
                 onClick={e => e.stopPropagation()}>
                 <SidebarContent collapsed={false} onCollapse={null}
                     loggingOut={loggingOut} handleLogout={handleLogout}
-                    onNavClick={() => setMobileOpen(false)} proyectoId={proyectoId} />
+                    onNavClick={() => setMobileOpen(false)}
+                    proyectoId={proyectoId} enEntregables={enEntregables} />
             </aside>
 
             {/* Contenido */}

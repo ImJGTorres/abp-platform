@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { request } from '../../services/api'
+import RegistroAvance from './RegistroAvances'
 
 // ── Iconos ────────────────────────────────────────────────────────────────────
 
@@ -24,6 +25,9 @@ function IconChevronDown({ open }) {
 }
 function IconEmpty() {
     return <svg viewBox="0 0 48 48" fill="none" className="w-12 h-12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="8" y="12" width="32" height="28" rx="3" /><path d="M16 12V9a2 2 0 012-2h12a2 2 0 012 2v3" /><path d="M24 22v8M20 26h8" /></svg>
+}
+function IconProgress() {
+    return <svg viewBox="0 0 20 20" fill="none" className="w-4 h-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M3 10h3l2-6 4 12 2-6h3" /></svg>
 }
 
 // ── Constantes ─────────────────────────────────────────────────────────────
@@ -57,12 +61,13 @@ function formatFecha(f) {
 
 // ── Componente principal ───────────────────────────────────────────────────
 
-export default function DashboardEstudiante() {
+export default function DashboardEstudiante({ basePath = '/estudiante' }) {
     const navigate = useNavigate()
     const [equipos, setEquipos] = useState([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')
     const [expandidos, setExpandidos] = useState({})
+    const [avanceModal, setAvanceModal] = useState(null) // { actividadId, actividadNombre }
 
     useEffect(() => { cargar() }, [])
 
@@ -87,7 +92,7 @@ export default function DashboardEstudiante() {
     }
 
     function irAEntregables(actividadId, actividadNombre) {
-        navigate(`/estudiante/actividades/${actividadId}/entregables`, {
+        navigate(`${basePath}/actividades/${actividadId}/entregables`, {
             state: { actividadNombre },
         })
     }
@@ -195,13 +200,23 @@ export default function DashboardEstudiante() {
                                                                         </div>
                                                                     )}
                                                                 </div>
-                                                                <button
-                                                                    onClick={() => irAEntregables(a.id, a.nombre)}
-                                                                    className="flex items-center gap-1.5 px-3 py-2 bg-[#d32f2f] text-white rounded-xl hover:bg-[#ba1a1a] transition-colors text-[12px] font-semibold flex-shrink-0 opacity-0 group-hover:opacity-100 sm:opacity-100"
-                                                                >
-                                                                    Entregables
-                                                                    <IconArrow />
-                                                                </button>
+                                                                <div className="flex items-center gap-2 flex-shrink-0 opacity-0 group-hover:opacity-100 sm:opacity-100">
+                                                                    <button
+                                                                        onClick={() => setAvanceModal({ actividadId: a.id, actividadNombre: a.nombre })}
+                                                                        className="flex items-center gap-1.5 px-3 py-2 bg-white border border-[#e1e3e4] text-[#4c616c] rounded-xl hover:bg-[#f0f2f3] transition-colors text-[12px] font-semibold"
+                                                                        title="Registrar avance"
+                                                                    >
+                                                                        <IconProgress />
+                                                                        <span className="hidden sm:inline">Avance</span>
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => irAEntregables(a.id, a.nombre)}
+                                                                        className="flex items-center gap-1.5 px-3 py-2 bg-[#d32f2f] text-white rounded-xl hover:bg-[#ba1a1a] transition-colors text-[12px] font-semibold"
+                                                                    >
+                                                                        Entregables
+                                                                        <IconArrow />
+                                                                    </button>
+                                                                </div>
                                                             </div>
                                                         )
                                                     })}
@@ -216,7 +231,14 @@ export default function DashboardEstudiante() {
 
                 </div>
             )}
+
+            <RegistroAvance
+                open={!!avanceModal}
+                actividadId={avanceModal?.actividadId}
+                actividadNombre={avanceModal?.actividadNombre ?? ''}
+                onClose={() => setAvanceModal(null)}
+                onSuccess={() => setAvanceModal(null)}
+            />
         </div>
     )
 }
-

@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
-import { distribucionApi } from '../../services/liderEquipoApi'
-import { session } from '../../services/api'
+import { distribucionApi, getMiEquipo } from '../../services/liderEquipoApi'
 
 function IconAlert() {
     return (
@@ -13,21 +12,20 @@ function IconAlert() {
 
 export default function CargaTrabajoMiembros() {
     const [loading, setLoading] = useState(true)
+    const [equipoId, setEquipoId] = useState(null)
     const [miembros, setMiembros] = useState([])
     const [umbralSobrecarga, setUmbralSobrecarga] = useState(5)
-    const user = session.getUser()
 
-    useEffect(() => {
-        cargarCarga()
-    }, [])
+    useEffect(() => { cargarCarga() }, [])
 
     async function cargarCarga() {
         setLoading(true)
         try {
-            const equipoId = user?.equipo_id
-            if (!equipoId) return
-            // GET /api/equipos/:id/progreso/ — miembros con actividades_asignadas, completadas, en_progreso, pendientes
-            const data = await distribucionApi.obtenerCargaMiembros(equipoId)
+            const miEquipo = await getMiEquipo()
+            if (!miEquipo) return
+            const id = miEquipo.equipo.id
+            setEquipoId(id)
+            const data = await distribucionApi.obtenerCargaMiembros(id)
             setMiembros(data.miembros || [])
         } catch {
             // sin equipo asignado
@@ -69,7 +67,7 @@ export default function CargaTrabajoMiembros() {
                 {/* Grid de miembros */}
                 {loading ? (
                     <div className="text-center py-12 text-[#9ba7ae]">Cargando carga de trabajo...</div>
-                ) : !user?.equipo_id ? (
+                ) : !equipoId ? (
                     <div className="text-center py-12 text-[#9ba7ae]">No tienes un equipo asignado.</div>
                 ) : miembros.length === 0 ? (
                     <div className="text-center py-12 text-[#9ba7ae]">No hay miembros en el equipo.</div>

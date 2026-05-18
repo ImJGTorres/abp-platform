@@ -41,10 +41,25 @@ function Modal({ open, onClose, title, children, size = 'md' }) {
     )
 }
 
+function AvatarResponsable({ u }) {
+    return (
+        <div className="flex items-center gap-1.5">
+            <div className="w-5 h-5 rounded-full bg-[#ffdad6] flex items-center justify-center overflow-hidden flex-shrink-0">
+                {u.foto_perfil ? (
+                    <img src={buildMediaUrl(u.foto_perfil)} alt="" className="w-full h-full object-cover"
+                        onError={e => { e.target.style.display = 'none' }} />
+                ) : (
+                    <span className="text-[8px] font-bold text-[#af101a]">{u.nombre?.[0]?.toUpperCase()}</span>
+                )}
+            </div>
+            <span className="text-[11px] text-[#4c616c] font-medium">{u.nombre} {u.apellido}</span>
+        </div>
+    )
+}
+
 function ActividadCard({ actividad, onClick }) {
     const cfg = PRIORIDAD_CONFIG[actividad.prioridad] ?? { label: actividad.prioridad, color: 'bg-gray-100 text-gray-600' }
-    // el backend puede devolver 'responsables' (array) o 'responsable' (objeto)
-    const responsableObj = actividad.responsables?.[0] ?? actividad.responsable ?? null
+    const responsables = actividad.responsables ?? []
 
     return (
         <div onClick={onClick}
@@ -60,17 +75,9 @@ function ActividadCard({ actividad, onClick }) {
                 <p className="text-[12px] text-[#9ba7ae] mb-3 line-clamp-2">{actividad.descripcion}</p>
             )}
 
-            {responsableObj && (
-                <div className="flex items-center gap-2 mb-2">
-                    <div className="w-6 h-6 rounded-full bg-[#ffdad6] flex items-center justify-center overflow-hidden flex-shrink-0">
-                        {responsableObj.foto_perfil ? (
-                            <img src={buildMediaUrl(responsableObj.foto_perfil)} alt="" className="w-full h-full object-cover"
-                                onError={e => { e.target.style.display = 'none' }} />
-                        ) : (
-                            <span className="text-[9px] font-bold text-[#af101a]">{responsableObj.nombre?.[0]?.toUpperCase()}</span>
-                        )}
-                    </div>
-                    <span className="text-[11px] text-[#4c616c] font-medium">{responsableObj.nombre}</span>
+            {responsables.length > 0 && (
+                <div className="flex flex-col gap-1 mb-2">
+                    {responsables.map(u => <AvatarResponsable key={u.id} u={u} />)}
                 </div>
             )}
 
@@ -252,6 +259,29 @@ export default function TableroKanban() {
                                         : 'Sin definir'}
                                 </p>
                             </div>
+                        </div>
+
+                        <div className="mb-6">
+                            <p className="text-[11px] font-semibold text-[#9ba7ae] uppercase mb-2">Responsables</p>
+                            {actividadSeleccionada.responsables?.length > 0 ? (
+                                <div className="flex flex-col gap-2">
+                                    {actividadSeleccionada.responsables.map(u => (
+                                        <div key={u.id} className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-full bg-[#ffdad6] flex items-center justify-center overflow-hidden flex-shrink-0">
+                                                {u.foto_perfil ? (
+                                                    <img src={buildMediaUrl(u.foto_perfil)} alt="" className="w-full h-full object-cover"
+                                                        onError={e => { e.target.style.display = 'none' }} />
+                                                ) : (
+                                                    <span className="text-[11px] font-bold text-[#af101a]">{u.nombre?.[0]?.toUpperCase()}</span>
+                                                )}
+                                            </div>
+                                            <span className="text-[14px] text-[#191c1d] font-medium">{u.nombre} {u.apellido}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="text-[13px] text-[#9ba7ae] italic">Sin responsables asignados</p>
+                            )}
                         </div>
 
                         <div className="mb-6">
