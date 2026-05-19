@@ -1,6 +1,8 @@
 from django.urls import path
 
 from .views import (
+    AutoevaluacionListCreateView,
+    CoevaluacionListCreateView,
     EvaluacionListCreateView,
     EvaluacionPublicarView,
     RetroalimentacionCreateView,
@@ -42,5 +44,19 @@ urlpatterns = [
         'usuarios/<int:id_usuario>/retroalimentaciones/',
         RetroalimentacionEstudianteView.as_view(),
         name='retroalimentacion-estudiante',
+    ),
+
+    # HU-26 — Autoevaluación
+    path(
+        'proyectos/<int:id_proyecto>/autoevaluaciones/',
+        AutoevaluacionListCreateView.as_view(),
+        name='autoevaluacion-list-create',
+    ),
+
+    # HU-27 — Coevaluación
+    path(
+        'proyectos/<int:id_proyecto>/coevaluaciones/',
+        CoevaluacionListCreateView.as_view(),
+        name='coevaluacion-list-create',
     ),
 ]

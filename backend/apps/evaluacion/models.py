@@ -252,3 +252,191 @@ class Retroalimentacion(models.Model):
 
     def __str__(self):
         return f'[{self.get_tipo_display()}] Retroalimentación {self.pk} — proyecto {self.id_proyecto_id}'
+
+
+# ---------------------------------------------------------------------------
+# HU-26: Autoevaluación
+# ---------------------------------------------------------------------------
+
+class Autoevaluacion(models.Model):
+
+    class Estado(models.TextChoices):
+        BORRADOR = 'borrador', 'Borrador'
+        ENVIADA  = 'enviada',  'Enviada'
+
+    id_proyecto = models.ForeignKey(
+        'cursos.Proyecto',
+        on_delete=models.CASCADE,
+        related_name='autoevaluaciones',
+    )
+    id_estudiante = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='autoevaluaciones',
+    )
+    id_rubrica = models.ForeignKey(
+        Rubrica,
+        on_delete=models.PROTECT,
+        related_name='autoevaluaciones',
+    )
+    puntuacion_total = models.DecimalField(max_digits=6, decimal_places=2, default=0)
+    reflexion_texto = models.TextField(null=True, blank=True)
+    fecha_registro = models.DateTimeField(auto_now_add=True)
+    estado = models.CharField(
+        max_length=10,
+        choices=Estado.choices,
+        default=Estado.BORRADOR,
+    )
+    # Identificador del periodo de evaluación (ej. "2026-1", "2026-S2").
+    periodo_evaluacion = models.CharField(max_length=50)
+
+    class Meta:
+        db_table = 'autoevaluacion'
+        ordering = ['-fecha_registro']
+        constraints = [
+            # BD02 — un estudiante solo puede autoevaluarse una vez por periodo en un proyecto.
+            models.UniqueConstraint(
+                fields=['id_proyecto', 'id_estudiante', 'periodo_evaluacion'],
+                name='unique_autoevaluacion_por_periodo',
+            )
+        ]
+
+    def __str__(self):
+        return (
+            f'Autoevaluación {self.pk} — {self.id_estudiante_id} '
+            f'[{self.periodo_evaluacion}] [{self.get_estado_display()}]'
+        )
+
+
+class DetalleAutoevaluacion(models.Model):
+    """Nivel de desempeño seleccionado por el estudiante para cada criterio de la rúbrica."""
+
+    id_autoevaluacion = models.ForeignKey(
+        Autoevaluacion,
+        on_delete=models.CASCADE,
+        related_name='detalles',
+    )
+    id_criterio = models.ForeignKey(
+        CriterioRubrica,
+        on_delete=models.PROTECT,
+        related_name='autoevaluaciones',
+    )
+    id_nivel_seleccionado = models.ForeignKey(
+        NivelDesempeno,
+        on_delete=models.PROTECT,
+        related_name='autoevaluaciones',
+    )
+    puntos_obtenidos = models.DecimalField(max_digits=5, decimal_places=2)
+    comentario = models.TextField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'detalle_autoevaluacion'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['id_autoevaluacion', 'id_criterio'],
+                name='unique_criterio_por_autoevaluacion',
+            )
+        ]
+
+    def __str__(self):
+        return (
+            f'Criterio {self.id_criterio_id} → nivel {self.id_nivel_seleccionado_id} '
+            f'({self.puntos_obtenidos} pts) — autoevaluación {self.id_autoevaluacion_id}'
+        )
+
+
+# ---------------------------------------------------------------------------
+# HU-27: Coevaluación
+# ---------------------------------------------------------------------------
+
+class Coevaluacion(models.Model):
+
+    class Estado(models.TextChoices):
+        BORRADOR = 'borrador', 'Borrador'
+        ENVIADA  = 'enviada',  'Enviada'
+
+    id_proyecto = models.ForeignKey(
+        'cursos.Proyecto',
+        on_delete=models.CASCADE,
+        related_name='coevaluaciones',
+    )
+    id_evaluador = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='coevaluaciones_realizadas',
+    )
+    id_evaluado = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='coevaluaciones_recibidas',
+    )
+    id_rubrica = models.ForeignKey(
+        Rubrica,
+        on_delete=models.PROTECT,
+        related_name='coevaluaciones',
+    )
+    puntuacion_total = models.DecimalField(max_digits=6, decimal_places=2, default=0)
+    comentario = models.TextField(null=True, blank=True)
+    fecha_registro = models.DateTimeField(auto_now_add=True)
+    estado = models.CharField(
+        max_length=10,
+        choices=Estado.choices,
+        default=Estado.BORRADOR,
+    )
+    periodo_evaluacion = models.CharField(max_length=50)
+
+    class Meta:
+        db_table = 'coevaluacion'
+        ordering = ['-fecha_registro']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['id_evaluador', 'id_evaluado', 'periodo_evaluacion'],
+                name='unique_coevaluacion_por_periodo',
+            ),
+            models.CheckConstraint(
+                check=~models.Q(id_evaluador=models.F('id_evaluado')),
+                name='evaluador_distinto_de_evaluado',
+            ),
+        ]
+
+    def __str__(self):
+        return (
+            f'Coevaluación {self.pk} — {self.id_evaluador_id} → {self.id_evaluado_id} '
+            f'[{self.periodo_evaluacion}]'
+        )
+
+
+class DetalleCoevaluacion(models.Model):
+
+    id_coevaluacion = models.ForeignKey(
+        Coevaluacion,
+        on_delete=models.CASCADE,
+        related_name='detalles',
+    )
+    id_criterio = models.ForeignKey(
+        CriterioRubrica,
+        on_delete=models.PROTECT,
+        related_name='coevaluaciones',
+    )
+    id_nivel_seleccionado = models.ForeignKey(
+        NivelDesempeno,
+        on_delete=models.PROTECT,
+        related_name='coevaluaciones',
+    )
+    puntos_obtenidos = models.DecimalField(max_digits=5, decimal_places=2)
+    comentario = models.TextField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'detalle_coevaluacion'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['id_coevaluacion', 'id_criterio'],
+                name='unique_criterio_por_coevaluacion',
+            )
+        ]
+
+    def __str__(self):
+        return (
+            f'Criterio {self.id_criterio_id} → nivel {self.id_nivel_seleccionado_id} '
+            f'({self.puntos_obtenidos} pts) — coevaluación {self.id_coevaluacion_id}'
+        )

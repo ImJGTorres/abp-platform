@@ -12,8 +12,12 @@ from apps.entregables.models import Entregable
 from apps.equipos.models import Equipo, MiembroEquipo
 from apps.usuarios.authentication import UsuarioJWTAuthentication
 from apps.usuarios.models import Usuario
-from .models import Evaluacion, Retroalimentacion, Rubrica
+from .models import Autoevaluacion, Coevaluacion, Evaluacion, Retroalimentacion, Rubrica
 from .serializers import (
+    AutoevaluacionCreateSerializer,
+    AutoevaluacionSerializer,
+    CoevaluacionCreateSerializer,
+    CoevaluacionSerializer,
     EvaluacionCreateSerializer,
     EvaluacionPublicarSerializer,
     EvaluacionSerializer,
@@ -365,3 +369,173 @@ class RetroalimentacionEstudianteView(APIView):
             .order_by('-fecha_registro')
         )
         return Response(RetroalimentacionSerializer(qs, many=True, context={'request': request}).data)
+
+
+
+# ---------------------------------------------------------------------------
+# HU-26: Autoevaluacion
+# ---------------------------------------------------------------------------
+
+class AutoevaluacionListCreateView(APIView):
+    """
+    GET  /api/proyectos/<id_proyecto>/autoevaluaciones/
+         Estudiante/lider: sus propias autoevaluaciones del proyecto.
+         Docente/admin:    todas las autoevaluaciones del proyecto.
+
+    POST /api/proyectos/<id_proyecto>/autoevaluaciones/
+         Solo estudiante/lider de equipo: crea una autoevaluacion
+         seleccionando un nivel por criterio de la rubrica elegida.
+         La puntuacion_total se calcula automaticamente.
+    """
+    authentication_classes = [UsuarioJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def _get_proyecto(self, id_proyecto, user):
+        proyecto = get_object_or_404(
+            Proyecto.objects.select_related("id_curso__id_docente"),
+            pk=id_proyecto,
+        )
+        tipo_rol = getattr(user, "tipo_rol", None)
+        if tipo_rol == "docente":
+            if proyecto.id_curso.id_docente_id != user.pk:
+                raise PermissionDenied("No eres el docente de este proyecto.")
+        elif tipo_rol in ("administrador", "director"):
+            pass  # acceso total
+        else:
+            # Estudiante o lider: debe pertenecer al proyecto via equipo
+            from apps.equipos.models import MiembroEquipo
+            es_miembro = MiembroEquipo.objects.filter(
+                equipo__proyecto=proyecto,
+                usuario=user,
+                estado="activo",
+            ).exists()
+            if not es_miembro:
+                raise PermissionDenied("No perteneces a este proyecto.")
+        return proyecto
+
+    def get(self, request, id_proyecto):
+        proyecto = self._get_proyecto(id_proyecto, request.user)
+        tipo_rol = getattr(request.user, "tipo_rol", None)
+
+        qs = (
+            Autoevaluacion.objects
+            .filter(id_proyecto=proyecto)
+            .select_related("id_estudiante", "id_rubrica")
+            .prefetch_related("detalles__id_criterio", "detalles__id_nivel_seleccionado")
+            .order_by("-fecha_registro")
+        )
+
+        # Estudiante/lider solo ve sus propias autoevaluaciones
+        if tipo_rol not in ("docente", "administrador", "director"):
+            qs = qs.filter(id_estudiante=request.user)
+
+        return Response(AutoevaluacionSerializer(qs, many=True, context={"request": request}).data)
+
+    def post(self, request, id_proyecto):
+        tipo_rol = getattr(request.user, "tipo_rol", None)
+        if tipo_rol not in ("estudiante", "lider_equipo"):
+            raise PermissionDenied("Solo estudiantes y lideres de equipo pueden autoevaluarse.")
+
+        proyecto = self._get_proyecto(id_proyecto, request.user)
+
+        serializer = AutoevaluacionCreateSerializer(
+            data=request.data,
+            context={"request": request, "proyecto": proyecto},
+        )
+        serializer.is_valid(raise_exception=True)
+        autoevaluacion = serializer.save()
+
+        # Reload with related data for the response
+        autoevaluacion = (
+            Autoevaluacion.objects
+            .select_related("id_estudiante", "id_rubrica")
+            .prefetch_related("detalles__id_criterio", "detalles__id_nivel_seleccionado")
+            .get(pk=autoevaluacion.pk)
+        )
+        return Response(
+            AutoevaluacionSerializer(autoevaluacion, context={"request": request}).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+# ---------------------------------------------------------------------------
+# HU-27: Coevaluación
+# ---------------------------------------------------------------------------
+
+class CoevaluacionListCreateView(APIView):
+    """
+    GET  /api/proyectos/<id_proyecto>/coevaluaciones/
+         Estudiante/lider: coevaluaciones donde participa como evaluador o evaluado.
+         Docente/admin/director: todas las del proyecto.
+
+    POST /api/proyectos/<id_proyecto>/coevaluaciones/
+         Solo estudiante/lider: coevalúa a un compañero del mismo equipo.
+    """
+    authentication_classes = [UsuarioJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def _get_proyecto(self, id_proyecto, user):
+        proyecto = get_object_or_404(
+            Proyecto.objects.select_related("id_curso__id_docente"),
+            pk=id_proyecto,
+        )
+        tipo_rol = getattr(user, "tipo_rol", None)
+        if tipo_rol == "docente":
+            if proyecto.id_curso.id_docente_id != user.pk:
+                raise PermissionDenied("No eres el docente de este proyecto.")
+        elif tipo_rol in ("administrador", "director"):
+            pass
+        else:
+            es_miembro = MiembroEquipo.objects.filter(
+                equipo__proyecto=proyecto,
+                usuario=user,
+                estado="activo",
+            ).exists()
+            if not es_miembro:
+                raise PermissionDenied("No perteneces a este proyecto.")
+        return proyecto
+
+    def get(self, request, id_proyecto):
+        proyecto = self._get_proyecto(id_proyecto, request.user)
+        tipo_rol = getattr(request.user, "tipo_rol", None)
+
+        qs = (
+            Coevaluacion.objects
+            .filter(id_proyecto=proyecto)
+            .select_related("id_evaluador", "id_evaluado", "id_rubrica")
+            .prefetch_related("detalles__id_criterio", "detalles__id_nivel_seleccionado")
+            .order_by("-fecha_registro")
+        )
+
+        if tipo_rol not in ("docente", "administrador", "director"):
+            from django.db.models import Q as DQ
+            qs = qs.filter(
+                DQ(id_evaluador=request.user) | DQ(id_evaluado=request.user)
+            )
+
+        return Response(CoevaluacionSerializer(qs, many=True, context={"request": request}).data)
+
+    def post(self, request, id_proyecto):
+        tipo_rol = getattr(request.user, "tipo_rol", None)
+        if tipo_rol not in ("estudiante", "lider_equipo"):
+            raise PermissionDenied("Solo estudiantes y líderes de equipo pueden coevaluar.")
+
+        proyecto = self._get_proyecto(id_proyecto, request.user)
+
+        serializer = CoevaluacionCreateSerializer(
+            data=request.data,
+            context={"request": request, "proyecto": proyecto},
+        )
+        serializer.is_valid(raise_exception=True)
+        coevaluacion = serializer.save()
+
+        coevaluacion = (
+            Coevaluacion.objects
+            .select_related("id_evaluador", "id_evaluado", "id_rubrica")
+            .prefetch_related("detalles__id_criterio", "detalles__id_nivel_seleccionado")
+            .get(pk=coevaluacion.pk)
+        )
+        return Response(
+            CoevaluacionSerializer(coevaluacion, context={"request": request}).data,
+            status=status.HTTP_201_CREATED,
+        )

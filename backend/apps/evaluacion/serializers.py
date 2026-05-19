@@ -6,7 +6,18 @@ from rest_framework import serializers
 from apps.cursos.models import Actividad, Proyecto, ResultadoAprendizaje
 from apps.equipos.models import Equipo
 from apps.usuarios.models import Usuario
-from .models import CalificacionCriterio, CriterioRubrica, Evaluacion, NivelDesempeno, Retroalimentacion, Rubrica
+from .models import (
+    Autoevaluacion,
+    CalificacionCriterio,
+    Coevaluacion,
+    CriterioRubrica,
+    DetalleCoevaluacion,
+    DetalleAutoevaluacion,
+    Evaluacion,
+    NivelDesempeno,
+    Retroalimentacion,
+    Rubrica,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -502,3 +513,391 @@ class RetroalimentacionCreateSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         return RetroalimentacionSerializer(instance, context=self.context).data
+
+
+# ---------------------------------------------------------------------------
+# HU-26: Autoevaluación
+# ---------------------------------------------------------------------------
+
+class DetalleAutoevaluacionSerializer(serializers.ModelSerializer):
+    criterio_nombre = serializers.CharField(source="id_criterio.nombre", read_only=True)
+    peso_porcentual = serializers.DecimalField(
+        source="id_criterio.peso_porcentual",
+        max_digits=5, decimal_places=2, read_only=True,
+    )
+    nivel_numero   = serializers.IntegerField(source="id_nivel_seleccionado.nivel", read_only=True)
+    nivel_etiqueta = serializers.CharField(
+        source="id_nivel_seleccionado.get_etiqueta_display", read_only=True,
+    )
+
+    class Meta:
+        model = DetalleAutoevaluacion
+        fields = [
+            "id", "id_criterio", "criterio_nombre", "peso_porcentual",
+            "id_nivel_seleccionado", "nivel_numero", "nivel_etiqueta",
+            "puntos_obtenidos", "comentario",
+        ]
+        read_only_fields = fields
+
+
+class DetalleAutoevaluacionWriteSerializer(serializers.Serializer):
+    id_criterio           = serializers.PrimaryKeyRelatedField(queryset=CriterioRubrica.objects.all())
+    id_nivel_seleccionado = serializers.PrimaryKeyRelatedField(queryset=NivelDesempeno.objects.all())
+    comentario            = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+
+    def validate(self, attrs):
+        criterio = attrs["id_criterio"]
+        nivel    = attrs["id_nivel_seleccionado"]
+        if nivel.id_criterio_id != criterio.pk:
+            raise serializers.ValidationError({
+                "id_nivel_seleccionado": (
+                    f"El nivel {nivel.pk} no pertenece al criterio {criterio.pk}."
+                )
+            })
+        return attrs
+
+
+class AutoevaluacionSerializer(serializers.ModelSerializer):
+    detalles          = DetalleAutoevaluacionSerializer(many=True, read_only=True)
+    estado_display    = serializers.CharField(source="get_estado_display", read_only=True)
+    rubrica_nombre    = serializers.CharField(source="id_rubrica.nombre", read_only=True)
+    estudiante_nombre = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Autoevaluacion
+        fields = [
+            "id", "id_proyecto", "id_estudiante", "estudiante_nombre",
+            "id_rubrica", "rubrica_nombre",
+            "puntuacion_total", "reflexion_texto",
+            "fecha_registro", "estado", "estado_display",
+            "periodo_evaluacion", "detalles",
+        ]
+        read_only_fields = fields
+
+    def get_estudiante_nombre(self, obj):
+        e = obj.id_estudiante
+        if e is None:
+            return None
+        return f"{e.nombre} {e.apellido}"
+
+
+class AutoevaluacionCreateSerializer(serializers.ModelSerializer):
+    """
+    POST /api/proyectos/<id>/autoevaluaciones/
+
+    El estudiante se autoevalua seleccionando un nivel por cada criterio
+    de la rubrica indicada (id_estudiante viene de request.user).
+
+    Validaciones:
+      - Una sola autoevaluacion por (proyecto, estudiante, periodo_evaluacion).
+      - Todos los criterios de la rubrica deben estar cubiertos.
+      - El nivel seleccionado debe pertenecer al criterio indicado.
+
+    Calculo automatico:
+      puntos_obtenidos = nivel.puntos
+      puntuacion_total = Sum(puntos_obtenidos x criterio.peso_porcentual / 100)
+    """
+    id_rubrica = serializers.PrimaryKeyRelatedField(queryset=Rubrica.objects.all())
+    detalles   = DetalleAutoevaluacionWriteSerializer(many=True)
+
+    class Meta:
+        model  = Autoevaluacion
+        fields = ["id_rubrica", "reflexion_texto", "periodo_evaluacion", "estado", "detalles"]
+        extra_kwargs = {"estado": {"required": False}}
+
+    def validate_detalles(self, value):
+        if not value:
+            raise serializers.ValidationError(
+                "Debe proporcionar al menos un detalle de autoevaluacion."
+            )
+        return value
+
+    def validate(self, attrs):
+        attrs      = super().validate(attrs)
+        rubrica    = attrs["id_rubrica"]
+        detalles   = attrs["detalles"]
+        periodo    = attrs["periodo_evaluacion"]
+        estudiante = self.context["request"].user
+        proyecto   = self.context["proyecto"]
+
+        # 1. Unicidad por periodo
+        qs = Autoevaluacion.objects.filter(
+            id_proyecto=proyecto,
+            id_estudiante=estudiante,
+            periodo_evaluacion=periodo,
+        )
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError({
+                "periodo_evaluacion": (
+                    f"Ya existe una autoevaluacion para el periodo \"{periodo}\" en este proyecto."
+                )
+            })
+
+        # 2. Cobertura exacta de criterios sin duplicados
+        criterios_rubrica  = set(rubrica.criterios.values_list("id", flat=True))
+        criterios_enviados = [d["id_criterio"].pk for d in detalles]
+
+        if len(criterios_enviados) != len(set(criterios_enviados)):
+            raise serializers.ValidationError({
+                "detalles": "No puede haber detalles duplicados para el mismo criterio."
+            })
+
+        criterios_set = set(criterios_enviados)
+        faltantes = criterios_rubrica - criterios_set
+        sobrantes = criterios_set - criterios_rubrica
+        if faltantes or sobrantes:
+            msg = "La autoevaluacion debe cubrir exactamente todos los criterios de la rubrica."
+            if faltantes:
+                msg += f" Criterios faltantes: {sorted(faltantes)}."
+            if sobrantes:
+                msg += f" Criterios ajenos a la rubrica: {sorted(sobrantes)}."
+            raise serializers.ValidationError({"detalles": msg})
+
+        return attrs
+
+    @transaction.atomic
+    def create(self, validated_data):
+        detalles_data = validated_data.pop("detalles")
+        proyecto      = self.context["proyecto"]
+        estudiante    = self.context["request"].user
+
+        total = Decimal("0")
+        for d in detalles_data:
+            total += d["id_nivel_seleccionado"].puntos * d["id_criterio"].peso_porcentual / Decimal("100")
+
+        autoevaluacion = Autoevaluacion.objects.create(
+            id_proyecto=proyecto,
+            id_estudiante=estudiante,
+            puntuacion_total=total,
+            **validated_data,
+        )
+
+        DetalleAutoevaluacion.objects.bulk_create([
+            DetalleAutoevaluacion(
+                id_autoevaluacion=autoevaluacion,
+                id_criterio=d["id_criterio"],
+                id_nivel_seleccionado=d["id_nivel_seleccionado"],
+                puntos_obtenidos=d["id_nivel_seleccionado"].puntos,
+                comentario=d.get("comentario") or "",
+            )
+            for d in detalles_data
+        ])
+
+        return autoevaluacion
+
+    def to_representation(self, instance):
+        return AutoevaluacionSerializer(instance, context=self.context).data
+
+
+# ---------------------------------------------------------------------------
+# HU-27: Coevaluación
+# ---------------------------------------------------------------------------
+
+class DetalleCoevaluacionSerializer(serializers.ModelSerializer):
+    criterio_nombre = serializers.CharField(source="id_criterio.nombre", read_only=True)
+    peso_porcentual = serializers.DecimalField(
+        source="id_criterio.peso_porcentual",
+        max_digits=5, decimal_places=2, read_only=True,
+    )
+    nivel_numero   = serializers.IntegerField(source="id_nivel_seleccionado.nivel", read_only=True)
+    nivel_etiqueta = serializers.CharField(
+        source="id_nivel_seleccionado.get_etiqueta_display", read_only=True,
+    )
+
+    class Meta:
+        model = DetalleCoevaluacion
+        fields = [
+            "id", "id_criterio", "criterio_nombre", "peso_porcentual",
+            "id_nivel_seleccionado", "nivel_numero", "nivel_etiqueta",
+            "puntos_obtenidos", "comentario",
+        ]
+        read_only_fields = fields
+
+
+class DetalleCoevaluacionWriteSerializer(serializers.Serializer):
+    id_criterio           = serializers.PrimaryKeyRelatedField(queryset=CriterioRubrica.objects.all())
+    id_nivel_seleccionado = serializers.PrimaryKeyRelatedField(queryset=NivelDesempeno.objects.all())
+    comentario            = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+
+    def validate(self, attrs):
+        criterio = attrs["id_criterio"]
+        nivel    = attrs["id_nivel_seleccionado"]
+        if nivel.id_criterio_id != criterio.pk:
+            raise serializers.ValidationError({
+                "id_nivel_seleccionado": (
+                    f"El nivel {nivel.pk} no pertenece al criterio {criterio.pk}."
+                )
+            })
+        return attrs
+
+
+class CoevaluacionSerializer(serializers.ModelSerializer):
+    detalles         = DetalleCoevaluacionSerializer(many=True, read_only=True)
+    estado_display   = serializers.CharField(source="get_estado_display", read_only=True)
+    rubrica_nombre   = serializers.CharField(source="id_rubrica.nombre", read_only=True)
+    evaluador_nombre = serializers.SerializerMethodField()
+    evaluado_nombre  = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Coevaluacion
+        fields = [
+            "id", "id_proyecto",
+            "id_evaluador", "evaluador_nombre",
+            "id_evaluado", "evaluado_nombre",
+            "id_rubrica", "rubrica_nombre",
+            "puntuacion_total", "comentario",
+            "fecha_registro", "estado", "estado_display",
+            "periodo_evaluacion", "detalles",
+        ]
+        read_only_fields = fields
+
+    def get_evaluador_nombre(self, obj):
+        e = obj.id_evaluador
+        if e is None:
+            return None
+        return f"{e.nombre} {e.apellido}"
+
+    def get_evaluado_nombre(self, obj):
+        e = obj.id_evaluado
+        if e is None:
+            return None
+        return f"{e.nombre} {e.apellido}"
+
+
+class CoevaluacionCreateSerializer(serializers.ModelSerializer):
+    """
+    POST /api/proyectos/<id>/coevaluaciones/
+
+    El evaluador (request.user) coevalúa a id_evaluado seleccionando un nivel
+    por cada criterio de la rúbrica. Validaciones:
+      - evaluador ≠ evaluado.
+      - Ambos pertenecen al mismo equipo activo del proyecto.
+      - Solo una coevaluación por (evaluador, evaluado, periodo_evaluacion).
+      - Cobertura exacta de criterios de la rúbrica sin duplicados.
+    """
+    id_evaluado = serializers.PrimaryKeyRelatedField(
+        queryset=Usuario.objects.filter(tipo_rol__in=["estudiante", "lider_equipo"])
+    )
+    id_rubrica = serializers.PrimaryKeyRelatedField(queryset=Rubrica.objects.all())
+    detalles   = DetalleCoevaluacionWriteSerializer(many=True)
+
+    class Meta:
+        model  = Coevaluacion
+        fields = ["id_evaluado", "id_rubrica", "comentario", "periodo_evaluacion", "estado", "detalles"]
+        extra_kwargs = {"estado": {"required": False}}
+
+    def validate_detalles(self, value):
+        if not value:
+            raise serializers.ValidationError(
+                "Debe proporcionar al menos un detalle de coevaluación."
+            )
+        return value
+
+    def validate(self, attrs):
+        from apps.equipos.models import MiembroEquipo
+
+        attrs     = super().validate(attrs)
+        evaluador = self.context["request"].user
+        evaluado  = attrs["id_evaluado"]
+        rubrica   = attrs["id_rubrica"]
+        detalles  = attrs["detalles"]
+        periodo   = attrs["periodo_evaluacion"]
+        proyecto  = self.context["proyecto"]
+
+        # 1. Evaluador ≠ evaluado
+        if evaluador.pk == evaluado.pk:
+            raise serializers.ValidationError(
+                {"id_evaluado": "No puedes evaluarte a ti mismo."}
+            )
+
+        # 2. Ambos deben pertenecer al mismo equipo activo del proyecto
+        equipos_evaluador = set(
+            MiembroEquipo.objects.filter(
+                equipo__proyecto=proyecto,
+                usuario=evaluador,
+                estado="activo",
+            ).values_list("equipo_id", flat=True)
+        )
+        equipos_evaluado = set(
+            MiembroEquipo.objects.filter(
+                equipo__proyecto=proyecto,
+                usuario=evaluado,
+                estado="activo",
+            ).values_list("equipo_id", flat=True)
+        )
+        if not (equipos_evaluador & equipos_evaluado):
+            raise serializers.ValidationError(
+                {"id_evaluado": "El estudiante evaluado no pertenece al mismo equipo activo que tú."}
+            )
+
+        # 3. Unicidad por (evaluador, evaluado, periodo)
+        qs = Coevaluacion.objects.filter(
+            id_evaluador=evaluador,
+            id_evaluado=evaluado,
+            periodo_evaluacion=periodo,
+        )
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError({
+                "periodo_evaluacion": (
+                    f"Ya existe una coevaluación para este evaluado en el periodo \"{periodo}\"."
+                )
+            })
+
+        # 4. Cobertura exacta de criterios sin duplicados
+        criterios_rubrica  = set(rubrica.criterios.values_list("id", flat=True))
+        criterios_enviados = [d["id_criterio"].pk for d in detalles]
+
+        if len(criterios_enviados) != len(set(criterios_enviados)):
+            raise serializers.ValidationError({
+                "detalles": "No puede haber detalles duplicados para el mismo criterio."
+            })
+
+        criterios_set = set(criterios_enviados)
+        faltantes = criterios_rubrica - criterios_set
+        sobrantes = criterios_set - criterios_rubrica
+        if faltantes or sobrantes:
+            msg = "La coevaluación debe cubrir exactamente todos los criterios de la rúbrica."
+            if faltantes:
+                msg += f" Criterios faltantes: {sorted(faltantes)}."
+            if sobrantes:
+                msg += f" Criterios ajenos a la rúbrica: {sorted(sobrantes)}."
+            raise serializers.ValidationError({"detalles": msg})
+
+        return attrs
+
+    @transaction.atomic
+    def create(self, validated_data):
+        detalles_data = validated_data.pop("detalles")
+        proyecto      = self.context["proyecto"]
+        evaluador     = self.context["request"].user
+
+        total = Decimal("0")
+        for d in detalles_data:
+            total += d["id_nivel_seleccionado"].puntos * d["id_criterio"].peso_porcentual / Decimal("100")
+
+        coevaluacion = Coevaluacion.objects.create(
+            id_proyecto=proyecto,
+            id_evaluador=evaluador,
+            puntuacion_total=total,
+            **validated_data,
+        )
+
+        DetalleCoevaluacion.objects.bulk_create([
+            DetalleCoevaluacion(
+                id_coevaluacion=coevaluacion,
+                id_criterio=d["id_criterio"],
+                id_nivel_seleccionado=d["id_nivel_seleccionado"],
+                puntos_obtenidos=d["id_nivel_seleccionado"].puntos,
+                comentario=d.get("comentario") or "",
+            )
+            for d in detalles_data
+        ])
+
+        return coevaluacion
+
+    def to_representation(self, instance):
+        return CoevaluacionSerializer(instance, context=self.context).data

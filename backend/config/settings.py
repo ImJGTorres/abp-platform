@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     'apps.cursos',
     'apps.equipos',
     'apps.entregables',
+    'apps.evaluacion',
 ]
 
 # Configuración de Django REST Framework (BE-01)
