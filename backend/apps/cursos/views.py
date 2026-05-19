@@ -15,7 +15,7 @@ from rest_framework.views import APIView
 from apps.bitacora.models import BitacoraSistema
 from apps.bitacora.utils import registrar_evento
 from apps.configuracion.models import PeriodoAcademico
-from apps.equipos.models import MiembroEquipo
+from apps.equipos.models import Equipo, MiembroEquipo
 from apps.usuarios.models import Usuario
 from apps.usuarios.serializers import UsuarioSerializer
 from apps.usuarios.authentication import UsuarioJWTAuthentication
@@ -1430,6 +1430,7 @@ class ProyectoProgresoView(APIView):
         )
         self._check_acceso(proyecto)
 
+        # 1. Fases con resumen de actividades por estado (porcentaje almacenado en FaseProyecto)
         fases = list(
             FaseProyecto.objects
             .filter(id_proyecto=proyecto)
@@ -1437,11 +1438,59 @@ class ProyectoProgresoView(APIView):
             .order_by('orden')
         )
 
+        # 2. Actividades con detalle: equipo asignado + último avance registrado
+        actividades_qs = (
+            Actividad.objects
+            .filter(id_fase__id_proyecto=proyecto)
+            .select_related('id_equipo_asignado', 'id_fase')
+            .prefetch_related(
+                Prefetch(
+                    'avances',
+                    queryset=AvanceActividad.objects.order_by('-fecha_registro'),
+                    to_attr='avances_ordenados',
+                )
+            )
+            .order_by('id_fase__orden', 'id')
+        )
+        actividades_por_fase = {}
+        for act in actividades_qs:
+            actividades_por_fase.setdefault(act.id_fase_id, []).append(act)
+
+        # 3. Equipos con conteo de actividades por estado y número de miembros activos
+        equipos_qs = (
+            Equipo.objects
+            .filter(proyecto=proyecto)
+            .annotate(
+                actividades_total=Count('actividades', distinct=True),
+                actividades_completadas=Count(
+                    'actividades',
+                    filter=Q(actividades__estado='completada'),
+                    distinct=True,
+                ),
+                actividades_en_progreso=Count(
+                    'actividades',
+                    filter=Q(actividades__estado='en_progreso'),
+                    distinct=True,
+                ),
+                actividades_bloqueadas=Count(
+                    'actividades',
+                    filter=Q(actividades__estado='bloqueada'),
+                    distinct=True,
+                ),
+                num_miembros=Count(
+                    'miembros',
+                    filter=Q(miembros__estado='activo'),
+                    distinct=True,
+                ),
+            )
+            .order_by('nombre')
+        )
+
+        # Construir datos de fases con actividades anidadas
         porcentaje_progreso = (
             round(sum(f.porcentaje_completado for f in fases) / len(fases))
             if fases else 0
         )
-
         fases_data = []
         totales = {'pendiente': 0, 'en_progreso': 0, 'completada': 0, 'bloqueada': 0}
         for f in fases:
@@ -1456,6 +1505,25 @@ class ProyectoProgresoView(APIView):
             totales['en_progreso'] += f.actividades_en_progreso
             totales['completada'] += f.actividades_completadas
             totales['bloqueada'] += f.actividades_bloqueadas
+
+            actividades_detalle = []
+            for act in actividades_por_fase.get(f.id, []):
+                ultimo = act.avances_ordenados[0] if act.avances_ordenados else None
+                eq = act.id_equipo_asignado
+                actividades_detalle.append({
+                    'id': act.id,
+                    'nombre': act.nombre,
+                    'estado': act.estado,
+                    'prioridad': act.prioridad,
+                    'fecha_limite': act.fecha_limite,
+                    'equipo_asignado': {'id': eq.id, 'nombre': eq.nombre} if eq else None,
+                    'ultimo_avance': {
+                        'porcentaje_completado': ultimo.porcentaje_completado,
+                        'descripcion': ultimo.descripcion,
+                        'fecha_registro': ultimo.fecha_registro,
+                    } if ultimo else None,
+                })
+
             fases_data.append({
                 'id': f.id,
                 'nombre': f.nombre,
@@ -1467,6 +1535,34 @@ class ProyectoProgresoView(APIView):
                 'actividades_en_progreso': f.actividades_en_progreso,
                 'actividades_bloqueadas': f.actividades_bloqueadas,
                 'actividades_pendientes': pendientes,
+                'actividades': actividades_detalle,
+            })
+
+        # Construir datos de equipos
+        equipos_data = []
+        for eq in equipos_qs:
+            pendientes_eq = max(
+                eq.actividades_total
+                - eq.actividades_completadas
+                - eq.actividades_en_progreso
+                - eq.actividades_bloqueadas,
+                0,
+            )
+            porcentaje_eq = (
+                round(eq.actividades_completadas / eq.actividades_total * 100)
+                if eq.actividades_total else 0
+            )
+            equipos_data.append({
+                'id': eq.id,
+                'nombre': eq.nombre,
+                'estado': eq.estado,
+                'num_miembros': eq.num_miembros,
+                'actividades_total': eq.actividades_total,
+                'actividades_completadas': eq.actividades_completadas,
+                'actividades_en_progreso': eq.actividades_en_progreso,
+                'actividades_pendientes': pendientes_eq,
+                'actividades_bloqueadas': eq.actividades_bloqueadas,
+                'porcentaje_progreso': porcentaje_eq,
             })
 
         return Response({
@@ -1477,4 +1573,5 @@ class ProyectoProgresoView(APIView):
             'total_fases': len(fases),
             'fases': fases_data,
             'actividades_por_estado': totales,
+            'equipos': equipos_data,
         })
