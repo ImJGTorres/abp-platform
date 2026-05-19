@@ -2,6 +2,19 @@ from .models import BitacoraSistema
 
 
 def _get_ip(request):
+    """Extrae la IP del cliente desde la solicitud HTTP.
+
+    Prioriza HTTP_X_FORWARDED_FOR para entornos con proxy/load-balancer, tomando
+    la primera entrada (IP original del cliente). Si el header no existe o está
+    vacío, retorna REMOTE_ADDR. Puede retornar None si REMOTE_ADDR tampoco está
+    disponible (ej. en tests sin contexto de red real).
+
+    Args:
+        request: Objeto HttpRequest de Django.
+
+    Returns:
+        str | None: Dirección IP del cliente, o None si no se puede determinar.
+    """
     forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
     if forwarded_for:
         return forwarded_for.split(',')[0].strip()

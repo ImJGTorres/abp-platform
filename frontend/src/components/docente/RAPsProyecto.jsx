@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link, useLocation } from 'react-router-dom'
 import { proyectosApi } from '../../services/docenteApi'
+import { useFormValidation, required, between } from '../../hooks/useFormValidation'
 
 function IconPlus() {
     return <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M8 3v10M3 8h10" /></svg>
@@ -40,6 +41,12 @@ function ModalConfirmar({ mensaje, onConfirmar, onCancelar }) {
     )
 }
 
+/**
+ * @param {object|null} rap - RAP a editar, o null para creación.
+ * @param {Function} onGuardar - Callback ejecutado al confirmar; recibe los datos del form.
+ * @param {Function} onCancelar - Callback al cancelar.
+ * @param {number} totalActual - Suma de porcentajes de todos los RAPs del proyecto.
+ */
 function ModalRAP({ rap, onGuardar, onCancelar, totalActual }) {
     const esEdicion = !!rap
     const [form, setForm] = useState({
@@ -51,27 +58,26 @@ function ModalRAP({ rap, onGuardar, onCancelar, totalActual }) {
     const [errores, setErrores] = useState({})
     const [guardando, setGuardando] = useState(false)
 
-    function validar() {
-        const e = {}
-        if (!form.nombre.trim()) e.nombre = 'El código es obligatorio.'
-        if (!form.descripcion.trim()) e.descripcion = 'La descripción es obligatoria.'
-        if (!form.porcentaje_evaluacion || form.porcentaje_evaluacion <= 0 || form.porcentaje_evaluacion > 100) {
-            e.porcentaje_evaluacion = 'El porcentaje debe estar entre 1 y 100.'
-        }
+    const porcentajeActual = parseFloat(rap?.porcentaje_evaluacion ?? 0)
+    const totalSinEste = totalActual - porcentajeActual
+    const maxPermitido = 100 - totalSinEste
 
-        const porcentajeActual = parseFloat(rap?.porcentaje_evaluacion ?? 0)
-        const porcentajeNuevo = parseFloat(form.porcentaje_evaluacion)
-        const totalSinEste = totalActual - porcentajeActual
-        if (totalSinEste + porcentajeNuevo > 100) {
-            e.porcentaje_evaluacion = `El total excedería 100% (actual: ${totalSinEste}%)`
-        }
-
-        return e
-    }
+    const { validar } = useFormValidation(form, {
+        nombre:                [required('El código es obligatorio.')],
+        descripcion:           [required('La descripción es obligatoria.')],
+        porcentaje_evaluacion: [
+            required(),
+            between(1, maxPermitido,
+                maxPermitido < 100
+                    ? `El total excedería 100% (disponible: ${maxPermitido}%)`
+                    : 'El porcentaje debe estar entre 1 y 100.'
+            ),
+        ],
+    })
 
     async function handleGuardar() {
-        const e = validar()
-        if (Object.keys(e).length > 0) { setErrores(e); return }
+        const { esValido, errores: erroresValidacion } = validar()
+        if (!esValido) { setErrores(erroresValidacion); return }
         setGuardando(true)
         try {
             await onGuardar(form)
@@ -149,6 +155,12 @@ function ModalRAP({ rap, onGuardar, onCancelar, totalActual }) {
     )
 }
 
+/**
+ * Página de gestión de Resultados de Aprendizaje del Proyecto (RAPs).
+ *
+ * Lee proyectoId desde los parámetros de ruta y cursoId/nombres desde location.state.
+ * Permite crear, editar y eliminar RAPs validando que la suma de porcentajes no exceda 100%.
+ */
 export default function RAPsProyecto() {
     const { proyectoId } = useParams()
     const location = useLocation()

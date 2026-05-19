@@ -41,15 +41,15 @@ function Avatar({ iniciales, colorIndex, size = 'sm' }) {
 }
 
 /**
- * Modal de detalle de un equipo/proyecto.
+ * Modal que muestra el detalle de un equipo y sus miembros.
  *
- * Props:
- *   titulo    — nombre a mostrar en el header (proyecto o equipo)
- *   subtitulo — descripción
- *   colorIndex — índice para el color del cuadrado del header
- *   equipo    — objeto con { id, nombre, cupo_maximo, cantidad_miembros, miembros, lider, estado, cantidad_entregables }
- *   onClose   — cierra el modal
- *   onAgregar — callback al pulsar "Asignar estudiante"
+ * @param {string} titulo - Nombre del proyecto o equipo a mostrar en el header.
+ * @param {string} [subtitulo] - Descripción secundaria del equipo.
+ * @param {number} [colorIndex=0] - Índice para seleccionar el color del encabezado.
+ * @param {object} equipo - Datos del equipo:
+ *   { id, nombre, cupo_maximo, cantidad_miembros, miembros, lider, estado, cantidad_entregables }
+ * @param {Function} onClose - Callback al cerrar el modal.
+ * @param {Function} [onAgregar] - Callback al pulsar "Asignar estudiante". Opcional.
  */
 export default function ModalDetalleEquipo({ titulo, subtitulo, colorIndex = 0, equipo, onClose, onAgregar }) {
     const [tab, setTab] = useState('miembros')

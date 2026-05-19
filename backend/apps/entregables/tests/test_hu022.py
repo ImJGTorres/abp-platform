@@ -2,6 +2,7 @@ import pytest
 from django.utils import timezone
 from rest_framework.test import APIClient
 from apps.entregables.models import Entregable
+from apps.configuracion.models import ParametroSistema
 from apps.cursos.models import Actividad, FaseProyecto, Proyecto, Curso
 from apps.equipos.models import Equipo, MiembroEquipo
 from apps.usuarios.models import Usuario
@@ -106,7 +107,14 @@ def actividad(fase_proyecto):
 
 @pytest.fixture
 def equipo(proyecto_con_curso_y_docente):
-    """Equipo de trabajo."""
+    ParametroSistema.objects.get_or_create(
+        clave='max_estudiantes_por_equipo',
+        defaults={
+            'valor': '10',
+            'categoria': ParametroSistema.Categoria.GENERAL,
+            'tipo_dato': ParametroSistema.TipoDato.INTEGER,
+        },
+    )
     return Equipo.objects.create(
         proyecto=proyecto_con_curso_y_docente,
         nombre='Equipo de prueba',

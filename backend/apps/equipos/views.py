@@ -1,5 +1,7 @@
 import io
 
+from django.contrib.postgres.aggregates import ArrayAgg
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import IntegrityError, transaction
 from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404
@@ -12,17 +14,14 @@ from rest_framework.views import APIView
 
 from apps.bitacora.models import BitacoraSistema
 from apps.bitacora.utils import registrar_evento
-from .models import Equipo, MiembroEquipo
 from apps.cursos.models import Actividad, Proyecto
 from apps.usuarios.authentication import UsuarioJWTAuthentication
 from apps.usuarios.models import Usuario
 from apps.usuarios.permissions import EsDocente
 from .models import Equipo, MiembroEquipo
 from .serializers import (
-    EditarEquipoSerializer,
-    EquipoDetalleSerializer, EstudianteDisponibleSerializer,
-    MiembroEquipoSerializer, UsuarioResumenSerializer,
     ActualizarRolSerializer,
+    EditarEquipoSerializer,
     EquipoCreateSerializer,
     EquipoDetalleSerializer,
     EquipoListSerializer,
@@ -32,80 +31,6 @@ from .serializers import (
     MiembroEquipoSerializer,
     UsuarioResumenSerializer,
 )
-
-"""
-IMPLEMENTACIÓN DE SUBTAREAS HU-013:
-
-Historial de cambios en membresías (BD01):
-  Se implementa mediante soft-delete en el modelo MiembroEquipo.
-  Al retirar un estudiante, su registro se marca como 'retirado' en lugar de eliminarse.
-  Cada reasignación crea un nuevo registro para el equipo destino.
-  El historial completo se preserva y puede auditarse consultando MiembroEquipo con filtro por estado.
-
-Endpoint PUT /api/equipos/:id/ — editar nombre y cupo del equipo:
-  Implementado en EditarEquipoView.
-  Valida que el nuevo cupo no sea menor al número de miembros activos actuales.
-  Registra la operación en bitácora.
-
-Endpoint POST /api/equipos/:id/miembros/mover/ — reubicar estudiante:
-  Implementado en MoverMiembroView.
-  Mueve un estudiante de un equipo a otro del mismo proyecto en operación atómica.
-  Valida: pertenencia al proyecto, cupo en destino, no duplicados.
-  Usa transaction.atomic para asegurar consistencia.
-  Preserva historial y registra movimiento en bitácora.
-
-Endpoint DELETE /api/equipos/:id/disolver/ — disolver equipo:
-  Implementado en DisolverEquipoView.
-  Verifica que el equipo no tenga entregables/actividades (validación comentada pendiente).
-  Marca todos los miembros como 'retirado' y el equipo como 'inactivo'.
-  Soft-delete completo, ejecutado en transacción atómica.
-  Registra la disolución en bitácora.
-
-Registro de cambios de equipo en bitácora:
-  Se utiliza la función registrar_evento (apps.bitacora.utils) en las operaciones:
-  - Creación de equipo (ProyectoEquiposView.post)
-  - Edición de equipo (EditarEquipoView.perform_update)
-  - Movimiento de miembro (MoverMiembroView)
-  - Disolución de equipo (DisolverEquipoView.delete)
-  - Asignación individual (MiembroListView.post)
-  Cada registro incluye: usuario, acción, módulo, descripción e IP origen.
-"""
-
-
-def registrar_bitacora(usuario, accion, modulo, descripcion=None, ip=None):
-    """
-    Función auxiliar para crear entradas en el log de auditoría del sistema.
-    Captura: usuario responsable, tipo de acción, módulo afectado,
-    descripción detallada del cambio y dirección IP origen.
-    Esta función se invoca después de operaciones de creación, edición,
-    disolución y reubicación de miembros para cumplir requisitos de auditoría.
-    """
-    try:
-        BitacoraSistema.objects.create(
-            id_usuario=usuario,
-            nombre_usuario=f"{usuario.nombre} {usuario.apellido}",
-            accion=accion,
-            modulo=modulo,
-            descripcion=descripcion,
-            ip_origen=ip,
-        )
-    except Exception:
-        # Fallo en bitácora no debe interrumpir la operación principal
-        pass
-
-
-def get_client_ip(request):
-    """
-    Extrae la dirección IP real del cliente, considerando proxies
-    y configuración de X-Forwarded-For para obtener el IP original.
-    """
-    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-    if x_forwarded_for:
-        ip = x_forwarded_for.split(',')[0].strip()
-    else:
-        ip = request.META.get('REMOTE_ADDR')
-    return ip
-
 
 # ---------------------------------------------------------------------------
 # Equipos por proyecto
@@ -143,12 +68,6 @@ class EquiposPorProyectoView(APIView):
         })
 
     def post(self, request, proyecto_id):
-        """
-        Al crear un equipo, se registra en la bitácora del sistema
-        el docente responsable, timestamp y descripción del cambio.
-        """
-
-    def post(self, request, proyecto_id):
         try:
             proyecto = Proyecto.objects.select_related('id_curso').get(pk=proyecto_id)
         except Proyecto.DoesNotExist:
@@ -156,7 +75,10 @@ class EquiposPorProyectoView(APIView):
 
         serializer = EquipoSerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
-            equipo = serializer.save(proyecto=proyecto)
+            try:
+                equipo = serializer.save(proyecto=proyecto)
+            except DjangoValidationError as exc:
+                raise ValidationError(exc.message_dict if hasattr(exc, 'message_dict') else {'detail': exc.messages})
             equipo_con_miembros = Equipo.objects.prefetch_related('miembros__usuario').get(pk=equipo.pk)
             return Response(EquipoDetalleSerializer(equipo_con_miembros).data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -197,14 +119,14 @@ class ProyectoEquiposView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def post(self, request, proyecto_id):
-        """
-        BE04 — Registrar creación de equipo en bitácora
-        Cuando un docente crea un equipo, se registra:
-        - Usuario responsable (request.user)
-        - Acción: CREATE
-        - Módulo: 'equipos'
-        - Descripción con nombre del equipo y proyecto
-        - IP de origen
+        """Crea un equipo y registra la operación en bitácora (BE04).
+
+        Args:
+            request: Solicitud HTTP con datos del equipo (nombre, capacidad_maxima).
+            proyecto_id: ID del proyecto al que pertenecerá el equipo.
+
+        Returns:
+            201 con datos del equipo creado, o 400/404 si hay errores de validación.
         """
         try:
             proyecto = Proyecto.objects.get(id=proyecto_id)
@@ -220,14 +142,13 @@ class ProyectoEquiposView(APIView):
                     {"detail": "Ya existe un equipo con ese nombre en este proyecto."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            ip = get_client_ip(request)
-            # BE04 — Registrar creación de equipo en bitácora
-            registrar_bitacora(
-                request.user,
-                BitacoraSistema.Accion.CREATE,
-                'equipos',
-                f"Crear equipo '{equipo.nombre}' en proyecto {proyecto.nombre}",
-                ip,
+            except DjangoValidationError as exc:
+                raise ValidationError(exc.message_dict if hasattr(exc, 'message_dict') else {'detail': exc.messages})
+            registrar_evento(
+                request=request,
+                accion=BitacoraSistema.Accion.CREATE,
+                modulo='equipos',
+                descripcion=f"Crear equipo '{equipo.nombre}' en proyecto {proyecto.nombre}",
             )
             return Response(EquipoSerializer(equipo).data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -351,13 +272,11 @@ class AsignarEstudiantesView(APIView):
                 usuario=usuario,
                 defaults={'estado': 'activo'},
             )
-            # Registrar asignación en bitácora
-            registrar_bitacora(
-                request.user if request.user.is_authenticated else None,
-                BitacoraSistema.Accion.CREATE,
-                'miembros_equipo',
-                f'Estudiante {usuario.id} asignado al equipo {equipo.id}',
-                get_client_ip(request),
+            registrar_evento(
+                request=request,
+                accion=BitacoraSistema.Accion.CREATE,
+                modulo='miembros_equipo',
+                descripcion=f'Estudiante {usuario.id} asignado al equipo {equipo.id}',
             )
             asignados += 1
 
@@ -433,23 +352,34 @@ class EstudiantesCursoView(APIView):
             ).exclude(id__in=ya_asignados).order_by('nombre', 'apellido')
             return Response(UsuarioResumenSerializer(estudiantes, many=True).data)
 
-        membresias = MiembroEquipo.objects.filter(
-            equipo__proyecto__id_curso_id=curso_id, estado='activo'
-        ).select_related('usuario', 'equipo', 'equipo__proyecto')
-
+        # Agrupa membresías activas por usuario en una sola consulta usando ArrayAgg.
+        # Evita el patrón N+1 de iterar y hacer joins en Python.
+        asignaciones = (
+            MiembroEquipo.objects
+            .filter(equipo__proyecto__id_curso_id=curso_id, estado='activo')
+            .values(
+                'usuario_id',
+                'equipo_id',
+                'equipo__nombre',
+                'equipo__proyecto_id',
+                'equipo__proyecto__nombre',
+            )
+        )
         usuario_equipos = {}
-        for m in membresias:
-            uid = m.usuario_id
+        for a in asignaciones:
+            uid = a['usuario_id']
             if uid not in usuario_equipos:
                 usuario_equipos[uid] = []
             usuario_equipos[uid].append({
-                'equipo_id':       m.equipo.id,
-                'equipo_nombre':   m.equipo.nombre,
-                'proyecto_id':     m.equipo.proyecto.id,
-                'proyecto_nombre': m.equipo.proyecto.nombre,
+                'equipo_id':       a['equipo_id'],
+                'equipo_nombre':   a['equipo__nombre'],
+                'proyecto_id':     a['equipo__proyecto_id'],
+                'proyecto_nombre': a['equipo__proyecto__nombre'],
             })
 
-        todos = Usuario.objects.filter(tipo_rol__in=('estudiante', 'lider_equipo'), estado='activo').order_by('nombre', 'apellido')
+        todos = Usuario.objects.filter(
+            tipo_rol__in=('estudiante', 'lider_equipo'), estado='activo'
+        ).order_by('nombre', 'apellido')
         disponibles, en_equipo = [], []
 
         for est in todos:
@@ -489,18 +419,18 @@ class ActualizarRolMiembroView(APIView):
             return Response({'detail': f'Rol inválido: {nuevo_rol}'}, status=status.HTTP_400_BAD_REQUEST)
 
         if nuevo_rol == 'lider':
-            # Revertir a estudiante todos los líderes actuales del proyecto
             anteriores = MiembroEquipo.objects.filter(
                 equipo__proyecto=miembro.equipo.proyecto,
                 rol_interno='lider',
                 estado='activo',
-            ).exclude(pk=miembro_id).select_related('usuario')
-            for ant in anteriores:
-                ant.rol_interno = ''
-                ant.save(update_fields=['rol_interno'])
-                if ant.usuario.tipo_rol == 'lider_equipo':
-                    ant.usuario.tipo_rol = 'estudiante'
-                    ant.usuario.save(update_fields=['tipo_rol'])
+            ).exclude(pk=miembro_id)
+            # Revertir rol de todos los líderes anteriores en una sola operación
+            ids_anteriores = list(anteriores.values_list('usuario_id', flat=True))
+            anteriores.update(rol_interno='')
+            if ids_anteriores:
+                Usuario.objects.filter(
+                    pk__in=ids_anteriores, tipo_rol='lider_equipo'
+                ).update(tipo_rol='estudiante')
 
         rol_anterior = miembro.rol_interno
         miembro.rol_interno = nuevo_rol
@@ -548,8 +478,10 @@ class EditarEquipoView(generics.UpdateAPIView):
     http_method_names = ['put', 'patch']
 
     def perform_update(self, serializer):
-        equipo = serializer.save()
-        # Registra en bitácora la edición del equipo
+        try:
+            equipo = serializer.save()
+        except DjangoValidationError as exc:
+            raise ValidationError(exc.message_dict if hasattr(exc, 'message_dict') else {'detail': exc.messages})
         registrar_evento(
             request=self.request,
             accion=BitacoraSistema.Accion.UPDATE,
@@ -625,61 +557,6 @@ class MoverMiembroView(generics.GenericAPIView):
             )
 
         # Registrar movimiento en bitácora
-        registrar_evento(
-            request=request,
-            accion=BitacoraSistema.Accion.UPDATE,
-            modulo='equipos',
-            descripcion=f"Usuario id={usuario_id} movido de equipo '{equipo_origen.nombre}' a '{equipo_destino.nombre}'.",
-        )
-
-        return Response(
-            MiembroEquipoSerializer(nueva_membresia).data,
-            status=status.HTTP_200_OK,
-        )
-
-        equipo_origen = get_object_or_404(Equipo, pk=equipo_id)
-        equipo_destino = get_object_or_404(Equipo, pk=equipo_destino_id)
-
-        # Validar que ambos equipos pertenezcan al mismo proyecto
-        if equipo_origen.proyecto_id != equipo_destino.proyecto_id:
-            return Response(
-                {"detail": "Los equipos deben pertenecer al mismo proyecto."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        # Obtener la membresía activa del estudiante en el equipo origen
-        miembro = get_object_or_404(
-            MiembroEquipo,
-            equipo=equipo_origen,
-            usuario_id=usuario_id,
-            estado='activo',
-        )
-
-        # Validar cupo disponible en el equipo destino
-        miembros_destino = MiembroEquipo.objects.filter(
-            equipo=equipo_destino,
-            estado='activo',
-        ).count()
-        if miembros_destino >= equipo_destino.cupo_maximo:
-            return Response(
-                {"detail": f"El equipo destino ha alcanzado su cupo máximo de {equipo_destino.cupo_maximo} integrantes."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        # Operación atómica: ambos cambios (retiro y asignación) confirman o revierten juntos
-        with transaction.atomic():
-            # BE01 — Marcar membresía origen como retirada (preserva historial)
-            miembro.estado = 'retirado'
-            miembro.save()
-
-            # update_or_create evita duplicados si existe un registro previo retirado
-            nueva_membresia, _ = MiembroEquipo.objects.update_or_create(
-                equipo=equipo_destino,
-                usuario_id=usuario_id,
-                defaults={'estado': 'activo'},
-            )
-
-        # BE04 — Registrar movimiento en bitácora
         registrar_evento(
             request=request,
             accion=BitacoraSistema.Accion.UPDATE,

@@ -1,26 +1,19 @@
+from django.core.exceptions import ValidationError
 from django.db import models
 
 
-# Modelo que representa un equipo de estudiantes dentro de un proyecto.
-# Tabla de equipos con FK a proyecto, nombre, descripción, cupo máximo y estado.
 class Equipo(models.Model):
-    # Proyecto al que pertenece este equipo.
-    # related_name='equipos' permite acceder a todos los equipos de un proyecto: proyecto.equipos.all()
+    """Representa un equipo de estudiantes dentro de un proyecto."""
+
     proyecto = models.ForeignKey(
         'cursos.Proyecto',
         on_delete=models.CASCADE,
         related_name='equipos',
     )
-    # Nombre del equipo (únido dentro del proyecto).
     nombre = models.CharField(max_length=100)
-    # Descripción opcional del propósito o temática del equipo.
     descripcion = models.TextField(blank=True, default='')
-    # Cantidad máxima de integrantes que puede tener el equipo.
-    # Se valida contra el parámetro del sistema max_estudiantes_por_equipo.
     cupo_maximo = models.PositiveIntegerField()
-    # Fecha automática de creación del equipo (se establece al crear).
     fecha_creacion = models.DateTimeField(auto_now_add=True)
-    # Estado del equipo: activo (vigente) o inactivo.
     estado = models.CharField(
         max_length=10,
         choices=[('activo', 'Activo'), ('inactivo', 'Inactivo')],
@@ -28,8 +21,6 @@ class Equipo(models.Model):
     )
 
     class Meta:
-        # Restricción de nombre único por proyecto.
-        # Evita que existan dos equipos con el mismo nombre dentro de un mismo proyecto.
         constraints = [
             models.UniqueConstraint(
                 fields=['nombre', 'proyecto'],
@@ -37,21 +28,44 @@ class Equipo(models.Model):
             )
         ]
 
+    def clean(self):
+        """Valida que cupo_maximo no supere el parámetro del sistema.
+
+        Raises:
+            ValidationError: Si cupo_maximo excede max_estudiantes_por_equipo o si
+                el parámetro no existe en la configuración del sistema.
+        """
+        if not self.cupo_maximo:
+            return
+        try:
+            from apps.configuracion.models import ParametroSistema
+            parametro = ParametroSistema.objects.get(clave='max_estudiantes_por_equipo')
+            max_val = int(parametro.valor)
+        except ParametroSistema.DoesNotExist:
+            raise ValidationError(
+                {'cupo_maximo': 'No se encontró el parámetro max_estudiantes_por_equipo en la configuración del sistema.'}
+            )
+        if self.cupo_maximo > max_val:
+            raise ValidationError(
+                {'cupo_maximo': f'El cupo máximo no puede superar {max_val} estudiantes por equipo.'}
+            )
+
+    def save(self, *args, **kwargs):
+        if not kwargs.get('update_fields'):
+            self.full_clean()
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f"{self.nombre} ({self.proyecto})"
 
 
-# Modelo para representar la membresía de un usuario en un equipo.
-# Relaciona usuarios con equipos y define su rol interno.
-# Un usuario puede pertenecer a varios equipos (en diferentes proyectos) pero solo un equipo por proyecto.
 class MiembroEquipo(models.Model):
-    # El historial de movimientos se preserva mediante soft-delete:
-    # cuando un estudiante es retirado de un equipo, el registro se mantiene
-    # con estado='retirado' para conservar el historial completo.
-    # Cada vez que un estudiante es asignado a un equipo (incluyendo reasignaciones),
-    # se crea un nuevo registro MiembroEquipo para el equipo destino.
-    # Esto permite auditar el recorrido completo de cada estudiante
-    # a lo largo de múltiples equipos sin perder datos históricos.
+    """Representa la membresía de un usuario en un equipo.
+
+    El historial se preserva mediante soft-delete: al retirar un estudiante,
+    su registro queda con estado='retirado'. Las reasignaciones crean un nuevo
+    registro, permitiendo auditar el recorrido completo de cada estudiante.
+    """
 
     equipo = models.ForeignKey(
         'equipos.Equipo',
@@ -69,24 +83,6 @@ class MiembroEquipo(models.Model):
         choices=[('activo', 'Activo'), ('retirado', 'Retirado')],
         default='activo',
     )
-    # Usuario miembro del equipo.
-    # related_name='membresías' permite acceder a las membresías desde un usuario: usuario.membresías.all()
-    usuario = models.ForeignKey(
-        'usuarios.Usuario',
-        on_delete=models.CASCADE,
-        related_name='membresías',
-    )
-    # Fecha automática cuando el miembro se asigna al equipo.
-    fecha_asignacion = models.DateTimeField(auto_now_add=True)
-    # Estado de la membresía: activo (vigente) o retirado (ya no participa).
-    # Cambiar a 'retirado' permite preservar el registro original en lugar de eliminarlo.
-    estado = models.CharField(
-        max_length=10,
-        choices=[('activo', 'Activo'), ('retirado', 'Retirado')],
-        default='activo',
-    )
-    # Rol interno del miembro dentro del equipo.
-    # Define la función específica que cumple: líder, desarrollador, diseñador, tester o analista.
     rol_interno = models.CharField(
         max_length=20,
         choices=[
@@ -99,18 +95,49 @@ class MiembroEquipo(models.Model):
         blank=True,
         default='',
     )
-    # Descripción textual de las responsabilidades específicas del miembro en el equipo.
     descripcion_responsabilidades = models.TextField(blank=True, default='')
 
     class Meta:
-        # Restricción de unicidad: un usuario solo puede tener una membresía por equipo.
-        # Evita duplicar la misma relación equipo-usuario.
         constraints = [
             models.UniqueConstraint(
                 fields=['equipo', 'usuario'],
                 name='unique_usuario_por_equipo',
             )
         ]
+
+    def clean(self):
+        """Valida unicidad de equipo por proyecto y cupo máximo al crear.
+
+        Solo se ejecuta en creación (pk is None). Las actualizaciones de estado
+        o rol no requieren re-validar estas reglas de negocio.
+
+        Raises:
+            ValidationError: Si el usuario ya pertenece a otro equipo activo en el
+                mismo proyecto, o si el equipo ha alcanzado su cupo máximo.
+        """
+        if self.pk is not None or not self.equipo_id or not self.usuario_id:
+            return
+        proyecto = self.equipo.proyecto
+        ya_en_proyecto = MiembroEquipo.objects.filter(
+            usuario_id=self.usuario_id,
+            estado='activo',
+            equipo__proyecto=proyecto,
+        ).exclude(equipo=self.equipo).exists()
+        if ya_en_proyecto:
+            raise ValidationError("El estudiante ya pertenece a otro equipo en este proyecto.")
+        miembros_activos = MiembroEquipo.objects.filter(
+            equipo=self.equipo,
+            estado='activo',
+        ).count()
+        if miembros_activos >= self.equipo.cupo_maximo:
+            raise ValidationError(
+                f"El equipo ha alcanzado su cupo máximo de {self.equipo.cupo_maximo} integrantes."
+            )
+
+    def save(self, *args, **kwargs):
+        if not kwargs.get('update_fields'):
+            self.full_clean()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.usuario} en {self.equipo}"
