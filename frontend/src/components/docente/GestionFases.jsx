@@ -268,7 +268,7 @@ export default function GestionFases() {
                 <div className="space-y-2">
                     {fases.map((fase, idx) => (
                         <div key={fase.id}
-                            className="bg-white border border-[#e1e3e4] rounded-xl p-4 hover:shadow-sm transition-all">
+                            className="bg-white border border-[#e1e3e4] rounded-xl p-4 hover:shadow-sm transition-all group">
                             <div className="flex items-start gap-3">
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-start justify-between gap-3 mb-1">
