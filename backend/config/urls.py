@@ -72,6 +72,7 @@ urlpatterns = [
     path('api/actividades/', include('apps.cursos.actividad_urls')),
     path('api/', include('apps.entregables.urls')),
     path('api/', include('apps.evaluacion.urls')),
+    path('api/reportes/', include('apps.reportes.urls')),
 
     # SPA: Servir index.html para cualquier ruta que no sea API ni static
     # Excluye /api/ y /static/ usando lookahead negativo en regex
