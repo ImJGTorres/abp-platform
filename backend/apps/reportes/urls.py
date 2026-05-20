@@ -7,6 +7,8 @@ from .views import (
     ReporteProyectoView,
     ReporteEstudianteProyectoView,
     ReporteEquipoEstudiantesView,
+    IndicadoresDashboardView,
+    IndicadoresTendenciaView,
 )
 
 urlpatterns = [
@@ -18,4 +20,6 @@ urlpatterns = [
          ReporteEstudianteProyectoView.as_view(), name='reporte-estudiante-proyecto'),
     path('equipo/<int:equipo_id>/estudiantes/',
          ReporteEquipoEstudiantesView.as_view(), name='reporte-equipo-estudiantes'),
+    path('indicadores/tendencia/', IndicadoresTendenciaView.as_view(), name='indicadores-tendencia'),
+    path('indicadores/', IndicadoresDashboardView.as_view(), name='indicadores-dashboard'),
 ]

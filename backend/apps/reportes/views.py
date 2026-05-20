@@ -274,6 +274,81 @@ class ReporteEquipoEstudiantesView(APIView):
         return Response(data, status=status.HTTP_200_OK)
 
 
+# ── HU-033 ─────────────────────────────────────────────────────────────────
+
+class IndicadoresDashboardView(APIView):
+    """GET /api/reportes/indicadores/"""
+    authentication_classes = [UsuarioJWTAuthentication]
+
+    def get(self, request):
+        usuario = request.user
+        if usuario.tipo_rol not in ('director', 'administrador'):
+            return Response({'error': 'Sin permiso.'}, status=status.HTTP_403_FORBIDDEN)
+
+        periodo_id = request.query_params.get('periodo_id')
+        curso_id = request.query_params.get('curso_id')
+
+        try:
+            periodo_id = int(periodo_id) if periodo_id else None
+            curso_id = int(curso_id) if curso_id else None
+        except ValueError:
+            return Response({'error': 'Parámetros inválidos.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        from apps.reportes.services import indicadores_dashboard
+        try:
+            data = indicadores_dashboard(periodo_id=periodo_id, curso_id=curso_id)
+        except Exception as e:
+            logger.error(f"Error dashboard indicadores: {e}")
+            return Response({'error': 'Error interno.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        try:
+            registrar_evento(
+                request,
+                accion=BitacoraSistema.Accion.ACCESS,
+                modulo='reportes',
+                descripcion=f"Consulta dashboard indicadores. periodo={periodo_id} curso={curso_id}",
+            )
+        except Exception:
+            pass
+
+        return Response(data, status=status.HTTP_200_OK)
+
+
+class IndicadoresTendenciaView(APIView):
+    """GET /api/reportes/indicadores/tendencia/"""
+    authentication_classes = [UsuarioJWTAuthentication]
+
+    def get(self, request):
+        usuario = request.user
+        if usuario.tipo_rol not in ('director', 'administrador'):
+            return Response({'error': 'Sin permiso.'}, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            n = int(request.query_params.get('n_periodos', 4))
+            n = max(2, min(n, 10))
+        except ValueError:
+            n = 4
+
+        from apps.reportes.services import indicadores_tendencia
+        try:
+            data = indicadores_tendencia(n_periodos=n)
+        except Exception as e:
+            logger.error(f"Error tendencia indicadores: {e}")
+            return Response({'error': 'Error interno.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        try:
+            registrar_evento(
+                request,
+                accion=BitacoraSistema.Accion.ACCESS,
+                modulo='reportes',
+                descripcion=f"Consulta tendencia indicadores n={n}",
+            )
+        except Exception:
+            pass
+
+        return Response(data, status=status.HTTP_200_OK)
+
+
 def _calcular_promedio_grupo(curso_id=None, proyecto_id=None):
     from apps.usuarios.models import Usuario
     from apps.equipos.models import MiembroEquipo

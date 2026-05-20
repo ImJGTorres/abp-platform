@@ -607,3 +607,231 @@ def reporte_equipo_estudiantes(equipo_id):
         'total_miembros': len(comparativa),
         'miembros': comparativa,
     }
+
+
+# ── HU-033 ─────────────────────────────────────────────────────────────────
+
+def _indicadores_estudiantes_riesgo_por_curso(periodo_id=None, curso_id=None):
+    """
+    Retorna conteo de estudiantes en riesgo agrupado por curso.
+    Usa umbral desde parametro_sistema.
+    """
+    try:
+        from apps.configuracion.models import ParametroSistema
+        umbral = float(ParametroSistema.objects.get(clave='umbral_nota_bajo_rendimiento').valor)
+    except Exception:
+        umbral = 3.0
+
+    with connection.cursor() as cur:
+        filtros = []
+        params = [umbral]
+
+        if periodo_id:
+            filtros.append("AND c.id_periodo_academico_id = %s")
+            params.append(periodo_id)
+        if curso_id:
+            filtros.append("AND c.id = %s")
+            params.append(curso_id)
+
+        filtro_sql = " ".join(filtros)
+
+        cur.execute(
+            f"""
+            SELECT
+                c.id                          AS curso_id,
+                c.nombre                      AS curso_nombre,
+                COUNT(DISTINCT vae.usuario_id) FILTER (
+                    WHERE vae.nota_promedio_5 < %s
+                )                             AS estudiantes_en_riesgo,
+                COUNT(DISTINCT vae.usuario_id) AS total_estudiantes_con_avance
+            FROM vista_avance_estudiante_proyecto vae
+            JOIN proyecto p  ON p.id = vae.proyecto_id
+            JOIN curso c     ON c.id = p.id_curso_id
+            WHERE 1=1 {filtro_sql}
+            GROUP BY c.id, c.nombre
+            ORDER BY estudiantes_en_riesgo DESC
+            """,
+            params,
+        )
+        return _fetchall_as_dicts(cur)
+
+
+def indicadores_dashboard(periodo_id=None, curso_id=None):
+    """
+    Dashboard de indicadores institucionales.
+    Filtros opcionales: periodo_id, curso_id.
+    """
+    # ── 1. Resumen desde vista_indicadores_periodo ──
+    if periodo_id:
+        with connection.cursor() as cur:
+            cur.execute(
+                "SELECT * FROM vista_indicadores_periodo WHERE periodo_id = %s",
+                [periodo_id],
+            )
+            rows = _fetchall_as_dicts(cur)
+            resumen_periodo = rows[0] if rows else {}
+    else:
+        with connection.cursor() as cur:
+            cur.execute(
+                "SELECT * FROM vista_indicadores_periodo ORDER BY periodo_inicio DESC"
+            )
+            resumen_periodo = _fetchall_as_dicts(cur)
+
+    # ── 2. Docentes más activos (cursos que tienen en el periodo) ──
+    with connection.cursor() as cur:
+        filtro_periodo = "AND c.id_periodo_academico_id = %s" if periodo_id else ""
+        filtro_curso = "AND c.id = %s" if curso_id else ""
+        params_doc = []
+        if periodo_id:
+            params_doc.append(periodo_id)
+        if curso_id:
+            params_doc.append(curso_id)
+
+        cur.execute(
+            f"""
+            SELECT
+                u.id,
+                u.nombre,
+                u.apellido,
+                u.correo,
+                COUNT(DISTINCT c.id)   AS total_cursos,
+                COUNT(DISTINCT p.id)   AS total_proyectos,
+                COUNT(DISTINCT a.id)   AS total_actividades_validadas
+            FROM usuario u
+            JOIN curso c        ON c.id_docente_id = u.id
+            LEFT JOIN proyecto p ON p.id_curso_id = c.id
+            LEFT JOIN entregable e ON e.id_docente_validador_id = u.id
+            LEFT JOIN actividad a  ON a.id = e.id_actividad_id
+            WHERE u.tipo_rol IN ('docente', 'director')
+              {filtro_periodo}
+              {filtro_curso}
+            GROUP BY u.id, u.nombre, u.apellido, u.correo
+            ORDER BY total_cursos DESC, total_proyectos DESC
+            LIMIT 10
+            """,
+            params_doc,
+        )
+        docentes_activos = _fetchall_as_dicts(cur)
+
+    # ── 3. Progreso de proyectos activos ──
+    with connection.cursor() as cur:
+        filtro_p = []
+        params_p = []
+        if periodo_id:
+            filtro_p.append("c.id_periodo_academico_id = %s")
+            params_p.append(periodo_id)
+        if curso_id:
+            filtro_p.append("c.id = %s")
+            params_p.append(curso_id)
+        where = ("WHERE " + " AND ".join(filtro_p)) if filtro_p else ""
+
+        cur.execute(
+            f"""
+            SELECT
+                p.id, p.nombre, p.estado, p.fecha_inicio, p.fecha_fin_estimada,
+                c.nombre AS curso_nombre,
+                vpp.porcentaje_progreso,
+                vpp.total_actividades,
+                vpp.actividades_completadas,
+                vep.total_entregables,
+                vep.aprobados AS entregables_aprobados,
+                vep.tasa_entrega_tiempo_pct
+            FROM proyecto p
+            JOIN curso c ON c.id = p.id_curso_id
+            LEFT JOIN vista_progreso_proyecto vpp ON vpp.id_proyecto = p.id
+            LEFT JOIN vista_entregables_proyecto vep ON vep.proyecto_id = p.id
+            {where}
+            ORDER BY vpp.porcentaje_progreso DESC NULLS LAST
+            """,
+            params_p,
+        )
+        proyectos = _fetchall_as_dicts(cur)
+
+    # ── 4. Estudiantes en riesgo por curso ──
+    riesgo_por_curso = _indicadores_estudiantes_riesgo_por_curso(
+        periodo_id=periodo_id, curso_id=curso_id
+    )
+
+    # ── 5. Distribución de avance (rangos) ──
+    with connection.cursor() as cur:
+        filtro_d = []
+        params_d = []
+        if periodo_id:
+            filtro_d.append("c.id_periodo_academico_id = %s")
+            params_d.append(periodo_id)
+        if curso_id:
+            filtro_d.append("c.id = %s")
+            params_d.append(curso_id)
+        where_d = ("AND " + " AND ".join(filtro_d)) if filtro_d else ""
+
+        cur.execute(
+            f"""
+            SELECT
+                COUNT(*) FILTER (WHERE vae.nota_promedio_5 < 2.0)              AS rango_0_2,
+                COUNT(*) FILTER (WHERE vae.nota_promedio_5 BETWEEN 2.0 AND 2.9) AS rango_2_3,
+                COUNT(*) FILTER (WHERE vae.nota_promedio_5 BETWEEN 3.0 AND 3.9) AS rango_3_4,
+                COUNT(*) FILTER (WHERE vae.nota_promedio_5 >= 4.0)              AS rango_4_5,
+                ROUND(AVG(vae.nota_promedio_5)::numeric, 2)                     AS nota_promedio_global
+            FROM vista_avance_estudiante_proyecto vae
+            JOIN proyecto p ON p.id = vae.proyecto_id
+            JOIN curso c    ON c.id = p.id_curso_id
+            WHERE 1=1 {where_d}
+            """,
+            params_d,
+        )
+        distribucion = _fetchall_as_dicts(cur)
+        distribucion_notas = distribucion[0] if distribucion else {}
+
+    return {
+        'filtros_aplicados': {
+            'periodo_id': periodo_id,
+            'curso_id': curso_id,
+        },
+        'resumen_periodo': resumen_periodo,
+        'distribucion_notas': distribucion_notas,
+        'proyectos': proyectos,
+        'docentes_activos': docentes_activos,
+        'estudiantes_riesgo_por_curso': riesgo_por_curso,
+    }
+
+
+def indicadores_tendencia(n_periodos=4):
+    """
+    Evolución de indicadores clave comparando los últimos N periodos.
+    """
+    with connection.cursor() as cur:
+        cur.execute(
+            """
+            SELECT *
+            FROM vista_indicadores_periodo
+            ORDER BY periodo_inicio DESC
+            LIMIT %s
+            """,
+            [n_periodos],
+        )
+        periodos = _fetchall_as_dicts(cur)
+
+    if not periodos:
+        return {'periodos': [], 'tendencias': {}}
+
+    def _tendencia(campo):
+        vals = [p.get(campo) for p in periodos if p.get(campo) is not None]
+        if len(vals) < 2:
+            return None
+        try:
+            return round(float(vals[0]) - float(vals[-1]), 2)
+        except (TypeError, ValueError):
+            return None
+
+    tendencias = {
+        'avance_proyectos': _tendencia('avance_promedio_proyectos_pct'),
+        'tasa_aprobacion': _tendencia('tasa_aprobacion_pct'),
+        'total_estudiantes': _tendencia('total_estudiantes'),
+        'proyectos_completados': _tendencia('proyectos_completados'),
+    }
+
+    return {
+        'n_periodos': len(periodos),
+        'periodos': list(reversed(periodos)),
+        'tendencias': tendencias,
+    }
