@@ -5,6 +5,7 @@ from .views import (
     CoevaluacionListCreateView,
     EvaluacionListCreateView,
     EvaluacionPublicarView,
+    ProyectoRubricaListCreateView,
     RetroalimentacionCreateView,
     RetroalimentacionEquipoView,
     RetroalimentacionEstudianteView,
@@ -16,6 +17,11 @@ urlpatterns = [
     # HU-23 — Rúbricas
     path('rubricas/', RubricaListCreateView.as_view(), name='rubrica-list-create'),
     path('rubricas/<int:pk>/', RubricaDetailView.as_view(), name='rubrica-detail'),
+    path(
+        'proyectos/<int:proyecto_id>/rubricas/',
+        ProyectoRubricaListCreateView.as_view(),
+        name='proyecto-rubrica-list-create',
+    ),
 
     # HU-24 — Evaluaciones de entregables
     path(

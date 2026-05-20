@@ -6,6 +6,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.bitacora.models import BitacoraSistema
 from apps.cursos.models import Proyecto
 from apps.cursos.permissions import EsDocente, EsDocenteOAdministrador
 from apps.entregables.models import Entregable
@@ -24,6 +25,8 @@ from .serializers import (
     RetroalimentacionCreateSerializer,
     RetroalimentacionSerializer,
     RubricaCreateSerializer,
+    RubricaFullUpdateSerializer,
+    RubricaProyectoCreateSerializer,
     RubricaSerializer,
     RubricaUpdateSerializer,
 )
@@ -70,17 +73,21 @@ class RubricaDetailView(generics.RetrieveUpdateDestroyAPIView):
     """
     GET    — detalle de la rúbrica con criterios y niveles.
     PATCH  — actualiza campos escalares de la rúbrica (no criterios).
+    PUT    — reemplaza la rúbrica completa (criterios + niveles). Solo docente.
+             Retorna 409 si ya tiene evaluaciones registradas.
     DELETE — elimina la rúbrica y sus criterios/niveles en cascada.
 
     El docente solo puede acceder a sus propias rúbricas.
     """
     authentication_classes = [UsuarioJWTAuthentication]
     permission_classes = [EsDocenteOAdministrador]
-    http_method_names = ['get', 'patch', 'delete', 'head', 'options']
+    http_method_names = ['get', 'patch', 'put', 'delete', 'head', 'options']
 
     def get_serializer_class(self):
         if self.request.method == 'PATCH':
             return RubricaUpdateSerializer
+        if self.request.method == 'PUT':
+            return RubricaFullUpdateSerializer
         return RubricaSerializer
 
     def get_queryset(self):
@@ -93,6 +100,112 @@ class RubricaDetailView(generics.RetrieveUpdateDestroyAPIView):
         if getattr(user, 'tipo_rol', None) == 'docente':
             qs = qs.filter(id_docente=user)
         return qs
+
+    def put(self, request, *args, **kwargs):
+        if getattr(request.user, 'tipo_rol', None) != 'docente':
+            return Response(
+                {'detail': 'Solo los docentes pueden editar rúbricas.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        rubrica = self.get_object()
+
+        tiene_evaluaciones = (
+            rubrica.evaluaciones.exists() or
+            rubrica.autoevaluaciones.exists() or
+            rubrica.coevaluaciones.exists()
+        )
+        if tiene_evaluaciones:
+            return Response(
+                {'detail': 'No se puede editar la rúbrica porque ya tiene evaluaciones registradas.'},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        serializer = RubricaFullUpdateSerializer(
+            rubrica,
+            data=request.data,
+            context={'request': request},
+        )
+        serializer.is_valid(raise_exception=True)
+        rubrica = serializer.save()
+
+        try:
+            BitacoraSistema.objects.create(
+                id_usuario=request.user,
+                nombre_usuario=f'{request.user.nombre} {request.user.apellido}',
+                accion=BitacoraSistema.Accion.UPDATE,
+                modulo='rubricas',
+                descripcion=f'Editó rúbrica id={rubrica.pk}',
+                ip_origen=request.META.get('REMOTE_ADDR'),
+            )
+        except Exception:
+            pass
+
+        return Response(serializer.data)
+
+
+# ---------------------------------------------------------------------------
+# HU-23: BE-02 / BE-03 — Rúbricas por proyecto
+# ---------------------------------------------------------------------------
+
+class ProyectoRubricaListCreateView(APIView):
+    """
+    GET  /api/proyectos/<proyecto_id>/rubricas/ — lista rúbricas del proyecto.
+    POST /api/proyectos/<proyecto_id>/rubricas/ — crea rúbrica completa (solo docente).
+    """
+    authentication_classes = [UsuarioJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, proyecto_id):
+        get_object_or_404(Proyecto, pk=proyecto_id)
+        qs = (
+            Rubrica.objects
+            .filter(id_proyecto_id=proyecto_id)
+            .select_related('id_proyecto', 'id_docente')
+            .prefetch_related('criterios__niveles', 'criterios__id_rap')
+            .order_by('-fecha_creacion')
+        )
+        return Response(RubricaSerializer(qs, many=True, context={'request': request}).data)
+
+    def post(self, request, proyecto_id):
+        if getattr(request.user, 'tipo_rol', None) != 'docente':
+            return Response(
+                {'detail': 'Solo los docentes pueden crear rúbricas.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        proyecto = get_object_or_404(Proyecto, pk=proyecto_id)
+
+        serializer = RubricaProyectoCreateSerializer(
+            data=request.data,
+            context={'request': request},
+        )
+        serializer.is_valid(raise_exception=True)
+        rubrica = serializer.save(id_proyecto=proyecto, id_docente=request.user)
+
+        rubrica = (
+            Rubrica.objects
+            .select_related('id_proyecto', 'id_docente')
+            .prefetch_related('criterios__niveles', 'criterios__id_rap')
+            .get(pk=rubrica.pk)
+        )
+
+        try:
+            BitacoraSistema.objects.create(
+                id_usuario=request.user,
+                nombre_usuario=f'{request.user.nombre} {request.user.apellido}',
+                accion=BitacoraSistema.Accion.CREATE,
+                modulo='rubricas',
+                descripcion=f'Creó rúbrica id={rubrica.pk} en proyecto id={proyecto_id}',
+                ip_origen=request.META.get('REMOTE_ADDR'),
+            )
+        except Exception:
+            pass
+
+        return Response(
+            RubricaSerializer(rubrica, context={'request': request}).data,
+            status=status.HTTP_201_CREATED,
+        )
 
 
 # ---------------------------------------------------------------------------

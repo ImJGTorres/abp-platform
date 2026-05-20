@@ -214,6 +214,126 @@ class RubricaUpdateSerializer(serializers.ModelSerializer):
 
 
 # ---------------------------------------------------------------------------
+# HU-23: BE-02/BE-03 — Rúbricas por proyecto
+# ---------------------------------------------------------------------------
+
+class RubricaProyectoCreateSerializer(serializers.ModelSerializer):
+    """
+    POST /api/proyectos/<proyecto_id>/rubricas/
+    id_proyecto e id_docente se inyectan desde la vista.
+    peso_total se calcula como suma de los puntos máximos de cada criterio.
+    """
+    criterios = CriterioRubricaWriteSerializer(many=True)
+
+    class Meta:
+        model = Rubrica
+        fields = ['nombre', 'descripcion', 'tipo', 'criterios']
+
+    def validate_criterios(self, value):
+        if not value:
+            raise serializers.ValidationError('La rúbrica debe tener al menos un criterio.')
+        return value
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        criterios = attrs.get('criterios', [])
+        if criterios:
+            total = sum(c['peso_porcentual'] for c in criterios)
+            if abs(float(total) - 100.0) > 0.01:
+                raise serializers.ValidationError({
+                    'criterios': (
+                        f'La suma de los pesos porcentuales debe ser exactamente 100. '
+                        f'Suma actual: {total}.'
+                    )
+                })
+        return attrs
+
+    @transaction.atomic
+    def create(self, validated_data):
+        criterios_data = validated_data.pop('criterios')
+        peso_total = sum(
+            max(n['puntos'] for n in c['niveles'])
+            for c in criterios_data
+        )
+        rubrica = Rubrica.objects.create(peso_total=peso_total, **validated_data)
+        for criterio_data in criterios_data:
+            niveles_data = criterio_data.pop('niveles')
+            criterio = CriterioRubrica.objects.create(id_rubrica=rubrica, **criterio_data)
+            NivelDesempeno.objects.bulk_create([
+                NivelDesempeno(id_criterio=criterio, **nivel_data)
+                for nivel_data in niveles_data
+            ])
+        return rubrica
+
+    def to_representation(self, instance):
+        return RubricaSerializer(instance, context=self.context).data
+
+
+class RubricaFullUpdateSerializer(serializers.ModelSerializer):
+    """
+    PUT /api/rubricas/<pk>/ — reemplaza criterios y niveles en su totalidad.
+    peso_total se recalcula como suma de puntos máximos de cada criterio.
+    """
+    criterios = CriterioRubricaWriteSerializer(many=True)
+
+    class Meta:
+        model = Rubrica
+        fields = ['nombre', 'descripcion', 'tipo', 'criterios']
+
+    def validate_criterios(self, value):
+        if not value:
+            raise serializers.ValidationError('La rúbrica debe tener al menos un criterio.')
+        return value
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        criterios = attrs.get('criterios', [])
+        if criterios:
+            total = sum(c['peso_porcentual'] for c in criterios)
+            if abs(float(total) - 100.0) > 0.01:
+                raise serializers.ValidationError({
+                    'criterios': (
+                        f'La suma de los pesos porcentuales debe ser exactamente 100. '
+                        f'Suma actual: {total}.'
+                    )
+                })
+        return attrs
+
+    @transaction.atomic
+    def update(self, instance, validated_data):
+        criterios_data = validated_data.pop('criterios')
+        peso_total = sum(
+            max(n['puntos'] for n in c['niveles'])
+            for c in criterios_data
+        )
+        instance.nombre = validated_data.get('nombre', instance.nombre)
+        instance.descripcion = validated_data.get('descripcion', instance.descripcion)
+        instance.tipo = validated_data.get('tipo', instance.tipo)
+        instance.peso_total = peso_total
+        instance.save()
+
+        instance.criterios.all().delete()
+
+        for criterio_data in criterios_data:
+            niveles_data = criterio_data.pop('niveles')
+            criterio = CriterioRubrica.objects.create(id_rubrica=instance, **criterio_data)
+            NivelDesempeno.objects.bulk_create([
+                NivelDesempeno(id_criterio=criterio, **nivel_data)
+                for nivel_data in niveles_data
+            ])
+        return instance
+
+    def to_representation(self, instance):
+        instance = (
+            Rubrica.objects
+            .select_related('id_proyecto', 'id_docente')
+            .prefetch_related('criterios__niveles', 'criterios__id_rap')
+            .get(pk=instance.pk)
+        )
+        return RubricaSerializer(instance, context=self.context).data
+
+
+# ---------------------------------------------------------------------------
 # HU-24: Evaluacion de entregables
 # ---------------------------------------------------------------------------
 
