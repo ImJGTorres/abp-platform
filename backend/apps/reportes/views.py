@@ -134,6 +134,75 @@ class RendimientoEstudianteView(APIView):
             return Response({'error': 'Error interno.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+# ── HU-031: Reportes por proyecto ────────────────────────────────────────────
+
+ROLES_DIRECTOR = ('director', 'docente', 'administrador')
+
+
+class ReporteProyectoView(APIView):
+    """GET /api/reportes/proyecto/<proyecto_id>/"""
+    authentication_classes = [UsuarioJWTAuthentication]
+
+    def get(self, request, proyecto_id):
+        usuario = request.user
+        if usuario.tipo_rol not in ROLES_DIRECTOR:
+            return Response({'error': 'Sin permiso.'}, status=status.HTTP_403_FORBIDDEN)
+
+        from apps.reportes.services import reporte_proyecto
+        try:
+            data = reporte_proyecto(proyecto_id)
+        except Exception as e:
+            logger.error(f"Error reporte proyecto {proyecto_id}: {e}")
+            return Response({'error': 'Error interno.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        if data is None:
+            return Response({'error': 'Proyecto no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            registrar_evento(
+                request,
+                accion=BitacoraSistema.Accion.ACCESS,
+                modulo='reportes',
+                descripcion=f"Consulta reporte proyecto id={proyecto_id}",
+            )
+        except Exception:
+            pass
+
+        return Response(data, status=status.HTTP_200_OK)
+
+
+class ReporteCursoView(APIView):
+    """GET /api/reportes/curso/<curso_id>/"""
+    authentication_classes = [UsuarioJWTAuthentication]
+
+    def get(self, request, curso_id):
+        usuario = request.user
+        if usuario.tipo_rol not in ROLES_DIRECTOR:
+            return Response({'error': 'Sin permiso.'}, status=status.HTTP_403_FORBIDDEN)
+
+        from apps.reportes.services import reporte_curso
+        try:
+            data = reporte_curso(curso_id)
+        except Exception as e:
+            logger.error(f"Error reporte curso {curso_id}: {e}")
+            return Response({'error': 'Error interno.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        if data is None:
+            return Response({'error': 'Curso no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            registrar_evento(
+                request,
+                accion=BitacoraSistema.Accion.ACCESS,
+                modulo='reportes',
+                descripcion=f"Consulta reporte curso id={curso_id}",
+            )
+        except Exception:
+            pass
+
+        return Response(data, status=status.HTTP_200_OK)
+
+
 def _calcular_promedio_grupo(curso_id=None, proyecto_id=None):
     from apps.usuarios.models import Usuario
     from apps.equipos.models import MiembroEquipo

@@ -125,3 +125,234 @@ def get_estudiantes_bajo_rendimiento(curso_id=None, proyecto_id=None, periodo_id
             })
 
     return resultado
+
+
+# ── HU-031: Reportes por proyecto ────────────────────────────────────────────
+
+from django.db import connection  # noqa: E402
+
+
+def _fetchall_as_dicts(cursor):
+    cols = [col[0] for col in cursor.description]
+    return [dict(zip(cols, row)) for row in cursor.fetchall()]
+
+
+def reporte_proyecto(proyecto_id):
+    from django.apps import apps as dj_apps
+    Proyecto             = dj_apps.get_model('cursos', 'Proyecto')
+    ObjetivoProyecto     = dj_apps.get_model('cursos', 'ObjetivoProyecto')
+    ResultadoAprendizaje = dj_apps.get_model('cursos', 'ResultadoAprendizaje')
+    HitoProyecto         = dj_apps.get_model('cursos', 'HitoProyecto')
+    Equipo               = dj_apps.get_model('equipos', 'Equipo')
+    MiembroEquipo        = dj_apps.get_model('equipos', 'MiembroEquipo')
+    Entregable           = dj_apps.get_model('entregables', 'Entregable')
+
+    try:
+        proyecto = Proyecto.objects.select_related('id_curso').get(id=proyecto_id)
+    except Proyecto.DoesNotExist:
+        return None
+
+    info = {
+        'id': proyecto.id,
+        'nombre': proyecto.nombre,
+        'descripcion': proyecto.descripcion,
+        'estado': proyecto.estado,
+        'fecha_inicio': str(proyecto.fecha_inicio),
+        'fecha_fin_estimada': str(proyecto.fecha_fin_estimada),
+        'curso': proyecto.id_curso.nombre if proyecto.id_curso_id else None,
+    }
+
+    objetivos = list(
+        ObjetivoProyecto.objects.filter(id_proyecto_id=proyecto_id)
+        .order_by('orden')
+        .values('id', 'descripcion', 'tipo', 'orden')
+    )
+    resultados = list(
+        ResultadoAprendizaje.objects.filter(proyecto_id=proyecto_id)
+        .values('id', 'nombre', 'descripcion', 'competencia_asociada', 'porcentaje_evaluacion')
+    )
+
+    with connection.cursor() as cur:
+        cur.execute(
+            "SELECT * FROM vista_progreso_fase WHERE id_proyecto = %s ORDER BY orden",
+            [proyecto_id],
+        )
+        fases = _fetchall_as_dicts(cur)
+
+    with connection.cursor() as cur:
+        cur.execute(
+            "SELECT * FROM vista_progreso_proyecto WHERE id_proyecto = %s",
+            [proyecto_id],
+        )
+        rows = _fetchall_as_dicts(cur)
+        progreso_global = rows[0] if rows else {}
+
+    with connection.cursor() as cur:
+        cur.execute(
+            "SELECT * FROM vista_entregables_proyecto WHERE proyecto_id = %s",
+            [proyecto_id],
+        )
+        rows = _fetchall_as_dicts(cur)
+        resumen_entregables = rows[0] if rows else {}
+
+    equipos_qs = Equipo.objects.filter(proyecto_id=proyecto_id)
+    equipos = []
+    for eq in equipos_qs:
+        miembros = list(
+            MiembroEquipo.objects.filter(equipo_id=eq.id, estado='activo')
+            .select_related('usuario')
+            .values(
+                'usuario__id', 'usuario__nombre', 'usuario__apellido',
+                'usuario__correo', 'usuario__codigo_estudiante', 'rol_interno',
+            )
+        )
+        ents = Entregable.objects.filter(id_equipo_id=eq.id)
+        equipos.append({
+            'id': eq.id,
+            'nombre': eq.nombre,
+            'estado': eq.estado,
+            'total_miembros': len(miembros),
+            'miembros': miembros,
+            'entregables': {
+                'total': ents.count(),
+                'aprobados': ents.filter(estado='aprobado').count(),
+                'rechazados': ents.filter(estado='rechazado').count(),
+                'pendientes': ents.filter(estado='borrador').count(),
+            },
+        })
+
+    with connection.cursor() as cur:
+        cur.execute(
+            """
+            SELECT
+                vae.usuario_id,
+                u.nombre,
+                u.apellido,
+                u.correo,
+                u.codigo_estudiante,
+                vae.promedio_avance_pct,
+                vae.nota_promedio_5,
+                vae.actividades_con_avance
+            FROM vista_avance_estudiante_proyecto vae
+            JOIN usuario u ON u.id = vae.usuario_id
+            WHERE vae.proyecto_id = %s
+            ORDER BY vae.nota_promedio_5 ASC
+            """,
+            [proyecto_id],
+        )
+        avance_estudiantes = _fetchall_as_dicts(cur)
+
+    umbral = _get_parametro('umbral_nota_bajo_rendimiento', 3.0)
+
+    bajo_rendimiento = [
+        e for e in avance_estudiantes
+        if e.get('nota_promedio_5') is not None and float(e['nota_promedio_5']) < float(umbral)
+    ]
+
+    hitos = list(
+        HitoProyecto.objects.filter(id_proyecto_id=proyecto_id)
+        .values('id', 'nombre', 'tipo', 'estado', 'fecha_inicio', 'fecha_fin')
+    )
+
+    return {
+        'proyecto': info,
+        'objetivos': objetivos,
+        'resultados_aprendizaje': resultados,
+        'hitos': hitos,
+        'progreso_global': progreso_global,
+        'progreso_por_fase': fases,
+        'resumen_entregables': resumen_entregables,
+        'equipos': equipos,
+        'avance_por_estudiante': avance_estudiantes,
+        'estudiantes_bajo_rendimiento': bajo_rendimiento,
+        'umbral_bajo_rendimiento': float(umbral),
+    }
+
+
+def reporte_curso(curso_id):
+    from django.apps import apps as dj_apps
+    Curso    = dj_apps.get_model('cursos', 'Curso')
+    Proyecto = dj_apps.get_model('cursos', 'Proyecto')
+
+    try:
+        curso = Curso.objects.select_related('id_periodo_academico').get(id=curso_id)
+    except Curso.DoesNotExist:
+        return None
+
+    proyectos = Proyecto.objects.filter(id_curso_id=curso_id)
+    proyecto_ids = list(proyectos.values_list('id', flat=True))
+
+    if not proyecto_ids:
+        return {
+            'curso': {'id': curso.id, 'nombre': curso.nombre, 'codigo': curso.codigo},
+            'total_proyectos': 0,
+            'proyectos': [],
+        }
+
+    with connection.cursor() as cur:
+        cur.execute(
+            """
+            SELECT * FROM vista_progreso_proyecto
+            WHERE id_proyecto = ANY(%s)
+            ORDER BY porcentaje_progreso DESC
+            """,
+            [proyecto_ids],
+        )
+        progresos = {row['id_proyecto']: row for row in _fetchall_as_dicts(cur)}
+
+    with connection.cursor() as cur:
+        cur.execute(
+            "SELECT * FROM vista_entregables_proyecto WHERE proyecto_id = ANY(%s)",
+            [proyecto_ids],
+        )
+        entregables_por_proyecto = {row['proyecto_id']: row for row in _fetchall_as_dicts(cur)}
+
+    with connection.cursor() as cur:
+        cur.execute(
+            """
+            SELECT
+                proyecto_id,
+                ROUND(AVG(nota_promedio_5)::numeric, 2) AS nota_promedio_proyecto
+            FROM vista_avance_estudiante_proyecto
+            WHERE proyecto_id = ANY(%s)
+            GROUP BY proyecto_id
+            """,
+            [proyecto_ids],
+        )
+        notas_por_proyecto = {
+            row['proyecto_id']: row['nota_promedio_proyecto']
+            for row in _fetchall_as_dicts(cur)
+        }
+
+    resultado_proyectos = []
+    for p in proyectos:
+        prog = progresos.get(p.id, {})
+        ents = entregables_por_proyecto.get(p.id, {})
+        resultado_proyectos.append({
+            'id': p.id,
+            'nombre': p.nombre,
+            'estado': p.estado,
+            'fecha_inicio': str(p.fecha_inicio),
+            'fecha_fin_estimada': str(p.fecha_fin_estimada),
+            'porcentaje_progreso': prog.get('porcentaje_progreso', 0),
+            'total_fases': prog.get('total_fases', 0),
+            'fases_completadas': prog.get('fases_completadas', 0),
+            'total_actividades': prog.get('total_actividades', 0),
+            'actividades_completadas': prog.get('actividades_completadas', 0),
+            'total_entregables': ents.get('total_entregables', 0),
+            'aprobados': ents.get('aprobados', 0),
+            'rechazados': ents.get('rechazados', 0),
+            'tasa_entrega_tiempo_pct': ents.get('tasa_entrega_tiempo_pct', 0),
+            'nota_promedio_grupo': notas_por_proyecto.get(p.id, None),
+        })
+
+    return {
+        'curso': {
+            'id': curso.id,
+            'nombre': curso.nombre,
+            'codigo': curso.codigo,
+            'periodo': curso.id_periodo_academico.nombre if curso.id_periodo_academico_id else None,
+        },
+        'total_proyectos': len(resultado_proyectos),
+        'proyectos': resultado_proyectos,
+    }
