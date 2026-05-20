@@ -1,5 +1,7 @@
+from django.db import transaction
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from rest_framework import generics, status
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
@@ -7,15 +9,18 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.bitacora.models import BitacoraSistema
+from apps.configuracion.models import PeriodoAcademico
 from apps.cursos.models import Proyecto
 from apps.cursos.permissions import EsDocente, EsDocenteOAdministrador
 from apps.entregables.models import Entregable
 from apps.equipos.models import Equipo, MiembroEquipo
 from apps.usuarios.authentication import UsuarioJWTAuthentication
 from apps.usuarios.models import Usuario
-from .models import Autoevaluacion, Coevaluacion, Evaluacion, Retroalimentacion, Rubrica
+from .models import Autoevaluacion, Coevaluacion, DetalleAutoevaluacion, Evaluacion, Retroalimentacion, Rubrica
 from .serializers import (
+    AutoevaluacionConComparativoSerializer,
     AutoevaluacionCreateSerializer,
+    AutoevaluacionHU26CreateSerializer,
     AutoevaluacionSerializer,
     CoevaluacionCreateSerializer,
     CoevaluacionSerializer,
@@ -545,30 +550,166 @@ class AutoevaluacionListCreateView(APIView):
         return Response(AutoevaluacionSerializer(qs, many=True, context={"request": request}).data)
 
     def post(self, request, id_proyecto):
-        tipo_rol = getattr(request.user, "tipo_rol", None)
-        if tipo_rol not in ("estudiante", "lider_equipo"):
-            raise PermissionDenied("Solo estudiantes y lideres de equipo pueden autoevaluarse.")
+        # BE-02: Solo estudiantes (tipo_rol == 'estudiante')
+        tipo_rol = getattr(request.user, 'tipo_rol', None)
+        if tipo_rol != 'estudiante':
+            return Response(
+                {'detail': 'Solo los estudiantes pueden crear autoevaluaciones.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
-        proyecto = self._get_proyecto(id_proyecto, request.user)
+        # Verificar pertenencia al proyecto
+        es_miembro = MiembroEquipo.objects.filter(
+            equipo__proyecto_id=id_proyecto,
+            usuario=request.user,
+            estado='activo',
+        ).exists()
+        if not es_miembro:
+            return Response(
+                {'detail': 'No perteneces a este proyecto.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
-        serializer = AutoevaluacionCreateSerializer(
+        proyecto = get_object_or_404(Proyecto, pk=id_proyecto)
+
+        # Verificar periodo académico activo
+        hoy = timezone.localdate()
+        periodo = PeriodoAcademico.objects.filter(
+            estado=PeriodoAcademico.Estado.ACTIVO,
+            fecha_inicio__lte=hoy,
+            fecha_fin__gte=hoy,
+        ).first()
+        if periodo is None:
+            return Response(
+                {'detail': 'No hay un periodo de evaluación activo.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = AutoevaluacionHU26CreateSerializer(
             data=request.data,
-            context={"request": request, "proyecto": proyecto},
+            context={'request': request},
         )
         serializer.is_valid(raise_exception=True)
-        autoevaluacion = serializer.save()
+        rubrica = serializer.validated_data['id_rubrica']
 
-        # Reload with related data for the response
+        # Verificar unicidad por (proyecto, estudiante, rubrica)
+        if Autoevaluacion.objects.filter(
+            id_proyecto=proyecto,
+            id_estudiante=request.user,
+            id_rubrica=rubrica,
+        ).exists():
+            return Response(
+                {'detail': 'Ya existe una autoevaluación registrada para este proyecto.'},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        detalles_data = serializer.validated_data['detalles']
+        puntuacion_total = sum(d['id_nivel_seleccionado'].puntos for d in detalles_data)
+
+        with transaction.atomic():
+            autoevaluacion = Autoevaluacion.objects.create(
+                id_proyecto=proyecto,
+                id_estudiante=request.user,
+                id_rubrica=rubrica,
+                reflexion_texto=serializer.validated_data.get('reflexion_texto'),
+                puntuacion_total=puntuacion_total,
+                periodo_evaluacion=periodo.nombre,
+                estado='completada',
+            )
+            DetalleAutoevaluacion.objects.bulk_create([
+                DetalleAutoevaluacion(
+                    id_autoevaluacion=autoevaluacion,
+                    id_criterio=d['id_criterio'],
+                    id_nivel_seleccionado=d['id_nivel_seleccionado'],
+                    puntos_obtenidos=d['id_nivel_seleccionado'].puntos,
+                    comentario=d.get('comentario') or '',
+                )
+                for d in detalles_data
+            ])
+
+        try:
+            BitacoraSistema.objects.create(
+                id_usuario=request.user,
+                nombre_usuario=f'{request.user.nombre} {request.user.apellido}',
+                accion=BitacoraSistema.Accion.CREATE,
+                modulo='autoevaluacion',
+                descripcion=f'Creó autoevaluación id={autoevaluacion.pk} en proyecto id={id_proyecto}',
+                ip_origen=request.META.get('REMOTE_ADDR'),
+            )
+        except Exception:
+            pass
+
         autoevaluacion = (
             Autoevaluacion.objects
-            .select_related("id_estudiante", "id_rubrica")
-            .prefetch_related("detalles__id_criterio", "detalles__id_nivel_seleccionado")
+            .select_related('id_estudiante', 'id_rubrica')
+            .prefetch_related('detalles__id_criterio', 'detalles__id_nivel_seleccionado')
             .get(pk=autoevaluacion.pk)
         )
         return Response(
-            AutoevaluacionSerializer(autoevaluacion, context={"request": request}).data,
+            AutoevaluacionSerializer(autoevaluacion, context={'request': request}).data,
             status=status.HTTP_201_CREATED,
         )
+
+
+class AutoevaluacionMiaView(APIView):
+    """
+    GET /api/proyectos/<proyecto_id>/autoevaluaciones/mia/
+
+    Estudiante: retorna su propia autoevaluación más reciente del proyecto.
+    Docente: requiere ?estudiante_id=<id> para ver la de un estudiante concreto.
+    Incluye comparativo con la evaluación del docente (campo evaluacion_docente).
+    Retorna 404 si no existe autoevaluación.
+    """
+    authentication_classes = [UsuarioJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, proyecto_id):
+        tipo_rol = getattr(request.user, 'tipo_rol', None)
+
+        if tipo_rol == 'estudiante':
+            estudiante_id = request.user.pk
+        elif tipo_rol == 'docente':
+            raw = request.query_params.get('estudiante_id')
+            if not raw:
+                return Response(
+                    {'detail': 'Los docentes deben especificar ?estudiante_id=<id>.'},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            try:
+                estudiante_id = int(raw)
+            except (ValueError, TypeError):
+                return Response(
+                    {'detail': 'estudiante_id debe ser un número entero.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        else:
+            return Response(
+                {'detail': 'Solo estudiantes y docentes pueden acceder a este endpoint.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        get_object_or_404(Proyecto, pk=proyecto_id)
+
+        autoevaluacion = (
+            Autoevaluacion.objects
+            .filter(id_proyecto_id=proyecto_id, id_estudiante_id=estudiante_id)
+            .select_related('id_estudiante', 'id_rubrica')
+            .prefetch_related('detalles__id_criterio', 'detalles__id_nivel_seleccionado')
+            .order_by('-fecha_registro')
+            .first()
+        )
+
+        if autoevaluacion is None:
+            return Response(
+                {'detail': 'No existe autoevaluación para este proyecto.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        serializer = AutoevaluacionConComparativoSerializer(
+            autoevaluacion,
+            context={'request': request, 'proyecto_id': proyecto_id},
+        )
+        return Response(serializer.data)
 
 
 # ---------------------------------------------------------------------------

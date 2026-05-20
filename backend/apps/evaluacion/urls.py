@@ -2,6 +2,7 @@ from django.urls import path
 
 from .views import (
     AutoevaluacionListCreateView,
+    AutoevaluacionMiaView,
     CoevaluacionListCreateView,
     EvaluacionListCreateView,
     EvaluacionPublicarView,
@@ -53,6 +54,12 @@ urlpatterns = [
     ),
 
     # HU-26 — Autoevaluación
+    # IMPORTANTE: /mia/ debe ir antes que la ruta con parámetro para no colisionar
+    path(
+        'proyectos/<int:proyecto_id>/autoevaluaciones/mia/',
+        AutoevaluacionMiaView.as_view(),
+        name='autoevaluacion-mia',
+    ),
     path(
         'proyectos/<int:id_proyecto>/autoevaluaciones/',
         AutoevaluacionListCreateView.as_view(),

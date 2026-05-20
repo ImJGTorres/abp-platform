@@ -811,6 +811,98 @@ class AutoevaluacionCreateSerializer(serializers.ModelSerializer):
         return AutoevaluacionSerializer(instance, context=self.context).data
 
 
+class AutoevaluacionHU26CreateSerializer(serializers.Serializer):
+    """
+    POST /api/proyectos/<proyecto_id>/autoevaluaciones/ (HU-26 BE-02)
+    Valida estructura del body. Período, unicidad y pertenencia se validan en la vista.
+    """
+    id_rubrica = serializers.PrimaryKeyRelatedField(queryset=Rubrica.objects.all())
+    reflexion_texto = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    detalles = DetalleAutoevaluacionWriteSerializer(many=True)
+
+    def validate_detalles(self, value):
+        if not value:
+            raise serializers.ValidationError(
+                'Debe proporcionar al menos un detalle de autoevaluación.'
+            )
+        return value
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        rubrica = attrs['id_rubrica']
+        detalles = attrs['detalles']
+
+        criterios_rubrica = set(rubrica.criterios.values_list('id', flat=True))
+        criterios_enviados = [d['id_criterio'].pk for d in detalles]
+
+        if len(criterios_enviados) != len(set(criterios_enviados)):
+            raise serializers.ValidationError({
+                'detalles': 'No puede haber detalles duplicados para el mismo criterio.'
+            })
+
+        criterios_set = set(criterios_enviados)
+        faltantes = criterios_rubrica - criterios_set
+        sobrantes = criterios_set - criterios_rubrica
+        if faltantes or sobrantes:
+            msg = 'La autoevaluación debe cubrir exactamente todos los criterios de la rúbrica.'
+            if faltantes:
+                msg += f' Criterios faltantes: {sorted(faltantes)}.'
+            if sobrantes:
+                msg += f' Criterios ajenos a la rúbrica: {sorted(sobrantes)}.'
+            raise serializers.ValidationError({'detalles': msg})
+
+        return attrs
+
+
+class AutoevaluacionConComparativoSerializer(serializers.ModelSerializer):
+    """
+    GET /api/proyectos/<proyecto_id>/autoevaluaciones/mia/ (HU-26 BE-03)
+    Incluye detalles y comparativo con la evaluación del docente (si existe).
+    Requiere 'proyecto_id' en context.
+    """
+    detalles = DetalleAutoevaluacionSerializer(many=True, read_only=True)
+    estado_display = serializers.CharField(source='get_estado_display', read_only=True)
+    rubrica_nombre = serializers.CharField(source='id_rubrica.nombre', read_only=True)
+    estudiante_nombre = serializers.SerializerMethodField()
+    evaluacion_docente = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Autoevaluacion
+        fields = [
+            'id', 'id_proyecto', 'id_estudiante', 'estudiante_nombre',
+            'id_rubrica', 'rubrica_nombre',
+            'puntuacion_total', 'reflexion_texto',
+            'fecha_registro', 'estado', 'estado_display',
+            'periodo_evaluacion', 'detalles', 'evaluacion_docente',
+        ]
+        read_only_fields = fields
+
+    def get_estudiante_nombre(self, obj):
+        e = obj.id_estudiante
+        if e is None:
+            return None
+        return f'{e.nombre} {e.apellido}'
+
+    def get_evaluacion_docente(self, obj):
+        proyecto_id = self.context.get('proyecto_id')
+        eval_doc = (
+            Evaluacion.objects
+            .filter(
+                id_rubrica=obj.id_rubrica,
+                id_entregable__id_actividad__id_fase__id_proyecto_id=proyecto_id,
+            )
+            .order_by('-fecha_evaluacion')
+            .first()
+        )
+        if eval_doc is None:
+            return None
+        return {
+            'id': eval_doc.pk,
+            'puntuacion_total': eval_doc.puntuacion_total,
+            'comentario_general': eval_doc.comentario_general,
+        }
+
+
 # ---------------------------------------------------------------------------
 # HU-27: Coevaluación
 # ---------------------------------------------------------------------------
