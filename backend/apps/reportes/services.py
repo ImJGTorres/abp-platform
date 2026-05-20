@@ -356,3 +356,254 @@ def reporte_curso(curso_id):
         'total_proyectos': len(resultado_proyectos),
         'proyectos': resultado_proyectos,
     }
+
+
+# ── HU-032 ─────────────────────────────────────────────────────────────────
+
+def _peso(clave, default):
+    """Lee un peso de parametro_sistema y lo retorna como float 0–1."""
+    try:
+        from apps.configuracion.models import ParametroSistema
+        return float(ParametroSistema.objects.get(clave=clave).valor) / 100.0
+    except Exception:
+        return default
+
+
+def calcular_nota_ponderada(nota_docente_5, nota_auto_5=None, nota_co_5=None):
+    """
+    Nota final ponderada en escala 0-5.
+    Cuando auto/co son None, su peso se redistribuye al docente.
+    """
+    w_doc = _peso('peso_evaluacion_docente', 0.70)
+    w_auto = _peso('peso_autoevaluacion', 0.15)
+    w_co = _peso('peso_coevaluacion', 0.15)
+
+    peso_total = w_doc
+    componentes = {'docente': (nota_docente_5, w_doc)}
+
+    if nota_auto_5 is not None:
+        componentes['autoevaluacion'] = (nota_auto_5, w_auto)
+        peso_total += w_auto
+    if nota_co_5 is not None:
+        componentes['coevaluacion'] = (nota_co_5, w_co)
+        peso_total += w_co
+
+    if peso_total == 0:
+        return 0.0
+
+    nota_final = sum(nota * (w / peso_total) for nota, w in componentes.values())
+
+    return {
+        'nota_final': round(nota_final, 2),
+        'componentes': {
+            k: {'nota': round(v[0], 2), 'peso_aplicado': round(v[1] / peso_total * 100, 1)}
+            for k, v in componentes.items()
+        },
+        'nota_docente_5': round(nota_docente_5, 2),
+        'nota_auto_5': nota_auto_5,
+        'nota_co_5': nota_co_5,
+    }
+
+
+def reporte_estudiante_proyecto(estudiante_id, proyecto_id):
+    """
+    Reporte completo de un estudiante en un proyecto específico.
+    """
+    from django.apps import apps as dj_apps
+
+    Usuario              = dj_apps.get_model('usuarios', 'Usuario')
+    Proyecto             = dj_apps.get_model('cursos', 'Proyecto')
+    Actividad            = dj_apps.get_model('cursos', 'Actividad')
+    Entregable           = dj_apps.get_model('entregables', 'Entregable')
+    MiembroEquipo        = dj_apps.get_model('equipos', 'MiembroEquipo')
+    ResultadoAprendizaje = dj_apps.get_model('cursos', 'ResultadoAprendizaje')
+
+    try:
+        estudiante = Usuario.objects.get(id=estudiante_id)
+        proyecto = Proyecto.objects.select_related('id_curso').get(id=proyecto_id)
+    except (Usuario.DoesNotExist, Proyecto.DoesNotExist):
+        return None
+
+    membresia = MiembroEquipo.objects.filter(
+        usuario_id=estudiante_id,
+        equipo__proyecto_id=proyecto_id,
+        estado='activo',
+    ).select_related('equipo').first()
+
+    if not membresia:
+        equipo = None
+        equipo_id = None
+    else:
+        equipo = {'id': membresia.equipo.id, 'nombre': membresia.equipo.nombre}
+        equipo_id = membresia.equipo.id
+
+    with connection.cursor() as cur:
+        cur.execute(
+            "SELECT * FROM vista_desempeno_estudiante WHERE usuario_id = %s AND proyecto_id = %s",
+            [estudiante_id, proyecto_id],
+        )
+        cols = [c[0] for c in cur.description]
+        row = cur.fetchone()
+        desempeno = dict(zip(cols, row)) if row else {}
+
+    nota_docente = float(desempeno.get('nota_docente_5') or 0)
+    nota_pond = calcular_nota_ponderada(nota_docente)
+
+    historial_entregables = []
+    if equipo_id:
+        entregables_qs = (
+            Entregable.objects
+            .filter(id_equipo_id=equipo_id)
+            .select_related('id_actividad', 'id_docente_validador')
+            .order_by('-fecha_creacion')
+        )
+        historial_entregables = [
+            {
+                'id': e.id,
+                'titulo': e.titulo,
+                'tipo': e.tipo,
+                'estado': e.estado,
+                'numero_version': e.numero_version,
+                'fecha_envio': e.fecha_envio.isoformat() if e.fecha_envio else None,
+                'fecha_validacion': e.fecha_validacion.isoformat() if e.fecha_validacion else None,
+                'retroalimentacion': e.retroalimentacion,
+                'docente_validador': (
+                    f"{e.id_docente_validador.nombre} {e.id_docente_validador.apellido}"
+                    if e.id_docente_validador_id else None
+                ),
+                'actividad': e.id_actividad.nombre if e.id_actividad_id else None,
+                'fecha_limite_actividad': (
+                    str(e.id_actividad.fecha_limite) if e.id_actividad_id else None
+                ),
+                'entregado_a_tiempo': (
+                    e.fecha_envio.date() <= e.id_actividad.fecha_limite
+                    if e.fecha_envio and e.id_actividad_id else None
+                ),
+            }
+            for e in entregables_qs
+        ]
+
+    filtro = Q(id_responsable_id=estudiante_id)
+    if equipo_id:
+        filtro |= Q(id_equipo_asignado_id=equipo_id)
+    actividades_qs = (
+        Actividad.objects
+        .filter(id_fase__id_proyecto_id=proyecto_id)
+        .filter(filtro)
+        .order_by('fecha_limite')
+    )
+    historial_actividades = list(
+        actividades_qs.values('id', 'nombre', 'estado', 'fecha_limite', 'prioridad')
+    )
+
+    resultados = list(
+        ResultadoAprendizaje.objects.filter(proyecto_id=proyecto_id)
+        .values('id', 'nombre', 'descripcion', 'porcentaje_evaluacion', 'competencia_asociada')
+    )
+
+    return {
+        'estudiante': {
+            'id': estudiante.id,
+            'nombre': estudiante.nombre,
+            'apellido': estudiante.apellido,
+            'correo': estudiante.correo,
+            'codigo_estudiante': estudiante.codigo_estudiante,
+        },
+        'proyecto': {
+            'id': proyecto.id,
+            'nombre': proyecto.nombre,
+            'estado': proyecto.estado,
+            'curso': proyecto.id_curso.nombre if proyecto.id_curso_id else None,
+        },
+        'equipo': equipo,
+        'nota_final': nota_pond,
+        'desempeno': {
+            'total_actividades_equipo': desempeno.get('total_actividades_equipo', 0),
+            'actividades_completadas': desempeno.get('actividades_completadas', 0),
+            'actividades_vencidas': desempeno.get('actividades_vencidas', 0),
+            'total_avances_registrados': desempeno.get('total_avances_registrados', 0),
+            'promedio_avance_pct': desempeno.get('promedio_avance_pct', 0),
+            'total_entregables': desempeno.get('total_entregables', 0),
+            'entregables_aprobados': desempeno.get('entregables_aprobados', 0),
+            'entregables_rechazados': desempeno.get('entregables_rechazados', 0),
+            'entregables_a_tiempo': desempeno.get('entregables_a_tiempo', 0),
+        },
+        'resultados_aprendizaje': resultados,
+        'historial_entregables': historial_entregables,
+        'historial_actividades': historial_actividades,
+    }
+
+
+def reporte_equipo_estudiantes(equipo_id):
+    """
+    Comparativa de desempeño de todos los miembros de un equipo.
+    """
+    from django.apps import apps as dj_apps
+
+    Equipo        = dj_apps.get_model('equipos', 'Equipo')
+    MiembroEquipo = dj_apps.get_model('equipos', 'MiembroEquipo')
+
+    try:
+        equipo = Equipo.objects.select_related('proyecto').get(id=equipo_id)
+    except Equipo.DoesNotExist:
+        return None
+
+    miembros = list(
+        MiembroEquipo.objects.filter(equipo_id=equipo_id, estado='activo')
+        .select_related('usuario')
+        .values(
+            'usuario__id', 'usuario__nombre', 'usuario__apellido',
+            'usuario__correo', 'usuario__codigo_estudiante', 'rol_interno',
+        )
+    )
+
+    usuario_ids = [m['usuario__id'] for m in miembros]
+
+    with connection.cursor() as cur:
+        cur.execute(
+            """
+            SELECT *
+            FROM vista_desempeno_estudiante
+            WHERE usuario_id = ANY(%s) AND equipo_id = %s
+            """,
+            [usuario_ids, equipo_id],
+        )
+        cols = [c[0] for c in cur.description]
+        desempenos = {row[0]: dict(zip(cols, row)) for row in cur.fetchall()}
+
+    comparativa = []
+    for m in miembros:
+        uid = m['usuario__id']
+        d = desempenos.get(uid, {})
+        nota_docente = float(d.get('nota_docente_5') or 0)
+        nota_pond = calcular_nota_ponderada(nota_docente)
+        comparativa.append({
+            'estudiante': {
+                'id': uid,
+                'nombre': m['usuario__nombre'],
+                'apellido': m['usuario__apellido'],
+                'correo': m['usuario__correo'],
+                'codigo_estudiante': m['usuario__codigo_estudiante'],
+                'rol_interno': m['rol_interno'],
+            },
+            'nota_final': nota_pond['nota_final'],
+            'promedio_avance_pct': d.get('promedio_avance_pct', 0),
+            'actividades_completadas': d.get('actividades_completadas', 0),
+            'actividades_vencidas': d.get('actividades_vencidas', 0),
+            'total_avances_registrados': d.get('total_avances_registrados', 0),
+            'entregables_aprobados': d.get('entregables_aprobados', 0),
+            'entregables_rechazados': d.get('entregables_rechazados', 0),
+        })
+
+    comparativa.sort(key=lambda x: x['nota_final'], reverse=True)
+
+    return {
+        'equipo': {
+            'id': equipo.id,
+            'nombre': equipo.nombre,
+            'proyecto_id': equipo.proyecto_id,
+            'proyecto_nombre': equipo.proyecto.nombre,
+        },
+        'total_miembros': len(comparativa),
+        'miembros': comparativa,
+    }
