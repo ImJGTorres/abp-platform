@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     'apps.evaluacion',
     'apps.reportes',
     'apps.alertas',
+    'apps.exportaciones',
 ]
 
 # Configuración de Django REST Framework (BE-01)
