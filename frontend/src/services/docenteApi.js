@@ -252,6 +252,13 @@ export const fasesApi = {
 // Actividades dentro de las fases
 export const actividadesApi = {
 
+    async obtener(actividadId) {
+        const response = await request(`/api/actividades/${actividadId}/`)
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+
     async listarPorFase(faseId) {
         const response = await request(`/api/fases/${faseId}/actividades/`)
         const data = await parseJSON(response)
@@ -389,5 +396,89 @@ export const estudiantesApi = {
         const data = await parseJSON(response)
         if (!response.ok) throw { status: response.status, data }
         return data
+    },
+}
+
+
+export const evaluacionesApi = {
+    async listar(entregableId) {
+        const response = await request(`/api/entregables/${entregableId}/evaluaciones/`)
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+
+    async crear(entregableId, payload) {
+        const response = await request(`/api/entregables/${entregableId}/evaluaciones/`, {
+            method: 'POST',
+            body: JSON.stringify(payload),
+        })
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+}
+
+export const retroalimentacionesApi = {
+    async crear(proyectoId, payload) {
+        const response = await request(`/api/proyectos/${proyectoId}/retroalimentaciones/`, {
+            method: 'POST',
+            body: JSON.stringify(payload),
+        })
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+
+    async listarPorEquipo(equipoId) {
+        const response = await request(`/api/equipos/${equipoId}/retroalimentaciones/`)
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+
+    async listarPorUsuario(usuarioId) {
+        const response = await request(`/api/usuarios/${usuarioId}/retroalimentaciones/`)
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+}
+
+export const rubricasApi = {
+    async listar(proyectoId) {
+        const response = await request(`/api/proyectos/${proyectoId}/rubricas/`)
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+
+    async crear(proyectoId, payload) {
+        const response = await request(`/api/proyectos/${proyectoId}/rubricas/`, {
+            method: 'POST',
+            body: JSON.stringify(payload),
+        })
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+
+    async actualizar(rubricaId, payload) {
+        const response = await request(`/api/rubricas/${rubricaId}/`, {
+            method: 'PUT',
+            body: JSON.stringify(payload),
+        })
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+
+    async eliminar(rubricaId) {
+        const response = await request(`/api/rubricas/${rubricaId}/`, {
+            method: 'DELETE',
+        })
+        if (response.status === 204) return
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
     },
 }

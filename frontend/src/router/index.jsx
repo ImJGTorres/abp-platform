@@ -33,10 +33,17 @@ import EquiposCurso from '../components/docente/EquiposCurso'
 import GestionFases from '../components/docente/GestionFases'
 import GestionActividades from '../components/docente/GestionActividades'
 import PanelRevisionEntregables from '../components/docente/PanelRevisionEntregables'
+import ActividadLayout from '../components/docente/ActividadLayout'
+import DetalleActividad from '../components/docente/DetalleActividad'
+import ConstructorRubricas from '../components/docente/ConstructorRubricas'
+import HistorialEvaluaciones from '../components/docente/HistorialEvaluaciones'
 
 import EstudianteLayout from '../components/Estudiante/EstudianteLayout'
 import DashboardEstudiante from '../components/Estudiante/DashboardEstudiante'
 import EntregablesActividad from '../components/Estudiante/EntregablesActividad'
+import ProyectoEstudianteLayout from '../components/Estudiante/ProyectoEstudianteLayout'
+import Autoevaluacion from '../components/Estudiante/Autoevaluacion'
+import Coevaluacion from '../components/Estudiante/Coevaluacion'
 
 import LiderLayout from '../components/LiderEquipo/LiderLayout'
 import DashboardLider from '../components/LiderEquipo/DashboardLider'
@@ -44,6 +51,7 @@ import DistribucionTrabajo from '../components/LiderEquipo/DistribucionTrabajo'
 import AsignarResponsables from '../components/LiderEquipo/AsignarResponsables'
 
 import DetalleProyectoEstudiante from '../components/Estudiante/DetalleProyectoEstudiante'
+import HistorialEvaluacionesEstudiante from '../components/Estudiante/HistorialEvaluacionesEstudiante'
 import TableroKanban from '../components/Compartidos/TableroKanban'
 import DashboardProgreso from '../components/Estudiante/DashboardProgreso'
 
@@ -121,10 +129,17 @@ export default function AppRouter() {
             <Route path="/docente/proyectos/:proyectoId/cronograma" element={<CronogramaProyecto />} />
             <Route path="/docente/proyectos/:proyectoId/fases" element={<GestionFases />} />
             <Route path="/docente/proyectos/:proyectoId/fases/:faseId/actividades" element={<GestionActividades />} />
-            <Route path="/docente/proyectos/:proyectoId/fases/:faseId/actividades/:actividadId/entregables" element={<PanelRevisionEntregables />} />
             <Route path="/docente/proyectos/:proyectoId/kanban" element={<TableroKanban />} />
-
             <Route path="/docente/proyectos/:proyectoId/perfiles-roles" element={<PerfilesRolesProyecto />} />
+            <Route path="/docente/proyectos/:proyectoId/historial" element={<HistorialEvaluaciones />} />
+          </Route>
+
+          {/* Layout de actividad — Actividad / Entregables / Rúbricas */}
+          <Route element={<ActividadLayout />}>
+            <Route path="/docente/proyectos/:proyectoId/fases/:faseId/actividades/:actividadId" element={<Navigate to="actividad" replace />} />
+            <Route path="/docente/proyectos/:proyectoId/fases/:faseId/actividades/:actividadId/actividad" element={<DetalleActividad />} />
+            <Route path="/docente/proyectos/:proyectoId/fases/:faseId/actividades/:actividadId/entregables" element={<PanelRevisionEntregables />} />
+            <Route path="/docente/proyectos/:proyectoId/fases/:faseId/actividades/:actividadId/rubricas" element={<ConstructorRubricas />} />
           </Route>
         </Route>
 
@@ -135,13 +150,26 @@ export default function AppRouter() {
 
         {/* ESTUDIANTE */}
         <Route element={<PrivateRoute allowedRoles={['estudiante', 'lider_equipo']} />}>
+          {/* Dashboard */}
           <Route element={<EstudianteLayout />}>
             <Route path="/estudiante" element={<Navigate to="/estudiante/dashboard" replace />} />
             <Route path="/estudiante/dashboard" element={<DashboardEstudiante />} />
-            <Route path="/estudiante/proyectos/:proyectoId" element={<DetalleProyectoEstudiante />} />
-            <Route path="/estudiante/proyectos/:proyectoId/progreso" element={<DashboardProgreso />} />
+          </Route>
+
+          {/* Layout por proyecto — sidebar centralizado */}
+          <Route element={<ProyectoEstudianteLayout />}>
+            <Route path="/estudiante/proyectos/:proyectoId" element={<Navigate to="actividades" replace />} />
+            <Route path="/estudiante/proyectos/:proyectoId/actividades" element={<DetalleProyectoEstudiante />} />
+            <Route path="/estudiante/proyectos/:proyectoId/actividades/:actividadId/entregables" element={<EntregablesActividad />} />
             <Route path="/estudiante/proyectos/:proyectoId/kanban" element={<TableroKanban />} />
-            <Route path="/estudiante/actividades/:actividadId/entregables" element={<EntregablesActividad />} />
+            <Route path="/estudiante/proyectos/:proyectoId/progreso" element={<DashboardProgreso />} />
+            <Route path="/estudiante/proyectos/:proyectoId/autoevaluacion" element={<Autoevaluacion />} />
+            <Route path="/estudiante/proyectos/:proyectoId/coevaluacion" element={<Coevaluacion />} />
+            <Route path="/estudiante/proyectos/:proyectoId/historial" element={<HistorialEvaluacionesEstudiante />} />
+            {/* Líder de Equipo — gestión del equipo dentro del proyecto */}
+            <Route path="/estudiante/proyectos/:proyectoId/equipo/dashboard" element={<DashboardLider />} />
+            <Route path="/estudiante/proyectos/:proyectoId/equipo/distribucion" element={<DistribucionTrabajo />} />
+            <Route path="/estudiante/proyectos/:proyectoId/equipo/responsables" element={<AsignarResponsables />} />
           </Route>
         </Route>
 

@@ -144,6 +144,7 @@ if config('USE_SUPABASE', default=False, cast=bool):
             'PASSWORD': config('DB_PASSWORD'),
             'HOST': config('DB_HOST'),
             'PORT': config('DB_PORT', default='5432'),
+            'CONN_MAX_AGE': 0,  # pgBouncer cierra conexiones inactivas; no reutilizar
         }
     }
 else:

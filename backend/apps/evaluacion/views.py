@@ -550,11 +550,11 @@ class AutoevaluacionListCreateView(APIView):
         return Response(AutoevaluacionSerializer(qs, many=True, context={"request": request}).data)
 
     def post(self, request, id_proyecto):
-        # BE-02: Solo estudiantes (tipo_rol == 'estudiante')
+        # BE-02: Estudiantes y líderes de equipo pueden autoevaluarse
         tipo_rol = getattr(request.user, 'tipo_rol', None)
-        if tipo_rol != 'estudiante':
+        if tipo_rol not in ('estudiante', 'lider_equipo'):
             return Response(
-                {'detail': 'Solo los estudiantes pueden crear autoevaluaciones.'},
+                {'detail': 'Solo estudiantes y líderes de equipo pueden crear autoevaluaciones.'},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
@@ -666,7 +666,7 @@ class AutoevaluacionMiaView(APIView):
     def get(self, request, proyecto_id):
         tipo_rol = getattr(request.user, 'tipo_rol', None)
 
-        if tipo_rol == 'estudiante':
+        if tipo_rol in ('estudiante', 'lider_equipo'):
             estudiante_id = request.user.pk
         elif tipo_rol == 'docente':
             raw = request.query_params.get('estudiante_id')
@@ -684,7 +684,7 @@ class AutoevaluacionMiaView(APIView):
                 )
         else:
             return Response(
-                {'detail': 'Solo estudiantes y docentes pueden acceder a este endpoint.'},
+                {'detail': 'Solo estudiantes, líderes y docentes pueden acceder a este endpoint.'},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
@@ -776,8 +776,25 @@ class CoevaluacionListCreateView(APIView):
 
         proyecto = self._get_proyecto(id_proyecto, request.user)
 
+        # Auto-fill periodo_evaluacion from the active period (same as autoevaluación)
+        from apps.configuracion.models import PeriodoAcademico
+        hoy = timezone.localdate()
+        periodo = PeriodoAcademico.objects.filter(
+            estado=PeriodoAcademico.Estado.ACTIVO,
+            fecha_inicio__lte=hoy,
+            fecha_fin__gte=hoy,
+        ).first()
+        if periodo is None:
+            return Response(
+                {'detail': 'No hay un periodo de evaluación activo.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        data = request.data.copy()
+        data['periodo_evaluacion'] = periodo.nombre
+
         serializer = CoevaluacionCreateSerializer(
-            data=request.data,
+            data=data,
             context={"request": request, "proyecto": proyecto},
         )
         serializer.is_valid(raise_exception=True)

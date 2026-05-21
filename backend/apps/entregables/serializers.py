@@ -24,6 +24,9 @@ class EntregableSerializer(serializers.ModelSerializer):
             'fecha_creacion',
             'numero_version',
             'id_version_anterior',
+            'retroalimentacion',
+            'fecha_validacion',
+            'id_docente_validador',
         ]
 
 

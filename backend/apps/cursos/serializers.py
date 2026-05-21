@@ -180,6 +180,20 @@ class ProyectoSerializer(serializers.ModelSerializer):
         return len(obj.equipos.all())
 
     def get_equipo(self, obj):
+        request = self.context.get('request')
+        if request:
+            tipo_rol = getattr(request.user, 'tipo_rol', None)
+            if tipo_rol in ('estudiante', 'lider_equipo'):
+                # Devuelve el equipo al que pertenece el estudiante en este proyecto
+                miembro = MiembroEquipo.objects.filter(
+                    equipo__proyecto=obj,
+                    usuario=request.user,
+                    estado='activo',
+                ).select_related('equipo').first()
+                if miembro:
+                    return EquipoDetalleSerializer(miembro.equipo).data
+                return None
+        # Docente / admin: primer equipo activo
         equipo = obj.equipos.filter(estado='activo').first()
         if not equipo:
             return None

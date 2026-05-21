@@ -210,22 +210,38 @@ class ProyectoListCreateView(generics.ListCreateAPIView):
 class ProyectoDetailView(generics.RetrieveUpdateDestroyAPIView):
     """
     GET    /api/proyectos/<pk>/ — Detalle del proyecto.
-    PUT    /api/proyectos/<pk>/ — Actualiza nombre, descripción, estado y fechas.
-    PATCH  /api/proyectos/<pk>/ — Actualización parcial.
-    DELETE /api/proyectos/<pk>/ — Elimina el proyecto (409 si tiene equipos vinculados).
-
-    Solo el docente propietario del curso al que pertenece el proyecto puede modificarlo.
+                                  Docente: solo sus proyectos.
+                                  Estudiante/líder: solo proyectos en los que es miembro activo.
+    PUT    /api/proyectos/<pk>/ — Actualiza nombre, descripción, estado y fechas. Solo docente.
+    PATCH  /api/proyectos/<pk>/ — Actualización parcial. Solo docente.
+    DELETE /api/proyectos/<pk>/ — Elimina el proyecto (409 si tiene equipos vinculados). Solo docente.
     """
 
-    permission_classes = [EsDocente]
+    authentication_classes = [UsuarioJWTAuthentication]
+
+    def get_permissions(self):
+        if self.request.method in ('GET', 'HEAD', 'OPTIONS'):
+            return [IsAuthenticated()]
+        return [EsDocente()]
 
     def get_queryset(self):
-        return (
+        user = self.request.user
+        tipo_rol = getattr(user, 'tipo_rol', None)
+        qs = (
             Proyecto.objects
-            .filter(id_curso__id_docente=self.request.user)
             .select_related('id_curso')
             .prefetch_related('equipos')
         )
+        if tipo_rol == 'docente':
+            return qs.filter(id_curso__id_docente=user)
+        elif tipo_rol in ('estudiante', 'lider_equipo'):
+            proyecto_ids = MiembroEquipo.objects.filter(
+                usuario=user,
+                estado='activo',
+            ).values_list('equipo__proyecto_id', flat=True)
+            return qs.filter(id__in=proyecto_ids)
+        # admin / director: acceso total
+        return qs
 
     def get_serializer_class(self):
         if self.request.method in ('PUT', 'PATCH'):
