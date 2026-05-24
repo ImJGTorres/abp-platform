@@ -40,7 +40,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'corsheaders',
     'rest_framework',
-    'anymail',
+    # 'anymail',  # requiere: pip install django-anymail[sendgrid]
     # SimpleJWT: Librería para autenticación JWT (BE-01)
     # Provee views ready-to-use para login, refresh y logout
     'rest_framework_simplejwt',
@@ -255,7 +255,7 @@ EMAIL_TIMEOUT      = config('EMAIL_TIMEOUT',      default=10, cast=int)
 
 SENDGRID_API_KEY = config('SENDGRID_API_KEY', default='')
 if SENDGRID_API_KEY:
-    ANYMAIL = {'SENDGRID_API_KEY': SENDGRID_API_KEY}
+    ANYMAIL = {'SENDGRID_API_KEY': SENDGRID_API_KEY}  # requiere anymail instalado
 
 # =============================================================================
 # ARCHIVOS DE MEDIA (fotos de perfil, etc.)

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Outlet, useNavigate, Link, useLocation } from 'react-router-dom'
 import { authApi, session, buildMediaUrl } from '../../services/api'
-import NotificacionesBell from '../NotificacionesBell'
+import AlertasBell from '../AlertasBell'
 
 function IconBook() {
     return (
@@ -75,6 +75,16 @@ function IconShuffle() {
     )
 }
 
+function IconRisk() {
+    return (
+        <svg viewBox="0 0 20 20" fill="none" className="w-5 h-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M10 2L1.5 17h17L10 2z" />
+            <path d="M10 8v4" />
+            <circle cx="10" cy="14" r="0.6" fill="currentColor" />
+        </svg>
+    )
+}
+
 function IconChevronLeft() {
     return (
         <svg viewBox="0 0 20 20" fill="none" className="w-4 h-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -100,6 +110,12 @@ function isNavLinkActive(to, pathname, cursoId) {
     if (to === `/docente/cursos/${cursoId}/estudiantes`) {
         return pathname === `/docente/cursos/${cursoId}/estudiantes`
     }
+    if (to === `/docente/cursos/${cursoId}/reorganizar`) {
+        return pathname === `/docente/cursos/${cursoId}/reorganizar`
+    }
+    if (to === `/docente/cursos/${cursoId}/riesgo`) {
+        return pathname.startsWith(`/docente/cursos/${cursoId}/riesgo`) || pathname.startsWith('/docente/estudiantes')
+    }
     if (to === `/docente/cursos/${cursoId}`) {
         return pathname === `/docente/cursos/${cursoId}`
     }
@@ -116,7 +132,8 @@ function SidebarContent({ collapsed, onCollapse, loggingOut, handleLogout, onNav
         NAV_ITEMS.push(
             { label: 'Estudiantes', to: `/docente/cursos/${cursoId}/estudiantes`, icon: <IconUsers /> },
             { label: 'Proyectos', to: `/docente/cursos/${cursoId}`, icon: <IconTeam /> },
-            { label: 'Reorganizar equipos', to: `/docente/cursos/${cursoId}/reorganizar`, icon: <IconShuffle /> }
+            { label: 'Reorganizar equipos', to: `/docente/cursos/${cursoId}/reorganizar`, icon: <IconShuffle /> },
+            { label: 'En riesgo', to: `/docente/cursos/${cursoId}/riesgo`, icon: <IconRisk /> }
         )
     }
 
@@ -284,7 +301,7 @@ export default function DocenteLayout() {
                         {mobileOpen ? <IconX /> : <IconMenu />}
                     </button>
                     <div className="flex-1" />
-                    <NotificacionesBell />
+                    <AlertasBell pollingMinutos={5} />
                     {user && (
                         <div className="relative">
                             <button onClick={e => { e.stopPropagation(); setTopbarMenuOpen(o => !o) }}

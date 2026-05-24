@@ -37,6 +37,8 @@ import ActividadLayout from '../components/docente/ActividadLayout'
 import DetalleActividad from '../components/docente/DetalleActividad'
 import ConstructorRubricas from '../components/docente/ConstructorRubricas'
 import HistorialEvaluaciones from '../components/docente/HistorialEvaluaciones'
+import EstudiantesRiesgo from '../components/docente/EstudiantesRiesgo'
+import PerfilRendimientoEstudiante from '../components/docente/PerfilRendimientoEstudiante'
 
 import EstudianteLayout from '../components/Estudiante/EstudianteLayout'
 import DashboardEstudiante from '../components/Estudiante/DashboardEstudiante'
@@ -121,6 +123,8 @@ export default function AppRouter() {
             <Route path="/docente/cursos/:cursoId/proyectos/:proyectoId/cronograma" element={<CronogramaHitos />} />
             <Route path="/docente/proyectos/:proyectoId/equipos" element={<GestionEquipos />} />
             <Route path="/docente/equipos/:equipoId/asignar" element={<AsignarEstudiantes />} />
+            <Route path="/docente/cursos/:cursoId/riesgo" element={<EstudiantesRiesgo />} />
+            <Route path="/docente/estudiantes/:estudianteId/rendimiento" element={<PerfilRendimientoEstudiante />} />
           </Route>
 
           <Route element={<ProyectoLayout />}>

@@ -5,6 +5,7 @@ class Alerta(models.Model):
     TIPO_CHOICES = [
         ('actividad_vencida', 'Actividad vencida'),
         ('entregable_pendiente', 'Entregable pendiente'),
+        ('entregable_enviado', 'Entregable enviado'),
         ('evaluacion_pendiente', 'Evaluación pendiente'),
         ('bajo_rendimiento', 'Bajo rendimiento'),
     ]

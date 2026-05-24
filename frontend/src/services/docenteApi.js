@@ -482,3 +482,53 @@ export const rubricasApi = {
         if (!response.ok) throw { status: response.status, data }
     },
 }
+
+// ─── Reportes de rendimiento ───────────────────────────────────
+export const reportesApi = {
+    async bajoRendimiento({ cursoId, proyectoId, periodoId } = {}) {
+        const params = new URLSearchParams()
+        if (cursoId) params.set('curso_id', cursoId)
+        if (proyectoId) params.set('proyecto_id', proyectoId)
+        if (periodoId) params.set('periodo_id', periodoId)
+        const qs = params.toString() ? `?${params}` : ''
+        const response = await request(`/api/reportes/bajo-rendimiento/${qs}`)
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+
+    async rendimientoEstudiante(estudianteId, { cursoId, proyectoId } = {}) {
+        const params = new URLSearchParams()
+        if (cursoId) params.set('curso_id', cursoId)
+        if (proyectoId) params.set('proyecto_id', proyectoId)
+        const qs = params.toString() ? `?${params}` : ''
+        const response = await request(`/api/reportes/estudiantes/${estudianteId}/rendimiento/${qs}`)
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+
+    async reporteEstudianteProyecto(estudianteId, proyectoId) {
+        const response = await request(`/api/reportes/estudiante/${estudianteId}/proyecto/${proyectoId}/`)
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+}
+
+// ─── Alertas del sistema ───────────────────────────────────────
+export const alertasApi = {
+    async listar(estado = 'todas') {
+        const response = await request(`/api/alertas/?estado=${estado}`)
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+
+    async marcarLeida(alertaId) {
+        const response = await request(`/api/alertas/${alertaId}/leer/`, { method: 'PATCH' })
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+}

@@ -24,7 +24,6 @@ def calcular_rendimiento_estudiante(estudiante_id, proyecto_id=None, curso_id=No
 
     umbral_nota = _get_parametro('umbral_nota_bajo_rendimiento', Decimal('3.0'))
     umbral_pct_incumplidas = _get_parametro('umbral_porcentaje_actividades_incumplidas', 50)
-    umbral_rechazados = _get_parametro('umbral_entregables_rechazados', 2)
 
     equipos_qs = MiembroEquipo.objects.filter(usuario_id=estudiante_id, estado='activo')
     if proyecto_id:
@@ -60,15 +59,12 @@ def calcular_rendimiento_estudiante(estudiante_id, proyecto_id=None, curso_id=No
     entregables_rechazados = entregables_qs.filter(estado='rechazado').count()
 
     alertas = []
-    if nota_promedio < float(umbral_nota):
+    # Solo se alerta por nota si el estudiante ya tiene actividades asignadas
+    if total_actividades > 0 and nota_promedio < float(umbral_nota):
         alertas.append(f"Nota promedio {nota_promedio} está por debajo del umbral {umbral_nota}")
-    if pct_incumplidas >= umbral_pct_incumplidas:
+    if total_actividades > 0 and pct_incumplidas >= umbral_pct_incumplidas:
         alertas.append(
             f"{pct_incumplidas}% de actividades incumplidas (umbral: {umbral_pct_incumplidas}%)"
-        )
-    if entregables_rechazados >= umbral_rechazados:
-        alertas.append(
-            f"{entregables_rechazados} entregables rechazados (umbral: {umbral_rechazados})"
         )
 
     return {
