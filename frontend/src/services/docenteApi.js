@@ -417,6 +417,16 @@ export const evaluacionesApi = {
         if (!response.ok) throw { status: response.status, data }
         return data
     },
+
+    async publicar(evaluacionId) {
+        const response = await request(`/api/evaluaciones/${evaluacionId}/publicar/`, {
+            method: 'PATCH',
+            body: JSON.stringify({}),
+        })
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
 }
 
 export const retroalimentacionesApi = {
@@ -480,5 +490,14 @@ export const rubricasApi = {
         if (response.status === 204) return
         const data = await parseJSON(response)
         if (!response.ok) throw { status: response.status, data }
+    },
+}
+
+export const monitoreoApi = {
+    async progreso(proyectoId) {
+        const response = await request(`/api/proyectos/${proyectoId}/progreso/`)
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
     },
 }

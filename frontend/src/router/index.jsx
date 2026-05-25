@@ -37,6 +37,7 @@ import ActividadLayout from '../components/docente/ActividadLayout'
 import DetalleActividad from '../components/docente/DetalleActividad'
 import ConstructorRubricas from '../components/docente/ConstructorRubricas'
 import HistorialEvaluaciones from '../components/docente/HistorialEvaluaciones'
+import MonitoreoProyecto from '../components/docente/MonitoreoProyecto'
 
 import EstudianteLayout from '../components/Estudiante/EstudianteLayout'
 import DashboardEstudiante from '../components/Estudiante/DashboardEstudiante'
@@ -132,6 +133,7 @@ export default function AppRouter() {
             <Route path="/docente/proyectos/:proyectoId/kanban" element={<TableroKanban />} />
             <Route path="/docente/proyectos/:proyectoId/perfiles-roles" element={<PerfilesRolesProyecto />} />
             <Route path="/docente/proyectos/:proyectoId/historial" element={<HistorialEvaluaciones />} />
+            <Route path="/docente/proyectos/:proyectoId/monitoreo" element={<MonitoreoProyecto />} />
           </Route>
 
           {/* Layout de actividad — Actividad / Entregables / Rúbricas */}

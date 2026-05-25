@@ -47,16 +47,11 @@ function CriterioCard({ criterio, seleccionado, onChange }) {
 
     return (
         <div className="bg-white border border-[#e1e3e4] rounded-2xl p-5 mb-4">
-            <div className="flex items-start justify-between gap-3 mb-4">
-                <div>
-                    <h3 className="text-[16px] font-bold text-[#191c1d]">{criterio.nombre}</h3>
-                    {criterio.descripcion && (
-                        <p className="text-[13px] text-[#9ba7ae] mt-0.5">{criterio.descripcion}</p>
-                    )}
-                </div>
-                <span className="flex-shrink-0 text-[12px] font-bold text-[#d32f2f] bg-[#fff1f0] px-2.5 py-1 rounded-lg border border-[#ffdad6]">
-                    {parseFloat(criterio.peso_porcentual)}% del Total
-                </span>
+            <div className="mb-4">
+                <h3 className="text-[16px] font-bold text-[#191c1d]">{criterio.nombre}</h3>
+                {criterio.descripcion && (
+                    <p className="text-[13px] text-[#9ba7ae] mt-0.5">{criterio.descripcion}</p>
+                )}
             </div>
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -137,10 +132,10 @@ function CoevaluacionEnviada({ coeval, companeroNombre }) {
                         <div key={d.id} className="flex items-center justify-between gap-3 py-2 border-b border-[#f0f2f3] last:border-0">
                             <div className="min-w-0">
                                 <p className="text-[13px] font-semibold text-[#191c1d] truncate">{d.criterio_nombre}</p>
-                                <p className="text-[11px] text-[#9ba7ae]">{d.nivel_etiqueta} · {d.puntos_obtenidos} pts</p>
+                                <p className="text-[11px] text-[#9ba7ae]">{d.nivel_etiqueta}</p>
                             </div>
                             <span className="flex-shrink-0 text-[12px] font-bold text-[#4c616c] bg-[#f0f2f3] px-2 py-0.5 rounded-lg">
-                                {parseFloat(d.peso_porcentual ?? 0)}%
+                                {parseFloat(d.puntos_obtenidos)} pts
                             </span>
                         </div>
                     ))}
@@ -223,9 +218,7 @@ export default function Coevaluacion() {
             const nivelId = selecciones[criterio.id]
             if (!nivelId) continue
             const nivel = (criterio.niveles ?? []).find(n => n.id === nivelId)
-            if (nivel) {
-                total += parseFloat(nivel.puntos) * parseFloat(criterio.peso_porcentual) / 100
-            }
+            if (nivel) total += parseFloat(nivel.puntos)
         }
         return total.toFixed(1)
     }

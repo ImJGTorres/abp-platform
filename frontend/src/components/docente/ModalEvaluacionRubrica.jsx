@@ -9,7 +9,7 @@ const NIVELES_META = [
     { etiqueta: 'insuficiente',  label: 'Insuficiente',  color: '#c62828', bg: '#ffebee' },
 ]
 
-// ── Icono rúbrica ─────────────────────────────────────────────────────────────
+// ── Iconos ────────────────────────────────────────────────────────────────────
 function IconRubricSave() {
     return (
         <svg viewBox="0 0 20 20" fill="none" className="w-4 h-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
@@ -42,31 +42,27 @@ export default function ModalEvaluacionRubrica({ entregable, rubricas, onClose, 
     const [guardando,    setGuardando]    = useState(false)
     const [error,        setError]        = useState('')
 
-    // Rubrica activa con sus criterios y niveles ordenados
+    // Rúbrica activa con sus criterios y niveles ordenados
     const rubrica = rubricas.find(r => r.id === rubricaSelId) ?? null
     const criterios = (rubrica?.criterios ?? []).map(c => ({
         ...c,
         nivelesOrdenados: ordenarNiveles(c.niveles),
     }))
 
-    // Columnas de encabezado — niveles del primer criterio (más alto al más bajo)
-    // Si no hay criterios, usa los metadatos globales
-    const columnasHeader = criterios[0]?.nivelesOrdenados
-        ?? NIVELES_META.map((m, i) => ({ id: i, etiqueta: m.etiqueta, puntos: [100, 75, 50, 0][i] }))
+    // Columnas de encabezado: usamos los metadatos globales en el orden visual estándar
+    const columnasHeader = NIVELES_META
 
     // Reiniciar selecciones al cambiar rúbrica
     useEffect(() => { setSelecciones({}); setError('') }, [rubricaSelId])
 
-    // ── Cálculos ──────────────────────────────────────────────────────────────
+    // ── Cálculo ───────────────────────────────────────────────────────────────
+    // Puntuación total = suma directa de los puntos del nivel seleccionado.
+    // El máximo siempre es 100 (la suma de los puntos "excelente" de todos
+    // los criterios se garantiza = 100 en el constructor de rúbricas).
 
     const puntuacionTotal = criterios.reduce((sum, c) => {
         const nv = c.nivelesOrdenados.find(n => n.id === selecciones[c.id])
-        return nv ? sum + parseFloat(nv.puntos) * parseFloat(c.peso_porcentual) / 100 : sum
-    }, 0)
-
-    const puntuacionMax = criterios.reduce((sum, c) => {
-        const maxPts = c.nivelesOrdenados.reduce((m, n) => Math.max(m, parseFloat(n.puntos)), 0)
-        return sum + maxPts * parseFloat(c.peso_porcentual) / 100
+        return nv ? sum + parseFloat(nv.puntos) : sum
     }, 0)
 
     const criteriosSeleccionados = criterios.filter(c => !!selecciones[c.id]).length
@@ -80,7 +76,7 @@ export default function ModalEvaluacionRubrica({ entregable, rubricas, onClose, 
         setGuardando(true)
         setError('')
         try {
-            await evaluacionesApi.crear(entregable.id, {
+            const evaluacion = await evaluacionesApi.crear(entregable.id, {
                 id_rubrica:         rubrica.id,
                 comentario_general: comentario.trim() || null,
                 calificaciones:     criterios.map(c => ({
@@ -89,6 +85,7 @@ export default function ModalEvaluacionRubrica({ entregable, rubricas, onClose, 
                     comentario_criterio:   '',
                 })),
             })
+            await evaluacionesApi.publicar(evaluacion.id)
             onGuardado()
         } catch (e) {
             const d = e?.data
@@ -104,7 +101,6 @@ export default function ModalEvaluacionRubrica({ entregable, rubricas, onClose, 
     // ── Render ────────────────────────────────────────────────────────────────
 
     return (
-        // Sin onClick en el overlay — el modal sólo cierra con Cancelar
         <div
             className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
             style={{ fontFamily: "'Manrope', sans-serif" }}
@@ -132,7 +128,7 @@ export default function ModalEvaluacionRubrica({ entregable, rubricas, onClose, 
                         </div>
                     ) : (
                         <>
-                            {/* Selector de rúbrica (sólo si hay más de una) */}
+                            {/* Selector de rúbrica (solo si hay más de una) */}
                             {rubricas.length > 1 && (
                                 <div className="px-6 pt-4 pb-2">
                                     <label className="text-[11px] font-bold uppercase tracking-[0.7px] text-[#6b7b83] block mb-1.5">
@@ -178,22 +174,20 @@ export default function ModalEvaluacionRubrica({ entregable, rubricas, onClose, 
                                     <table className="w-full min-w-[560px] border-collapse">
                                         <thead>
                                             <tr className="border-b-2 border-[#e1e3e4]">
-                                                <th className="text-left py-3 pr-4 text-[11px] font-bold uppercase tracking-[0.7px] text-[#6b7b83] w-[240px]">
-                                                    Criterios de Evaluación
+                                                {/* Columna de criterio */}
+                                                <th className="text-left py-3 pr-4 text-[11px] font-bold uppercase tracking-[0.7px] text-[#6b7b83] w-[200px]">
+                                                    Criterio
                                                 </th>
-                                                {columnasHeader.map(nv => {
-                                                    const meta = NIVELES_META.find(m => m.etiqueta === nv.etiqueta)
-                                                    return (
-                                                        <th key={nv.id} className="text-center py-3 px-3 text-[11px] font-bold uppercase tracking-[0.6px]"
-                                                            style={{ color: meta?.color ?? '#6b7b83' }}>
-                                                            {meta?.label ?? nv.etiqueta}
-                                                            <br />
-                                                            <span className="text-[10px] font-semibold opacity-70 normal-case tracking-normal">
-                                                                ({nv.puntos} pts)
-                                                            </span>
-                                                        </th>
-                                                    )
-                                                })}
+                                                {/* Columnas de nivel — solo el nombre, sin puntos */}
+                                                {columnasHeader.map(meta => (
+                                                    <th
+                                                        key={meta.etiqueta}
+                                                        className="text-center py-3 px-3 text-[11px] font-bold uppercase tracking-[0.6px]"
+                                                        style={{ color: meta.color }}
+                                                    >
+                                                        {meta.label}
+                                                    </th>
+                                                ))}
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -214,14 +208,12 @@ export default function ModalEvaluacionRubrica({ entregable, rubricas, onClose, 
                                                                     {c.descripcion}
                                                                 </p>
                                                             )}
-                                                            <p className="text-[10px] font-bold text-[#9ba7ae] mt-1 uppercase tracking-wide">
-                                                                Peso: {c.peso_porcentual}%
-                                                            </p>
                                                         </td>
 
-                                                        {/* Radio por nivel */}
-                                                        {c.nivelesOrdenados.map(nv => {
-                                                            const meta = NIVELES_META.find(m => m.etiqueta === nv.etiqueta)
+                                                        {/* Celda por nivel — radio + puntos debajo */}
+                                                        {columnasHeader.map(meta => {
+                                                            const nv = c.nivelesOrdenados.find(n => n.etiqueta === meta.etiqueta)
+                                                            if (!nv) return <td key={meta.etiqueta} />
                                                             const isSelected = selNivelId === nv.id
                                                             return (
                                                                 <td
@@ -229,8 +221,8 @@ export default function ModalEvaluacionRubrica({ entregable, rubricas, onClose, 
                                                                     className="py-4 px-3 text-center align-middle cursor-pointer select-none"
                                                                     onClick={() => setSelecciones(s => ({ ...s, [c.id]: nv.id }))}
                                                                 >
-                                                                    {/* Círculo radio */}
                                                                     <div className="flex flex-col items-center gap-1.5">
+                                                                        {/* Círculo radio */}
                                                                         <div
                                                                             className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-150 mx-auto ${
                                                                                 isSelected
@@ -238,8 +230,8 @@ export default function ModalEvaluacionRubrica({ entregable, rubricas, onClose, 
                                                                                     : 'border-[#d1d5db] hover:border-current'
                                                                             }`}
                                                                             style={isSelected
-                                                                                ? { backgroundColor: meta?.color ?? '#d32f2f', boxShadow: `0 0 0 3px ${meta?.bg ?? '#fce4e4'}` }
-                                                                                : { color: meta?.color ?? '#9ba7ae' }
+                                                                                ? { backgroundColor: meta.color, boxShadow: `0 0 0 3px ${meta.bg}` }
+                                                                                : { color: meta.color }
                                                                             }
                                                                         >
                                                                             {isSelected && (
@@ -247,12 +239,13 @@ export default function ModalEvaluacionRubrica({ entregable, rubricas, onClose, 
                                                                             )}
                                                                         </div>
 
-                                                                        {/* Tooltip con puntos del criterio si difiere del encabezado */}
-                                                                        {nv.puntos !== columnasHeader.find(ch => ch.etiqueta === nv.etiqueta)?.puntos && (
-                                                                            <span className="text-[10px] font-semibold" style={{ color: meta?.color }}>
-                                                                                {nv.puntos} pts
-                                                                            </span>
-                                                                        )}
+                                                                        {/* Puntos del nivel — siempre visibles */}
+                                                                        <span
+                                                                            className={`text-[11px] font-bold transition-opacity ${isSelected ? 'opacity-100' : 'opacity-50'}`}
+                                                                            style={{ color: meta.color }}
+                                                                        >
+                                                                            {nv.puntos} pts
+                                                                        </span>
                                                                     </div>
                                                                 </td>
                                                             )
@@ -292,7 +285,7 @@ export default function ModalEvaluacionRubrica({ entregable, rubricas, onClose, 
                 {/* ── Pie del modal ────────────────────────────────────────── */}
                 <div className="border-t border-[#e1e3e4] px-6 py-4 flex-shrink-0 flex items-center gap-4 bg-white rounded-b-2xl">
 
-                    {/* Puntuación total */}
+                    {/* Puntuación total sobre 100 */}
                     <div className="flex-shrink-0">
                         <p className="text-[10px] font-bold uppercase tracking-[0.8px] text-[#9ba7ae]">
                             Puntuación Total
@@ -302,7 +295,7 @@ export default function ModalEvaluacionRubrica({ entregable, rubricas, onClose, 
                                 {puntuacionTotal.toFixed(1)}
                             </span>
                             <span className="text-[16px] font-bold text-[#9ba7ae]">
-                                / {puntuacionMax.toFixed(0)}
+                                / 100
                             </span>
                         </div>
                     </div>
