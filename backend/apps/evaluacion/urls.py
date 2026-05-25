@@ -4,6 +4,7 @@ from .views import (
     AutoevaluacionListCreateView,
     AutoevaluacionMiaView,
     CoevaluacionListCreateView,
+    CoevaluacionPromedioView,
     EvaluacionListCreateView,
     EvaluacionPublicarView,
     ProyectoRubricaListCreateView,
@@ -67,6 +68,12 @@ urlpatterns = [
     ),
 
     # HU-27 — Coevaluación
+    # IMPORTANTE: /promedio/ debe ir antes que la ruta base para no colisionar
+    path(
+        'proyectos/<int:proyecto_id>/coevaluaciones/promedio/',
+        CoevaluacionPromedioView.as_view(),
+        name='coevaluacion-promedio',
+    ),
     path(
         'proyectos/<int:id_proyecto>/coevaluaciones/',
         CoevaluacionListCreateView.as_view(),

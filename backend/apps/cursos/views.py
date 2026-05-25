@@ -1,9 +1,10 @@
 import io
 
-from django.db import transaction
-from django.db.models import Count, OuterRef, Prefetch, Q, Subquery, Sum
+from django.db import connection, transaction
+from django.db.models import Avg, Count, FloatField, OuterRef, Prefetch, Q, Subquery, Sum, Value
 from django.db.models.functions import Coalesce
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 
 from rest_framework import generics, status
 from rest_framework.exceptions import PermissionDenied
@@ -19,7 +20,7 @@ from apps.equipos.models import Equipo, MiembroEquipo
 from apps.usuarios.models import Usuario
 from apps.usuarios.serializers import UsuarioSerializer
 from apps.usuarios.authentication import UsuarioJWTAuthentication
-from .models import Actividad, AvanceActividad, Curso, CursoEstudiante, FaseProyecto, HitoProyecto, ObjetivoProyecto, Proyecto, ResultadoAprendizaje
+from .models import Actividad, AvanceActividad, Curso, CursoEstudiante, FaseProyecto, HitoProyecto, ObjetivoProyecto, Proyecto, ResultadoAprendizaje, VistaProgresoFase, VistaProgresoProyecto
 from .permissions import EsAdministrador, EsDocente, EsDocenteOAdministrador, EsLiderEquipo
 from .serializers import (
     ActividadAsignarResponsableSerializer,
@@ -1591,3 +1592,225 @@ class ProyectoProgresoView(APIView):
             'actividades_por_estado': totales,
             'equipos': equipos_data,
         })
+
+
+# ---------------------------------------------------------------------------
+# HU-28 BE-01 — Dashboard del proyecto (solo docente)
+# ---------------------------------------------------------------------------
+
+class ProyectoDashboardView(APIView):
+    """
+    GET /api/proyectos/<proyecto_id>/dashboard/
+
+    Resumen ejecutivo del proyecto para el docente propietario:
+      - progreso_general  : métricas de vista_progreso_proyecto
+      - fases             : lista ordenada de vista_progreso_fase
+      - entregables_resumen: métricas de vista_entregables_proyecto
+      - evaluaciones_completadas: evaluaciones en estado publicada
+      - actividad_reciente: últimos 10 registros de avance_actividad
+    """
+
+    authentication_classes = [UsuarioJWTAuthentication]
+    permission_classes = [EsDocente]
+
+    def get(self, request, proyecto_id):
+        proyecto = get_object_or_404(
+            Proyecto.objects.select_related('id_curso'),
+            pk=proyecto_id,
+        )
+        if proyecto.id_curso.id_docente_id != request.user.pk:
+            raise PermissionDenied('No eres el docente propietario de este proyecto.')
+
+        # 1. progreso_general desde vista_progreso_proyecto
+        try:
+            vpp = VistaProgresoProyecto.objects.get(id_proyecto=proyecto_id)
+            progreso_general = {
+                'porcentaje_progreso': vpp.porcentaje_progreso,
+                'total_fases': vpp.total_fases,
+                'fases_completadas': vpp.fases_completadas,
+                'fases_en_progreso': vpp.fases_en_progreso,
+                'total_actividades': vpp.total_actividades,
+                'actividades_completadas': vpp.actividades_completadas,
+            }
+        except VistaProgresoProyecto.DoesNotExist:
+            progreso_general = {
+                'porcentaje_progreso': 0,
+                'total_fases': 0,
+                'fases_completadas': 0,
+                'fases_en_progreso': 0,
+                'total_actividades': 0,
+                'actividades_completadas': 0,
+            }
+
+        # 2. fases desde vista_progreso_fase
+        fases = [
+            {
+                'id_fase': f.id_fase,
+                'nombre_fase': f.nombre_fase,
+                'estado_fase': f.estado_fase,
+                'orden': f.orden,
+                'porcentaje_almacenado': f.porcentaje_almacenado,
+                'total_actividades': f.total_actividades,
+                'actividades_completadas': f.actividades_completadas,
+                'actividades_en_progreso': f.actividades_en_progreso,
+                'actividades_bloqueadas': f.actividades_bloqueadas,
+            }
+            for f in VistaProgresoFase.objects.filter(id_proyecto=proyecto_id).order_by('orden')
+        ]
+
+        # 3. entregables_resumen desde vista_entregables_proyecto (raw SQL)
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT total_entregables, aprobados, rechazados, enviados, pendientes, "
+                "tasa_entrega_tiempo_pct FROM vista_entregables_proyecto WHERE proyecto_id = %s",
+                [proyecto_id],
+            )
+            row = cursor.fetchone()
+        if row:
+            entregables_resumen = {
+                'total_entregables': row[0],
+                'aprobados': row[1],
+                'rechazados': row[2],
+                'enviados': row[3],
+                'pendientes': row[4],
+                'tasa_entrega_tiempo_pct': float(row[5]) if row[5] is not None else 0.0,
+            }
+        else:
+            entregables_resumen = {
+                'total_entregables': 0,
+                'aprobados': 0,
+                'rechazados': 0,
+                'enviados': 0,
+                'pendientes': 0,
+                'tasa_entrega_tiempo_pct': 0.0,
+            }
+
+        # 4. evaluaciones completadas (estado 'publicada' equivale a completada en este esquema)
+        from apps.evaluacion.models import Evaluacion
+        evaluaciones_completadas = (
+            Evaluacion.objects
+            .filter(
+                id_entregable__id_actividad__id_fase__id_proyecto_id=proyecto_id,
+                estado='publicada',
+            )
+            .count()
+        )
+
+        # 5. actividad_reciente: últimos 10 avances del proyecto
+        actividad_reciente = [
+            {
+                'id': a.id,
+                'descripcion': a.descripcion,
+                'porcentaje_completado': a.porcentaje_completado,
+                'fecha_registro': a.fecha_registro,
+                'tipo': a.tipo,
+                'id_actividad_id': a.id_actividad_id,
+            }
+            for a in (
+                AvanceActividad.objects
+                .filter(id_actividad__id_fase__id_proyecto_id=proyecto_id)
+                .order_by('-fecha_registro')[:10]
+            )
+        ]
+
+        return Response({
+            'progreso_general': progreso_general,
+            'fases': fases,
+            'entregables_resumen': entregables_resumen,
+            'evaluaciones_completadas': evaluaciones_completadas,
+            'actividad_reciente': actividad_reciente,
+        })
+
+
+# ---------------------------------------------------------------------------
+# HU-28 BE-02 — Resumen de equipos del proyecto (solo docente)
+# ---------------------------------------------------------------------------
+
+class ProyectoEquiposResumenView(APIView):
+    """
+    GET /api/proyectos/<proyecto_id>/equipos-resumen/
+
+    Por cada equipo del proyecto retorna métricas agregadas:
+      - porcentaje_avance, entregables por estado, nota_promedio, alertas.
+    Todo el cálculo se realiza con anotaciones ORM (sin loops en Python).
+    """
+
+    authentication_classes = [UsuarioJWTAuthentication]
+    permission_classes = [EsDocente]
+
+    def get(self, request, proyecto_id):
+        proyecto = get_object_or_404(
+            Proyecto.objects.select_related('id_curso'),
+            pk=proyecto_id,
+        )
+        if proyecto.id_curso.id_docente_id != request.user.pk:
+            raise PermissionDenied('No eres el docente propietario de este proyecto.')
+
+        hoy = timezone.now().date()
+        dias_desde_inicio = (hoy - proyecto.fecha_inicio).days if proyecto.fecha_inicio else 0
+
+        equipos_qs = (
+            Equipo.objects
+            .filter(proyecto_id=proyecto_id)
+            .annotate(
+                porcentaje_avance=Coalesce(
+                    Avg('actividades__avances__porcentaje_completado'),
+                    Value(0.0),
+                    output_field=FloatField(),
+                ),
+                aprobados=Count(
+                    'entregables',
+                    filter=Q(entregables__estado='aprobado'),
+                    distinct=True,
+                ),
+                rechazados=Count(
+                    'entregables',
+                    filter=Q(entregables__estado='rechazado'),
+                    distinct=True,
+                ),
+                enviados=Count(
+                    'entregables',
+                    filter=Q(entregables__estado='enviado'),
+                    distinct=True,
+                ),
+                pendientes=Count(
+                    'entregables',
+                    filter=Q(entregables__estado='borrador'),
+                    distinct=True,
+                ),
+                nota_promedio=Avg('entregables__evaluaciones__puntuacion_total'),
+                vencidas=Count(
+                    'actividades',
+                    filter=Q(actividades__fecha_limite__lt=hoy) & ~Q(actividades__estado='completada'),
+                    distinct=True,
+                ),
+            )
+            .order_by('nombre')
+        )
+
+        resultado = []
+        for eq in equipos_qs:
+            alertas = []
+            if eq.vencidas:
+                alertas.append(f'{eq.vencidas} actividad(es) vencida(s)')
+            if eq.rechazados:
+                alertas.append(f'{eq.rechazados} entregable(s) rechazado(s)')
+            if eq.porcentaje_avance < 30 and dias_desde_inicio > 7:
+                alertas.append('Avance bajo')
+
+            resultado.append({
+                'equipo_id': eq.id,
+                'nombre': eq.nombre,
+                'estado': eq.estado,
+                'porcentaje_avance': round(float(eq.porcentaje_avance), 2),
+                'entregables': {
+                    'aprobados': eq.aprobados,
+                    'rechazados': eq.rechazados,
+                    'enviados': eq.enviados,
+                    'pendientes': eq.pendientes,
+                },
+                'nota_promedio': round(float(eq.nota_promedio), 2) if eq.nota_promedio is not None else None,
+                'alertas': alertas,
+            })
+
+        return Response(resultado)
