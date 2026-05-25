@@ -1,5 +1,5 @@
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Avg, Count, Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import generics, status
@@ -16,7 +16,7 @@ from apps.entregables.models import Entregable
 from apps.equipos.models import Equipo, MiembroEquipo
 from apps.usuarios.authentication import UsuarioJWTAuthentication
 from apps.usuarios.models import Usuario
-from .models import Autoevaluacion, Coevaluacion, DetalleAutoevaluacion, Evaluacion, Retroalimentacion, Rubrica
+from .models import Autoevaluacion, Coevaluacion, DetalleAutoevaluacion, DetalleCoevaluacion, Evaluacion, Retroalimentacion, Rubrica
 from .serializers import (
     AutoevaluacionConComparativoSerializer,
     AutoevaluacionCreateSerializer,
@@ -770,14 +770,72 @@ class CoevaluacionListCreateView(APIView):
         return Response(CoevaluacionSerializer(qs, many=True, context={"request": request}).data)
 
     def post(self, request, id_proyecto):
-        tipo_rol = getattr(request.user, "tipo_rol", None)
-        if tipo_rol not in ("estudiante", "lider_equipo"):
-            raise PermissionDenied("Solo estudiantes y líderes de equipo pueden coevaluar.")
+        user_id  = request.user.pk
+        tipo_rol = getattr(request.user, 'tipo_rol', None)
 
-        proyecto = self._get_proyecto(id_proyecto, request.user)
+        # BE-02.1 — solo Estudiante
+        if tipo_rol != 'estudiante':
+            return Response(
+                {'detail': 'Solo los estudiantes pueden registrar coevaluaciones.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
-        # Auto-fill periodo_evaluacion from the active period (same as autoevaluación)
-        from apps.configuracion.models import PeriodoAcademico
+        # BE-02.2 — evaluador pertenece al proyecto
+        equipos_evaluador_ids = list(
+            MiembroEquipo.objects.filter(
+                equipo__proyecto_id=id_proyecto,
+                usuario_id=user_id,
+            ).values_list('equipo_id', flat=True)
+        )
+        if not equipos_evaluador_ids:
+            return Response(
+                {'detail': 'No perteneces a este proyecto.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        proyecto = get_object_or_404(Proyecto, pk=id_proyecto)
+
+        # Parsear campos clave del body antes de continuar validaciones
+        try:
+            id_evaluado_id = int(request.data.get('id_evaluado_id'))
+            id_rubrica_id  = int(request.data.get('id_rubrica_id'))
+        except (TypeError, ValueError):
+            return Response(
+                {'detail': 'id_evaluado_id e id_rubrica_id son requeridos y deben ser enteros.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # BE-02.3 — no autoevaluación
+        if id_evaluado_id == user_id:
+            return Response(
+                {'detail': 'No puedes coevaluarte a ti mismo.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # BE-02.4 — evaluado pertenece al mismo equipo dentro del proyecto
+        evaluado_en_equipo = MiembroEquipo.objects.filter(
+            equipo_id__in=equipos_evaluador_ids,
+            usuario_id=id_evaluado_id,
+        ).exists()
+        if not evaluado_en_equipo:
+            return Response(
+                {'detail': 'El estudiante evaluado no pertenece al mismo equipo.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # BE-02.5 — unicidad por (proyecto, evaluador, evaluado, rubrica)
+        if Coevaluacion.objects.filter(
+            id_proyecto_id=id_proyecto,
+            id_evaluador_id=user_id,
+            id_evaluado_id=id_evaluado_id,
+            id_rubrica_id=id_rubrica_id,
+        ).exists():
+            return Response(
+                {'detail': 'Ya registraste una coevaluación para este compañero.'},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        # BE-02.6 — periodo académico activo
         hoy = timezone.localdate()
         periodo = PeriodoAcademico.objects.filter(
             estado=PeriodoAcademico.Estado.ACTIVO,
@@ -790,23 +848,151 @@ class CoevaluacionListCreateView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        data = request.data.copy()
-        data['periodo_evaluacion'] = periodo.nombre
+        # Rearmar data con nombres de campo que espera CoevaluacionCreateSerializer
+        detalles_remapeados = [
+            {
+                'id_criterio':           d.get('id_criterio_id', d.get('id_criterio')),
+                'id_nivel_seleccionado': d.get('id_nivel_seleccionado_id', d.get('id_nivel_seleccionado')),
+                'comentario':            d.get('comentario'),
+            }
+            for d in request.data.get('detalles', [])
+        ]
+        data = {
+            'id_evaluado':        id_evaluado_id,
+            'id_rubrica':         id_rubrica_id,
+            'comentario':         request.data.get('comentario'),
+            'periodo_evaluacion': periodo.nombre,
+            'detalles':           detalles_remapeados,
+        }
 
+        # Usar el serializer existente solo para validar estructura de detalles/criterios
         serializer = CoevaluacionCreateSerializer(
             data=data,
-            context={"request": request, "proyecto": proyecto},
+            context={'request': request, 'proyecto': proyecto},
         )
         serializer.is_valid(raise_exception=True)
-        coevaluacion = serializer.save()
+
+        detalles_data    = serializer.validated_data['detalles']
+        evaluado         = serializer.validated_data['id_evaluado']
+        # puntuacion_total = suma simple de puntos (no ponderada)
+        puntuacion_total = sum(d['id_nivel_seleccionado'].puntos for d in detalles_data)
+
+        with transaction.atomic():
+            coevaluacion = Coevaluacion.objects.create(
+                id_proyecto=proyecto,
+                id_evaluador=request.user,
+                id_evaluado=evaluado,
+                id_rubrica_id=id_rubrica_id,
+                comentario=serializer.validated_data.get('comentario'),
+                puntuacion_total=puntuacion_total,
+                periodo_evaluacion=periodo.nombre,
+                estado='completada',
+            )
+            DetalleCoevaluacion.objects.bulk_create([
+                DetalleCoevaluacion(
+                    id_coevaluacion=coevaluacion,
+                    id_criterio=d['id_criterio'],
+                    id_nivel_seleccionado=d['id_nivel_seleccionado'],
+                    puntos_obtenidos=d['id_nivel_seleccionado'].puntos,
+                    comentario=d.get('comentario') or '',
+                )
+                for d in detalles_data
+            ])
+
+        try:
+            BitacoraSistema.objects.create(
+                id_usuario=request.user,
+                nombre_usuario=f'{request.user.nombre} {request.user.apellido}',
+                accion=BitacoraSistema.Accion.CREATE,
+                modulo='coevaluacion',
+                descripcion=(
+                    f'Creó coevaluación id={coevaluacion.pk} '
+                    f'en proyecto id={id_proyecto}'
+                ),
+                ip_origen=request.META.get('REMOTE_ADDR'),
+            )
+        except Exception:
+            pass
 
         coevaluacion = (
             Coevaluacion.objects
-            .select_related("id_evaluador", "id_evaluado", "id_rubrica")
-            .prefetch_related("detalles__id_criterio", "detalles__id_nivel_seleccionado")
+            .select_related('id_evaluador', 'id_evaluado', 'id_rubrica')
+            .prefetch_related('detalles__id_criterio', 'detalles__id_nivel_seleccionado')
             .get(pk=coevaluacion.pk)
         )
         return Response(
-            CoevaluacionSerializer(coevaluacion, context={"request": request}).data,
+            CoevaluacionSerializer(coevaluacion, context={'request': request}).data,
             status=status.HTTP_201_CREATED,
         )
+
+
+class CoevaluacionPromedioView(APIView):
+    """
+    GET /api/proyectos/<proyecto_id>/coevaluaciones/promedio/
+
+    Docente: sin ?estudiante_id → lista todos los evaluados del proyecto.
+             con ?estudiante_id=<id> → promedio de un estudiante concreto.
+    Estudiante: ignora ?estudiante_id, retorna siempre su propio promedio.
+    Si no hay coevaluaciones, retorna promedio 0 y total 0 (nunca 404).
+    """
+    authentication_classes = [UsuarioJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, proyecto_id):
+        tipo_rol = getattr(request.user, 'tipo_rol', None)
+
+        if tipo_rol not in ('docente', 'estudiante'):
+            return Response(
+                {'detail': 'Acceso no permitido.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        get_object_or_404(Proyecto, pk=proyecto_id)
+
+        # Estudiante: siempre su propio promedio
+        if tipo_rol == 'estudiante':
+            return Response(self._promedio_individual(proyecto_id, request.user.pk))
+
+        # Docente con ?estudiante_id → promedio individual
+        raw = request.query_params.get('estudiante_id')
+        if raw is not None:
+            try:
+                estudiante_id = int(raw)
+            except (ValueError, TypeError):
+                return Response(
+                    {'detail': 'estudiante_id debe ser un número entero.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            return Response(self._promedio_individual(proyecto_id, estudiante_id))
+
+        # Docente sin param → todos los evaluados del proyecto
+        filas = (
+            Coevaluacion.objects
+            .filter(id_proyecto_id=proyecto_id)
+            .values('id_evaluado_id')
+            .annotate(
+                promedio=Avg('puntuacion_total'),
+                total=Count('id'),
+            )
+        )
+        return Response([
+            {
+                'id_estudiante':                  f['id_evaluado_id'],
+                'promedio_coevaluacion':           round(float(f['promedio']), 2),
+                'total_coevaluaciones_recibidas':  f['total'],
+            }
+            for f in filas
+        ])
+
+    @staticmethod
+    def _promedio_individual(proyecto_id, estudiante_id):
+        resultado = (
+            Coevaluacion.objects
+            .filter(id_proyecto_id=proyecto_id, id_evaluado_id=estudiante_id)
+            .aggregate(promedio=Avg('puntuacion_total'), total=Count('id'))
+        )
+        return {
+            'id_estudiante':                 estudiante_id,
+            'promedio_coevaluacion':          round(float(resultado['promedio'] or 0), 2),
+            'total_coevaluaciones_recibidas': resultado['total'] or 0,
+        }

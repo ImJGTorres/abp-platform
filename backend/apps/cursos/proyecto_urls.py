@@ -4,7 +4,9 @@ from .views import (
     FaseListCreateView,
     HitoListCreateView,
     ObjetivoListCreateView,
+    ProyectoDashboardView,
     ProyectoDetailView,
+    ProyectoEquiposResumenView,
     ProyectoProgresoView,
     RapListCreateView,
 )
@@ -29,6 +31,12 @@ urlpatterns = [
     # POST /api/proyectos/<proyecto_id>/fases/  — crea una fase (solo docente propietario).
     path('<int:proyecto_id>/fases/', FaseListCreateView.as_view(), name='fase-list-create'),
 
-    # GET  /api/proyectos/<pk>/progreso/  — resumen de progreso del proyecto (BE 01).
+    # GET  /api/proyectos/<pk>/progreso/  — resumen de progreso del proyecto (BE 01 HU-27).
     path('<int:pk>/progreso/', ProyectoProgresoView.as_view(), name='proyecto-progreso'),
+
+    # GET  /api/proyectos/<proyecto_id>/dashboard/  — dashboard ejecutivo (HU-28 BE-01).
+    path('<int:proyecto_id>/dashboard/', ProyectoDashboardView.as_view(), name='proyecto-dashboard'),
+
+    # GET  /api/proyectos/<proyecto_id>/equipos-resumen/  — resumen por equipo (HU-28 BE-02).
+    path('<int:proyecto_id>/equipos-resumen/', ProyectoEquiposResumenView.as_view(), name='proyecto-equipos-resumen'),
 ]
