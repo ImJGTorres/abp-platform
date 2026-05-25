@@ -115,6 +115,16 @@ function IconHistory() {
     )
 }
 
+function IconMonitoreo() {
+    return (
+        <svg viewBox="0 0 20 20" fill="none" className="w-5 h-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="2" y="3" width="16" height="11" rx="2" />
+            <path d="M7 17h6M10 14v3" />
+            <path d="M5 10l3-3 2 2 3-3 2 2" />
+        </svg>
+    )
+}
+
 function navLinkClass({ isActive }) {
     const base = 'flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] font-medium transition-all duration-150 select-none cursor-pointer'
     return isActive
@@ -131,6 +141,7 @@ function SidebarContent({ collapsed, onCollapse, loggingOut, handleLogout, onNav
         { label: 'Tablero Kanban', to: `/docente/proyectos/${proyectoId}/kanban`, icon: <IconKanban /> },
         { label: 'Perfiles y Roles', to: `/docente/proyectos/${proyectoId}/perfiles-roles`, icon: <IconUsers /> },
         { label: 'Historial', to: `/docente/proyectos/${proyectoId}/historial`, icon: <IconHistory /> },
+        { label: 'Monitoreo', to: `/docente/proyectos/${proyectoId}/monitoreo`, icon: <IconMonitoreo /> },
     ]
 
     return (

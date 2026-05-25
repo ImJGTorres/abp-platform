@@ -83,6 +83,12 @@ export const autoevaluacionApi = {
         if (!response.ok) throw { status: response.status, data }
         return data
     },
+    async puedeAutoevaluar(proyectoId) {
+        const response = await request(`/api/proyectos/${proyectoId}/puede-autoevaluar/`)
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
     async crear(proyectoId, payload) {
         const response = await request(`/api/proyectos/${proyectoId}/autoevaluaciones/`, {
             method: 'POST',

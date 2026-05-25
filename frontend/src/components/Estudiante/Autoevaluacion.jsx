@@ -38,16 +38,11 @@ function CriterioCard({ criterio, seleccionado, onChange }) {
 
     return (
         <div className="bg-white border border-[#e1e3e4] rounded-2xl p-5 mb-4">
-            <div className="flex items-start justify-between gap-3 mb-4">
-                <div>
-                    <h3 className="text-[16px] font-bold text-[#191c1d]">{criterio.nombre}</h3>
-                    {criterio.descripcion && (
-                        <p className="text-[13px] text-[#9ba7ae] mt-0.5">{criterio.descripcion}</p>
-                    )}
-                </div>
-                <span className="flex-shrink-0 text-[12px] font-bold text-[#d32f2f] bg-[#fff1f0] px-2.5 py-1 rounded-lg border border-[#ffdad6]">
-                    {parseFloat(criterio.peso_porcentual)}% del Total
-                </span>
+            <div className="mb-4">
+                <h3 className="text-[16px] font-bold text-[#191c1d]">{criterio.nombre}</h3>
+                {criterio.descripcion && (
+                    <p className="text-[13px] text-[#9ba7ae] mt-0.5">{criterio.descripcion}</p>
+                )}
             </div>
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -146,10 +141,10 @@ function AutoevaluacionEnviada({ auto }) {
                             <div key={d.id} className="flex items-center justify-between gap-3 py-2 border-b border-[#f0f2f3] last:border-0">
                                 <div className="min-w-0">
                                     <p className="text-[13px] font-semibold text-[#191c1d] truncate">{d.criterio_nombre}</p>
-                                    <p className="text-[11px] text-[#9ba7ae]">{d.nivel_etiqueta} · {d.puntos_obtenidos} pts</p>
+                                    <p className="text-[11px] text-[#9ba7ae]">{d.nivel_etiqueta}</p>
                                 </div>
                                 <span className="flex-shrink-0 text-[12px] font-bold text-[#4c616c] bg-[#f0f2f3] px-2 py-0.5 rounded-lg">
-                                    {parseFloat(d.peso_porcentual)}%
+                                    {parseFloat(d.puntos_obtenidos)} pts
                                 </span>
                             </div>
                         ))}
@@ -171,6 +166,7 @@ export default function Autoevaluacion() {
     const [autoExistente,setAutoExistente]= useState(null)   // null = no existe / objeto = ya enviada
     const [loading,      setLoading]      = useState(true)
     const [periodoError, setPeriodoError] = useState(false)
+    const [bloqueada,    setBloqueada]    = useState(false)  // docente aún no ha evaluado
 
     // Form state
     const [selecciones,  setSelecciones]  = useState({})   // { criterioId: nivelId }
@@ -187,9 +183,10 @@ export default function Autoevaluacion() {
         setLoading(true)
         setError('')
         try {
-            const [rubData, autoData] = await Promise.allSettled([
+            const [rubData, autoData, puedeData] = await Promise.allSettled([
                 rubricasApi.listar(proyectoId),
                 autoevaluacionApi.mia(proyectoId),
+                autoevaluacionApi.puedeAutoevaluar(proyectoId),
             ])
 
             const rubs = rubData.status === 'fulfilled'
@@ -200,6 +197,10 @@ export default function Autoevaluacion() {
 
             if (autoData.status === 'fulfilled') {
                 setAutoExistente(autoData.value)
+            }
+
+            if (puedeData.status === 'fulfilled' && puedeData.value.puede === false) {
+                setBloqueada(true)
             }
         } catch { }
         finally { setLoading(false) }
@@ -216,9 +217,7 @@ export default function Autoevaluacion() {
             const nivelId = selecciones[criterio.id]
             if (!nivelId) continue
             const nivel = (criterio.niveles ?? []).find(n => n.id === nivelId)
-            if (nivel) {
-                total += parseFloat(nivel.puntos) * parseFloat(criterio.peso_porcentual) / 100
-            }
+            if (nivel) total += parseFloat(nivel.puntos)
         }
         return total.toFixed(1)
     }
@@ -288,6 +287,25 @@ export default function Autoevaluacion() {
                     </div>
                     <p className="text-[16px] font-bold text-[#191c1d] mb-2">Sin rúbricas disponibles</p>
                     <p className="text-[13px] text-[#9ba7ae]">El docente aún no ha creado rúbricas para este proyecto.</p>
+                </div>
+            </div>
+        )
+    }
+
+    // Bloqueada: docente aún no ha evaluado
+    if (bloqueada) {
+        return (
+            <div className="flex-1 flex items-center justify-center p-6" style={{ fontFamily: "'Manrope', sans-serif" }}>
+                <div className="text-center max-w-sm">
+                    <div className="w-14 h-14 rounded-2xl bg-[#fff8e1] flex items-center justify-center mx-auto mb-4">
+                        <svg viewBox="0 0 24 24" fill="none" className="w-7 h-7 text-[#f9a825]" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" />
+                        </svg>
+                    </div>
+                    <p className="text-[16px] font-bold text-[#191c1d] mb-2">Autoevaluación no disponible aún</p>
+                    <p className="text-[13px] text-[#9ba7ae] leading-relaxed">
+                        El docente debe calificar al menos un entregable con rúbrica antes de que puedas autoevaluarte.
+                    </p>
                 </div>
             </div>
         )
