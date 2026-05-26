@@ -110,7 +110,7 @@ function SidebarContent({ collapsed, onCollapse, loggingOut, handleLogout, onNav
                 </div>
             ) : (
                 <div className="flex items-center gap-2.5 px-4 h-[60px] border-b border-[#e1e3e4] flex-shrink-0">
-                    <div className="flex-shrink-0 w-8 h-8 bg-[#1565c0] rounded-lg flex items-center justify-center shadow-sm">
+                    <div className="flex-shrink-0 w-8 h-8 bg-[#d32f2f] rounded-lg flex items-center justify-center shadow-sm">
                         <svg viewBox="0 0 24 24" className="w-8 h-6 text-white" fill="currentColor">
                             <path d="M12 2L2 7l10 5 10-5-10-5z" />
                             <path d="M6 10v4c0 2.5 3.5 4 6 4s6-1.5 6-4v-4l-6 3-6-3z" opacity="0.9" />
@@ -134,7 +134,7 @@ function SidebarContent({ collapsed, onCollapse, loggingOut, handleLogout, onNav
                         ? location.pathname === to
                         : location.pathname.startsWith(to)
                     const classes = isActive
-                        ? 'flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] font-medium transition-all duration-150 select-none cursor-pointer bg-[#1565c0] text-white shadow-[0_4px_12px_rgba(21,101,192,0.30)]'
+                        ? 'flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] font-medium transition-all duration-150 select-none cursor-pointer bg-[#d32f2f] text-white shadow-[0_4px_12px_rgba(211,47,47,0.30)]'
                         : 'flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] font-medium transition-all duration-150 select-none cursor-pointer text-[#4c616c] hover:bg-[#f0f2f3] hover:text-[#191c1d]'
                     return (
                         <Link key={to} to={to} className={classes} title={collapsed ? label : undefined} onClick={onNavClick}>

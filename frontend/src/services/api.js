@@ -684,7 +684,7 @@ export const exportacionesApi = {
 
 export function rutaPorRol(tipo_rol) {
   const rutas = {
-    administrador: '/director',
+    administrador: '/admin',
     docente: '/docente',
     director: '/director',
     lider_equipo: '/lider',
