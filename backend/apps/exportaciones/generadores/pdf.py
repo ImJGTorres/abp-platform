@@ -240,21 +240,21 @@ def generar_pdf_indicadores(datos, ruta_destino):
 
     _encabezado_pagina(story, 'Dashboard de Indicadores Institucionales')
 
-    resumen = datos.get('resumen_periodo', {})
-    if isinstance(resumen, list):
-        resumen = resumen[0] if resumen else {}
+    resumen_raw = datos.get('resumen_periodo', {})
+    periodos_list = resumen_raw if isinstance(resumen_raw, list) else [resumen_raw]
 
-    story.append(Paragraph('Resumen del Periodo', s['Subtitulo']))
-    r_rows = [
-        ['Indicador', 'Valor'],
-        ['Periodo', resumen.get('periodo_nombre', '-')],
-        ['Total cursos', str(resumen.get('total_cursos', 0))],
-        ['Estudiantes', str(resumen.get('total_estudiantes', 0))],
-        ['Proyectos activos', str(resumen.get('proyectos_activos', 0))],
-        ['Avance promedio (%)', str(resumen.get('avance_promedio_proyectos_pct', 0))],
-        ['Tasa aprobación (%)', str(resumen.get('tasa_aprobacion_pct', 0))],
-    ]
-    t = Table(r_rows, colWidths=[10*cm, 10*cm])
+    story.append(Paragraph('Resumen por Periodo', s['Subtitulo']))
+    r_rows = [['Periodo', 'Cursos', 'Estudiantes', 'Proyectos activos', 'Avance prom. (%)', 'Aprobación (%)']]
+    for resumen in periodos_list:
+        r_rows.append([
+            resumen.get('periodo_nombre', '-'),
+            str(resumen.get('total_cursos', 0)),
+            str(resumen.get('total_estudiantes', 0)),
+            str(resumen.get('proyectos_activos', 0)),
+            str(resumen.get('avance_promedio_proyectos_pct', 0)),
+            str(resumen.get('tasa_aprobacion_pct', 0)),
+        ])
+    t = Table(r_rows, colWidths=[3.5*cm, 2*cm, 2.5*cm, 3.5*cm, 3*cm, 2.5*cm])
     t.setStyle(_estilo_tabla_base())
     story.append(t)
     story.append(Spacer(1, 0.4*cm))

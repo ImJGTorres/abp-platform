@@ -572,6 +572,45 @@ export const reportesApi = {
         if (!response.ok) throw { status: response.status, data }
         return data
     },
+
+    async reporteProyecto(proyectoId) {
+        const response = await request(`/api/reportes/proyecto/${proyectoId}/`)
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+
+    async reporteCurso(cursoId) {
+        const response = await request(`/api/reportes/curso/${cursoId}/`)
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+
+    async reporteEquipoEstudiantes(equipoId) {
+        const response = await request(`/api/reportes/equipo/${equipoId}/estudiantes/`)
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+
+    async indicadoresDashboard({ periodoId, cursoId } = {}) {
+        const params = new URLSearchParams()
+        if (periodoId) params.set('periodo_id', periodoId)
+        if (cursoId) params.set('curso_id', cursoId)
+        const qs = params.toString() ? `?${params}` : ''
+        const response = await request(`/api/reportes/indicadores/${qs}`)
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+
+    async indicadoresTendencia(nPeriodos = 4) {
+        const response = await request(`/api/reportes/indicadores/tendencia/?n_periodos=${nPeriodos}`)
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
 }
 
 // ─── Alertas del sistema ───────────────────────────────────────

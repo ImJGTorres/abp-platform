@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { NavLink, Outlet, useNavigate, Link } from 'react-router-dom'
+import { NavLink, Outlet, useNavigate, Link, useLocation } from 'react-router-dom'
 import { authApi, session, buildMediaUrl } from '../services/api'
 
 function IconUsers() {
@@ -58,6 +58,16 @@ function IconBook() {
   )
 }
 
+function IconChart() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" className="w-5 h-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="11" width="4" height="7" rx="1" />
+      <rect x="8" y="6" width="4" height="12" rx="1" />
+      <rect x="14" y="2" width="4" height="16" rx="1" />
+    </svg>
+  )
+}
+
 function IconLogout() {
   return (
     <svg viewBox="0 0 20 20" fill="none" className="w-5 h-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
@@ -111,6 +121,7 @@ function navLinkClass({ isActive }) {
 
 export default function AdminLayout() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [user, setUser] = useState(() => session.getUser())
   const [collapsed, setCollapsed] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
@@ -193,6 +204,24 @@ export default function AdminLayout() {
               {!collapsed && <span>{label}</span>}
             </NavLink>
           ))}
+
+          {/* Sección Director */}
+          {!collapsed && (
+            <p className="text-[10px] font-semibold text-[#9ba7ae] tracking-[0.8px] uppercase px-3 pb-1.5 pt-4">Director</p>
+          )}
+          {collapsed && <div className="my-2 border-t border-[#f0f2f3]" />}
+          <Link
+            to="/director"
+            title={collapsed ? 'Director' : undefined}
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] font-medium transition-all duration-150 select-none cursor-pointer ${
+              location.pathname.startsWith('/director')
+                ? 'bg-[#d32f2f] text-white shadow-[0_4px_12px_rgba(211,47,47,0.25)]'
+                : 'text-[#4c616c] hover:bg-[#f0f2f3] hover:text-[#191c1d]'
+            }`}
+          >
+            <span className="flex-shrink-0"><IconChart /></span>
+            {!collapsed && <span>Director</span>}
+          </Link>
         </nav>
 
         {/* Perfil + Logout */}

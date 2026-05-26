@@ -11,6 +11,7 @@ backend/*.egg-info/
 backend/.env
 backend/staticfiles/
 backend/mediafiles/
+backend/media/
 backend/db.sqlite3
 
 # ========================

@@ -240,6 +240,7 @@ CACHES = {
 
 # CORS: Permitir todos los orígenes (necesario para pruebas E2E con Cypress)
 CORS_ALLOW_ALL_ORIGINS = True
+CORS_EXPOSE_HEADERS = ['Content-Disposition']
 
 # =============================================================================
 # CONFIGURACIÓN DE CORREO ELECTRÓNICO

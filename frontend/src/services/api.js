@@ -690,6 +690,34 @@ export function buildMediaUrl(url) {
   return `${BASE_URL}${url}`
 }
 
+// Exportaciones
+// POST /api/exportar/reporte/          → SolicitarExportacionView
+// GET  /api/exportar/:id/estado/       → EstadoExportacionView
+// GET  /api/exportar/:id/descargar/    → DescargarExportacionView (FileResponse)
+
+export const exportacionesApi = {
+  async solicitar(tipo_reporte, formato, parametros = {}) {
+    const response = await request('/api/exportar/reporte/', {
+      method: 'POST',
+      body: JSON.stringify({ tipo_reporte, formato, parametros }),
+    })
+    const data = await parseJSON(response)
+    if (!response.ok) throw { status: response.status, data }
+    return data
+  },
+
+  async estado(exportacionId) {
+    const response = await request(`/api/exportar/${exportacionId}/estado/`)
+    const data = await parseJSON(response)
+    if (!response.ok) throw { status: response.status, data }
+    return data
+  },
+
+  descargarUrl(exportacionId) {
+    return `${BASE_URL}/api/exportar/${exportacionId}/descargar/`
+  },
+}
+
 export function rutaPorRol(tipo_rol) {
   const rutas = {
     administrador: '/admin',

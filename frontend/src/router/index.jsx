@@ -58,7 +58,11 @@ import HistorialEvaluacionesEstudiante from '../components/Estudiante/HistorialE
 import TableroKanban from '../components/Compartidos/TableroKanban'
 import DashboardProgreso from '../components/Estudiante/DashboardProgreso'
 
-function PanelDirector() { return <div className="p-10">Director</div> }
+import DirectorLayout from '../components/director/DirectorLayout'
+import DashboardDirector from '../components/director/DashboardDirector'
+import ListaReportes from '../components/director/ListaReportes'
+import ReporteProyecto from '../components/director/ReporteProyecto'
+
 function PanelEstudiante() { return <div className="p-10">Estudiante</div> }
 
 function Pagina({ children }) {
@@ -150,8 +154,13 @@ export default function AppRouter() {
         </Route>
 
         {/* DIRECTOR */}
-        <Route element={<PrivateRoute allowedRoles={['director']} />}>
-          <Route path="/director" element={<PanelDirector />} />
+        <Route element={<PrivateRoute allowedRoles={['director', 'administrador']} />}>
+          <Route element={<DirectorLayout />}>
+            <Route path="/director" element={<DashboardDirector />} />
+            <Route path="/director/indicadores" element={<DashboardDirector />} />
+            <Route path="/director/reportes" element={<ListaReportes />} />
+            <Route path="/director/reportes/proyecto/:proyectoId" element={<ReporteProyecto />} />
+          </Route>
         </Route>
 
         {/* ESTUDIANTE */}

@@ -185,25 +185,27 @@ def generar_excel_indicadores(datos, ruta_destino):
     wb = Workbook()
     _hoja_info(wb)
 
-    resumen = datos.get('resumen_periodo', {})
-    if isinstance(resumen, list):
-        resumen = resumen[0] if resumen else {}
+    resumen_raw = datos.get('resumen_periodo', {})
+    periodos_list = resumen_raw if isinstance(resumen_raw, list) else [resumen_raw]
 
     ws_info = wb.active
-    ws_info['A4'] = 'Periodo:'
-    ws_info['B4'] = resumen.get('periodo_nombre', '-')
+    ws_info['A4'] = 'Periodos exportados:'
+    ws_info['B4'] = ', '.join(p.get('periodo_nombre', '-') for p in periodos_list)
 
     ws_res = wb.create_sheet('Resumen')
     _escribir_tabla(ws_res, 1,
-                    ['Indicador', 'Valor'],
+                    ['Periodo', 'Total cursos', 'Cursos activos', 'Total estudiantes',
+                     'Total proyectos', 'Proyectos activos', 'Avance prom. (%)', 'Aprobación (%)'],
                     [
-                        ['Total cursos', resumen.get('total_cursos', 0)],
-                        ['Cursos activos', resumen.get('cursos_activos', 0)],
-                        ['Total estudiantes', resumen.get('total_estudiantes', 0)],
-                        ['Total proyectos', resumen.get('total_proyectos', 0)],
-                        ['Proyectos activos', resumen.get('proyectos_activos', 0)],
-                        ['Avance promedio (%)', resumen.get('avance_promedio_proyectos_pct', 0)],
-                        ['Tasa aprobación (%)', resumen.get('tasa_aprobacion_pct', 0)],
+                        [p.get('periodo_nombre', '-'),
+                         p.get('total_cursos', 0),
+                         p.get('cursos_activos', 0),
+                         p.get('total_estudiantes', 0),
+                         p.get('total_proyectos', 0),
+                         p.get('proyectos_activos', 0),
+                         p.get('avance_promedio_proyectos_pct', 0),
+                         p.get('tasa_aprobacion_pct', 0)]
+                        for p in periodos_list
                     ])
     _autoajustar(ws_res)
 
