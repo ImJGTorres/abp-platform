@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useSearchParams, Link } from 'react-router-dom'
 import { reportesApi } from '../../services/docenteApi'
+import ExportarReporte from '../Compartidos/ExportarReporte'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -264,10 +265,15 @@ export default function PerfilRendimientoEstudiante() {
     const desemp = reporte?.desempeno ?? {}
     const histActs = reporte?.historial_actividades ?? []
     const histEnts = reporte?.historial_entregables ?? []
+    const notaFinal = reporte?.nota_final ?? null
+    const componentes = notaFinal?.componentes ?? {}
 
     const notaColor = ind.nota_promedio < 3.0 ? 'red' : ind.nota_promedio >= 4.0 ? 'green' : 'orange'
     const incumplidasColor = ind.porcentaje_actividades_incumplidas >= 50 ? 'red' : 'gray'
     const rechazadosColor = ind.entregables_rechazados >= 2 ? 'red' : 'gray'
+
+    // Retroalimentaciones: entregables con retroalimentación del docente
+    const retroalimentaciones = histEnts.filter(e => e.retroalimentacion)
 
     return (
         <div className="flex-1 overflow-y-auto p-4 sm:p-6">
@@ -285,13 +291,52 @@ export default function PerfilRendimientoEstudiante() {
                     </h1>
                     <p className="text-[13px] text-[#9ba7ae]">{est.correo} · {est.codigo_estudiante ?? 'Sin código'}</p>
                 </div>
-                {ind.en_riesgo && (
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 border border-red-200 rounded-xl text-[#d32f2f] text-[12px] font-bold flex-shrink-0">
-                        <IconAlert />
-                        En riesgo
-                    </div>
-                )}
+                <div className="flex items-center gap-2 flex-shrink-0">
+                    {ind.en_riesgo && (
+                        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 border border-red-200 rounded-xl text-[#d32f2f] text-[12px] font-bold">
+                            <IconAlert />
+                            En riesgo
+                        </div>
+                    )}
+                    {proyectoId && (
+                        <ExportarReporte
+                            tipo_reporte="estudiante"
+                            parametros={{ estudiante_id: Number(estudianteId), proyecto_id: Number(proyectoId) }}
+                        />
+                    )}
+                </div>
             </div>
+
+            {/* Tarjeta de nota final con componentes ponderados */}
+            {notaFinal && (
+                <div className="bg-white rounded-2xl border border-[#e1e3e4] p-5 mb-6">
+                    <h2 className="text-[14px] font-bold text-[#191c1d] mb-4">Nota final ponderada</h2>
+                    <div className="flex items-center gap-6 flex-wrap">
+                        <div className="text-center">
+                            <p className="text-[11px] font-semibold text-[#9ba7ae] uppercase tracking-wide mb-1">Nota final</p>
+                            <p className={`text-[40px] font-extrabold leading-none ${notaFinal.nota_final < 3.0 ? 'text-[#d32f2f]' : notaFinal.nota_final >= 4.0 ? 'text-green-600' : 'text-orange-600'}`}>
+                                {nota5(notaFinal.nota_final)}
+                            </p>
+                            <p className="text-[11px] text-[#9ba7ae] mt-1">/ 5.0</p>
+                        </div>
+                        <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-3 min-w-0">
+                            {Object.entries(componentes).map(([k, comp]) => {
+                                const labels = { docente: 'Docente', autoevaluacion: 'Autoevaluación', coevaluacion: 'Coevaluación' }
+                                return (
+                                    <div key={k} className="bg-[#f8f9fa] rounded-xl p-3 border border-[#e1e3e4]">
+                                        <p className="text-[11px] font-semibold text-[#9ba7ae] uppercase tracking-wide">{labels[k] ?? k}</p>
+                                        <p className="text-[20px] font-extrabold text-[#191c1d] leading-tight">{nota5(comp.nota)}</p>
+                                        <p className="text-[11px] text-[#9ba7ae]">Peso: {comp.peso_aplicado}%</p>
+                                        <div className="mt-2 h-1 bg-[#e1e3e4] rounded-full overflow-hidden">
+                                            <div className="h-full bg-[#d32f2f] rounded-full" style={{ width: `${(comp.nota / 5) * 100}%` }} />
+                                        </div>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Métricas */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
@@ -325,7 +370,7 @@ export default function PerfilRendimientoEstudiante() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
                 {/* Comparativo con el grupo */}
                 <div className="bg-white rounded-2xl border border-[#e1e3e4] p-5">
-                    <h2 className="text-[14px] font-bold text-[#191c1d] mb-4">Comparativo con el grupo</h2>
+                    <h2 className="text-[14px] font-bold text-[#191c1d] mb-4">Comparativo con el equipo</h2>
                     <BarraComparativa
                         label="Nota promedio (0–5)"
                         valorEst={ind.nota_promedio ?? 0}
@@ -386,9 +431,48 @@ export default function PerfilRendimientoEstudiante() {
 
             {/* Historial de entregables */}
             {proyectoId && (
-                <div className="bg-white rounded-2xl border border-[#e1e3e4] p-5">
-                    <h2 className="text-[14px] font-bold text-[#191c1d] mb-4">Historial de entregables</h2>
+                <div className="bg-white rounded-2xl border border-[#e1e3e4] p-5 mb-6">
+                    <h2 className="text-[14px] font-bold text-[#191c1d] mb-4">Historial de entregables evaluados</h2>
                     <TablaEntregables entregables={histEnts} />
+                </div>
+            )}
+
+            {/* Línea de tiempo de retroalimentaciones */}
+            {proyectoId && retroalimentaciones.length > 0 && (
+                <div className="bg-white rounded-2xl border border-[#e1e3e4] p-5">
+                    <h2 className="text-[14px] font-bold text-[#191c1d] mb-4">Retroalimentaciones del docente</h2>
+                    <div className="relative pl-5 flex flex-col gap-4">
+                        {retroalimentaciones.map((e, i) => {
+                            const isLast = i === retroalimentaciones.length - 1
+                            const ESTADO_COLOR = {
+                                aprobado: 'bg-green-500',
+                                rechazado: 'bg-[#d32f2f]',
+                                enviado: 'bg-blue-500',
+                                borrador: 'bg-[#9ba7ae]',
+                            }
+                            const dot = ESTADO_COLOR[e.estado] ?? 'bg-[#9ba7ae]'
+                            return (
+                                <div key={e.id} className="relative">
+                                    {!isLast && <div className="absolute left-[-13px] top-[18px] w-0.5 h-full bg-[#e1e3e4]" />}
+                                    <div className={`absolute left-[-18px] top-[5px] w-3 h-3 rounded-full border-2 border-white ${dot} shadow-sm`} />
+                                    <div className="bg-[#f8f9fa] rounded-xl p-3 border border-[#e1e3e4]">
+                                        <div className="flex items-start justify-between gap-2 mb-1.5">
+                                            <p className="text-[13px] font-semibold text-[#191c1d]">{e.titulo}</p>
+                                            <span className="text-[11px] text-[#9ba7ae] flex-shrink-0">{fmt(e.fecha_validacion)}</span>
+                                        </div>
+                                        {e.docente_validador && (
+                                            <p className="text-[11px] text-[#9ba7ae] mb-1.5">
+                                                Docente: {e.docente_validador}
+                                            </p>
+                                        )}
+                                        <p className="text-[12px] text-[#4c616c] leading-relaxed bg-white rounded-lg p-2 border border-[#e1e3e4]">
+                                            {e.retroalimentacion}
+                                        </p>
+                                    </div>
+                                </div>
+                            )
+                        })}
+                    </div>
                 </div>
             )}
         </div>
