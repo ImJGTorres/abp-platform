@@ -106,16 +106,37 @@ export default function ExportarReporte({ tipo_reporte, parametros = {}, classNa
         setErrorMsg('Tiempo de espera agotado. Intenta de nuevo.')
     }
 
-    function triggerDescarga(id) {
+    async function triggerDescarga(id) {
         const token = session.getAccess()
         const url = exportacionesApi.descargarUrl(id)
-        const a = document.createElement('a')
-        a.href = url
-        a.target = '_blank'
-        a.rel = 'noopener noreferrer'
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
+        try {
+            const response = await fetch(url, {
+                headers: { Authorization: `Bearer ${token}` },
+            })
+            if (!response.ok) {
+                setEstado('error')
+                setErrorMsg('No se pudo descargar el archivo.')
+                return
+            }
+            const blob = await response.blob()
+            const objUrl = URL.createObjectURL(blob)
+            const disposition = response.headers.get('content-disposition')
+            let filename = `reporte.${formato}`
+            if (disposition) {
+                const match = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/)
+                if (match?.[1]) filename = match[1].replace(/['"]/g, '')
+            }
+            const a = document.createElement('a')
+            a.href = objUrl
+            a.download = filename
+            document.body.appendChild(a)
+            a.click()
+            document.body.removeChild(a)
+            URL.revokeObjectURL(objUrl)
+        } catch {
+            setEstado('error')
+            setErrorMsg('Error al descargar el archivo.')
+        }
     }
 
     function reset() {
@@ -137,7 +158,7 @@ export default function ExportarReporte({ tipo_reporte, parametros = {}, classNa
                         onClick={() => { setFormato(f); reset() }}
                         className={`px-3 py-1.5 transition-colors ${
                             formato === f
-                                ? 'bg-[#1565c0] text-white'
+                                ? 'bg-[#d32f2f] text-white'
                                 : 'bg-white text-[#4c616c] hover:bg-[#f0f2f3]'
                         } disabled:opacity-50`}
                     >
@@ -150,7 +171,7 @@ export default function ExportarReporte({ tipo_reporte, parametros = {}, classNa
             {estado === 'idle' && (
                 <button
                     onClick={handleExportar}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1565c0] text-white text-[12px] font-semibold rounded-xl hover:bg-[#1976d2] transition-colors"
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[#d32f2f] text-white text-[12px] font-semibold rounded-xl hover:bg-[#c62828] transition-colors"
                 >
                     <IconDownload />
                     Exportar
@@ -158,7 +179,7 @@ export default function ExportarReporte({ tipo_reporte, parametros = {}, classNa
             )}
 
             {estado === 'generando' && (
-                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#e3f2fd] text-[#1565c0] text-[12px] font-semibold rounded-xl">
+                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#ffebee] text-[#d32f2f] text-[12px] font-semibold rounded-xl">
                     <IconSpinner />
                     Generando...
                 </div>
