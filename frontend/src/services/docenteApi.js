@@ -113,6 +113,15 @@ export const proyectosApi = {
     },
 
     // ── RAPs ──
+
+    /**
+     * Lista todos los Resultados de Aprendizaje (RAPs) de un proyecto.
+     *
+     * @param {string|number} proyectoId - ID del proyecto.
+     * @returns {Promise<Array<object>>} Lista de RAPs con sus campos (id, nombre,
+     *   descripcion, competencia_asociada, porcentaje_evaluacion, orden).
+     * @throws {{status: number, data: object}} Si la API devuelve un error HTTP.
+     */
     async listarRAPs(proyectoId) {
         const response = await request(`/api/proyectos/${proyectoId}/raps/`)
         const data = await parseJSON(response)
@@ -120,6 +129,21 @@ export const proyectosApi = {
         return data
     },
 
+    /**
+     * Crea un nuevo RAP en el proyecto especificado.
+     *
+     * @param {string|number} proyectoId - ID del proyecto.
+     * @param {{
+     *   nombre: string,
+     *   descripcion: string,
+     *   competencia_asociada: string|null,
+     *   porcentaje_evaluacion: number,
+     *   orden: number
+     * }} campos - Datos del nuevo RAP.
+     * @returns {Promise<object>} El RAP creado con su id asignado.
+     * @throws {{status: number, data: object}} Si la validación falla (400) o
+     *   el usuario no tiene permisos (403).
+     */
     async crearRAP(proyectoId, { nombre, descripcion, competencia_asociada, porcentaje_evaluacion, orden }) {
         const response = await request(`/api/proyectos/${proyectoId}/raps/`, {
             method: 'POST',
@@ -130,6 +154,21 @@ export const proyectosApi = {
         return data
     },
 
+    /**
+     * Actualiza completamente un RAP existente (PUT).
+     *
+     * @param {string|number} _proyectoId - ID del proyecto (ignorado, incluido por simetría).
+     * @param {string|number} rapId - ID del RAP a actualizar.
+     * @param {{
+     *   nombre: string,
+     *   descripcion: string,
+     *   competencia_asociada: string|null,
+     *   porcentaje_evaluacion: number
+     * }} campos - Nuevos datos del RAP.
+     * @returns {Promise<object>} El RAP actualizado.
+     * @throws {{status: number, data: object}} Si la validación falla (400) o
+     *   el RAP no existe (404).
+     */
     async editarRAP(_proyectoId, rapId, campos) {
         const response = await request(`/api/raps/${rapId}/`, {
             method: 'PUT',
@@ -140,6 +179,15 @@ export const proyectosApi = {
         return data
     },
 
+    /**
+     * Elimina permanentemente un RAP.
+     *
+     * @param {string|number} _proyectoId - ID del proyecto (ignorado, incluido por simetría).
+     * @param {string|number} rapId - ID del RAP a eliminar.
+     * @returns {Promise<void>}
+     * @throws {{status: number, data: object}} Si el RAP no existe (404) o
+     *   el usuario no tiene permisos (403).
+     */
     async eliminarRAP(_proyectoId, rapId) {
         const response = await request(`/api/raps/${rapId}/`, {
             method: 'DELETE',

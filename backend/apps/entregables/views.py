@@ -475,7 +475,17 @@ class HistorialVersionesView(generics.GenericAPIView):
 
 # HU-022 — Validación de entregables por docente
 def _solo_docente(usuario):
-    """Retorna True si el usuario tiene rol Docente."""
+    """Verifica si el usuario tiene el rol de Docente.
+
+    Se utiliza como guardia en endpoints que solo deben ser accesibles por
+    docentes (ej. validación y retroalimentación de entregables).
+
+    Args:
+        usuario: Instancia de Usuario autenticado obtenida desde request.user.
+
+    Returns:
+        bool: True si el usuario tiene tipo_rol == 'docente', False en caso contrario.
+    """
     return usuario.tipo_rol == 'docente'
 
 

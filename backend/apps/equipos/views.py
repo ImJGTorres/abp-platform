@@ -1,4 +1,5 @@
 import io
+import logging
 
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -31,6 +32,8 @@ from .serializers import (
     MiembroEquipoSerializer,
     UsuarioResumenSerializer,
 )
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Equipos por proyecto
@@ -572,8 +575,14 @@ class MoverMiembroView(generics.GenericAPIView):
 
 # DELETE /api/equipos/<equipo_id>/disolver/
 # Permite eliminar un equipo, pero con restricciones de integridad:
-# 1. NO se permite eliminar equipos que tengan entregables/actividades asociadas.
-#    (Validación comentada a espera de implementar la app de entregables).
+#
+# TODO: Validar que el equipo no tenga entregables ni actividades asociadas antes
+#       de permitir la disolución. Esta validación está pendiente porque depende
+#       de la app de entregables (apps.entregables), que debe estar completamente
+#       implementada para poder consultar Entregable.objects.filter(equipo=equipo).
+#       Cuando esté disponible, retornar HTTP 409 Conflict si existen entregables
+#       o actividades vinculadas al equipo.
+#
 # 2. La operación es un soft-delete: marca el equipo como 'inactivo' y
 #    retira a todos sus miembros activos (cambiando su estado a 'retirado')
 #    preservando el historial.
@@ -641,6 +650,22 @@ class EquipoProgresoView(APIView):
     permission_classes = [IsAuthenticated]
 
     def _check_acceso(self, equipo):
+        """Verifica que el usuario autenticado tenga derecho a consultar el progreso del equipo.
+
+        Reglas de negocio:
+            - Administrador: acceso irrestricto.
+            - Docente: solo si es el propietario del curso al que pertenece el proyecto del equipo.
+            - Estudiante / lider_equipo: solo si pertenece activamente a algún equipo
+              del mismo proyecto (no necesariamente al equipo consultado).
+            - Cualquier otro rol: acceso denegado.
+
+        Args:
+            equipo: Instancia de Equipo con su proyecto e id_curso ya seleccionados
+                    (se espera select_related('proyecto__id_curso')).
+
+        Raises:
+            PermissionDenied: Si el usuario no cumple ninguna de las reglas de acceso.
+        """
         usuario = self.request.user
         tipo_rol = getattr(usuario, 'tipo_rol', None)
         if tipo_rol == 'administrador':

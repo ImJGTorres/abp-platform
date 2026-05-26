@@ -1,4 +1,5 @@
 import io
+import logging
 
 from django.db import connection, transaction
 from django.db.models import Avg, Count, FloatField, OuterRef, Prefetch, Q, Subquery, Sum, Value
@@ -50,6 +51,7 @@ from .serializers import (
     RapSerializer,
 )
 
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Cursos
@@ -166,6 +168,21 @@ class ProyectoListCreateView(generics.ListCreateAPIView):
         return get_object_or_404(Curso, pk=self.kwargs['curso_id'])
 
     def _check_acceso_curso(self, curso):
+        """Verifica que el usuario autenticado tenga acceso a los proyectos del curso.
+
+        Reglas de negocio:
+            - Administrador: acceso irrestricto.
+            - Docente: solo si es el propietario del curso (id_docente).
+            - Estudiante / lider_equipo: solo si pertenece activamente a algún
+              equipo cuyo proyecto esté vinculado al curso.
+            - Cualquier otro rol: acceso denegado.
+
+        Args:
+            curso: Instancia de Curso a verificar.
+
+        Raises:
+            PermissionDenied: Si el usuario no cumple ninguna de las reglas de acceso.
+        """
         usuario = self.request.user
         tipo_rol = getattr(usuario, 'tipo_rol', None)
         if tipo_rol == 'administrador':
@@ -1421,6 +1438,22 @@ class ProyectoProgresoView(APIView):
     permission_classes = [IsAuthenticated]
 
     def _check_acceso(self, proyecto):
+        """Verifica que el usuario autenticado tenga acceso al progreso del proyecto.
+
+        Reglas de negocio:
+            - Administrador: acceso irrestricto.
+            - Docente: solo si es el propietario del curso al que pertenece el proyecto.
+            - Estudiante / lider_equipo: solo si pertenece activamente a algún
+              equipo cuyo proyecto esté vinculado al mismo curso.
+            - Cualquier otro rol: acceso denegado.
+
+        Args:
+            proyecto: Instancia de Proyecto con id_curso ya seleccionado
+                      (se espera select_related('id_curso')).
+
+        Raises:
+            PermissionDenied: Si el usuario no cumple ninguna de las reglas de acceso.
+        """
         usuario = self.request.user
         tipo_rol = getattr(usuario, 'tipo_rol', None)
         if tipo_rol == 'administrador':

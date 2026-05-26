@@ -103,6 +103,12 @@ class ParametroSistema(models.Model):
 
         Centraliza la lógica compartida entre clean() y get_valor_casteado().
 
+        Reglas de validación por tipo:
+            - INTEGER: debe ser un número entero no negativo (>= 0).
+            - BOOLEAN: debe ser uno de true/false/1/0/yes/no (insensible a mayúsculas).
+            - DATE:    debe respetar el formato YYYY-MM-DD.
+            - STRING:  se acepta cualquier valor de texto sin restricciones.
+
         Args:
             v: Valor en formato string (ya sin espacios).
 
@@ -110,25 +116,48 @@ class ParametroSistema(models.Model):
             int | bool | date | str: Valor convertido al tipo Python correspondiente.
 
         Raises:
-            ValueError: Si la conversión falla (usado por clean() para construir ValidationError).
+            ValueError: Si la conversión falla o el valor no cumple las restricciones
+                        de rango o formato. El mensaje describe el motivo específico.
         """
         if self.tipo_dato == self.TipoDato.INTEGER:
-            return int(v)
+            try:
+                resultado = int(v)
+            except (ValueError, TypeError):
+                raise ValueError(
+                    f'Se esperaba un número entero, se recibió: "{v}"'
+                )
+            if resultado < 0:
+                raise ValueError(
+                    f'El valor entero debe ser mayor o igual a 0, se recibió: {resultado}'
+                )
+            return resultado
         if self.tipo_dato == self.TipoDato.BOOLEAN:
-            if v.lower() not in self._BOOLEAN_TRUE | self._BOOLEAN_FALSE:
-                raise ValueError(f'Se esperaba true/false/1/0/yes/no, se recibió: "{v}"')
+            valores_validos = self._BOOLEAN_TRUE | self._BOOLEAN_FALSE
+            if v.lower() not in valores_validos:
+                raise ValueError(
+                    f'Se esperaba un booleano (true, false, 1, 0, yes, no), '
+                    f'se recibió: "{v}"'
+                )
             return v.lower() in self._BOOLEAN_TRUE
         if self.tipo_dato == self.TipoDato.DATE:
             if not self._DATE_RE.match(v):
-                raise ValueError(f'Se esperaba formato YYYY-MM-DD, se recibió: "{v}"')
+                raise ValueError(
+                    f'Se esperaba una fecha en formato YYYY-MM-DD, se recibió: "{v}"'
+                )
             return date.fromisoformat(v)
         return self.valor
 
     def clean(self):
         """Valida que valor sea compatible con tipo_dato antes de guardar.
 
+        Aplica las reglas de cada tipo (ver _castear_valor):
+            - INTEGER: debe ser un entero no negativo.
+            - BOOLEAN: debe ser un valor reconocible como verdadero/falso.
+            - DATE:    debe tener formato YYYY-MM-DD.
+
         Raises:
-            ValidationError: Si el valor no es convertible al tipo declarado.
+            ValidationError: Con clave 'valor' si el valor no pasa la validación
+                             del tipo declarado en tipo_dato.
         """
         v = (self.valor or '').strip()
         try:
