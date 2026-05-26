@@ -121,7 +121,8 @@ export default function ExportarReporte({ tipo_reporte, parametros = {}, classNa
             const blob = await response.blob()
             const objUrl = URL.createObjectURL(blob)
             const disposition = response.headers.get('content-disposition')
-            let filename = `reporte.${formato}`
+            const ext = formato === 'excel' ? 'xlsx' : formato
+            let filename = `reporte.${ext}`
             if (disposition) {
                 const match = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/)
                 if (match?.[1]) filename = match[1].replace(/['"]/g, '')
