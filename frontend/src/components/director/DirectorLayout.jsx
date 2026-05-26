@@ -33,6 +33,15 @@ function IconClipboard() {
     )
 }
 
+function IconSettings() {
+    return (
+        <svg viewBox="0 0 20 20" fill="none" className="w-5 h-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="10" cy="10" r="2.5" />
+            <path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.22 4.22l1.42 1.42M14.36 14.36l1.42 1.42M4.22 15.78l1.42-1.42M14.36 5.64l1.42-1.42" />
+        </svg>
+    )
+}
+
 function IconProfile() {
     return (
         <svg viewBox="0 0 20 20" fill="none" className="w-4 h-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
@@ -85,8 +94,9 @@ const NAV_ITEMS = [
     { label: 'Reportes', to: '/director/reportes', icon: <IconClipboard /> },
 ]
 
-function SidebarContent({ collapsed, onCollapse, loggingOut, handleLogout, onNavClick }) {
+function SidebarContent({ collapsed, onCollapse, loggingOut, handleLogout, onNavClick, user }) {
     const location = useLocation()
+    const esAdmin = user?.tipo_rol === 'administrador'
 
     return (
         <>
@@ -133,6 +143,29 @@ function SidebarContent({ collapsed, onCollapse, loggingOut, handleLogout, onNav
                         </Link>
                     )
                 })}
+
+                {/* Sección de administración — visible solo para administrador */}
+                {esAdmin && (
+                    <>
+                        {!collapsed && (
+                            <p className="text-[10px] font-semibold text-[#9ba7ae] tracking-[0.8px] uppercase px-3 pb-1.5 pt-4">Administración</p>
+                        )}
+                        {collapsed && <div className="my-2 border-t border-[#f0f2f3]" />}
+                        <Link
+                            to="/admin"
+                            onClick={onNavClick}
+                            title={collapsed ? 'Administración' : undefined}
+                            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] font-medium transition-all duration-150 select-none cursor-pointer ${
+                                location.pathname.startsWith('/admin')
+                                    ? 'bg-[#d32f2f] text-white shadow-[0_4px_12px_rgba(211,47,47,0.25)]'
+                                    : 'text-[#4c616c] hover:bg-[#f0f2f3] hover:text-[#191c1d]'
+                            }`}
+                        >
+                            <span className="flex-shrink-0"><IconSettings /></span>
+                            {!collapsed && <span>Administración</span>}
+                        </Link>
+                    </>
+                )}
             </nav>
 
             <div className="border-t border-[#e1e3e4] p-2 flex-shrink-0">
@@ -182,6 +215,7 @@ export default function DirectorLayout() {
                     loggingOut={loggingOut}
                     handleLogout={handleLogout}
                     onNavClick={() => {}}
+                    user={user}
                 />
             </aside>
 
@@ -195,6 +229,7 @@ export default function DirectorLayout() {
                             loggingOut={loggingOut}
                             handleLogout={handleLogout}
                             onNavClick={() => setMobileOpen(false)}
+                            user={user}
                         />
                     </aside>
                 </div>
