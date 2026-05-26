@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { NavLink, Outlet, useNavigate, Link, useLocation } from 'react-router-dom'
 import { authApi, session, buildMediaUrl } from '../../services/api'
+import NotificacionesBell from '../NotificacionesBell'
+import AlertasBell from '../AlertasBell'
 
 function IconDashboard() {
     return (
@@ -261,6 +263,8 @@ export default function EstudianteLayout() {
                         {mobileOpen ? <IconX /> : <IconMenu />}
                     </button>
                     <div className="flex-1" />
+                    <NotificacionesBell />
+                    <AlertasBell pollingMinutos={5} />
                     {user && (
                         <div className="relative">
                             <button onClick={e => { e.stopPropagation(); setTopbarMenuOpen(o => !o) }}
