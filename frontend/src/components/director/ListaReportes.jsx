@@ -3,6 +3,14 @@ import { useNavigate } from 'react-router-dom'
 import { reportesApi } from '../../services/docenteApi'
 import { periodosApi } from '../../services/api'
 
+// Normaliza el resultado de indicadoresDashboard al shape que usa el componente
+function normalizarProyecto(p) {
+    return {
+        ...p,
+        aprobados: p.entregables_aprobados ?? p.aprobados ?? 0,
+    }
+}
+
 // ── Iconos ────────────────────────────────────────────────────────────────────
 
 function IconSearch() {
@@ -80,7 +88,7 @@ export default function ListaReportes() {
             setCargando(true)
             setError(null)
             try {
-                const res = await reportesApi.reporteCurso(periodoSel)
+                const res = await reportesApi.indicadoresDashboard({ periodoId: periodoSel })
                 setReporte(res)
             } catch {
                 setError('No se pudo cargar el reporte.')
@@ -91,9 +99,15 @@ export default function ListaReportes() {
         cargar()
     }, [periodoSel])
 
-    const proyectosFiltrados = (reporte?.proyectos ?? []).filter(p =>
-        p.nombre.toLowerCase().includes(busqueda.toLowerCase())
-    )
+    const periodoNombre = (() => {
+        const raw = reporte?.resumen_periodo
+        const r = Array.isArray(raw) ? raw[0] : raw
+        return r?.periodo_nombre ?? ''
+    })()
+
+    const proyectosFiltrados = (reporte?.proyectos ?? [])
+        .map(normalizarProyecto)
+        .filter(p => p.nombre.toLowerCase().includes(busqueda.toLowerCase()))
 
     return (
         <div className="p-4 sm:p-6 flex flex-col gap-5">
@@ -108,14 +122,14 @@ export default function ListaReportes() {
 
             {/* Selector de curso/período */}
             <div className="bg-white rounded-2xl border border-[#e1e3e4] p-5">
-                <p className="text-[13px] font-semibold text-[#191c1d] mb-3">Seleccionar curso</p>
+                <p className="text-[13px] font-semibold text-[#191c1d] mb-3">Seleccionar período</p>
                 <div className="flex gap-3 flex-wrap">
                     <select
                         value={periodoSel}
                         onChange={e => { setPeriodoSel(e.target.value); setBusqueda('') }}
-                        className="flex-1 min-w-[200px] border border-[#e1e3e4] rounded-xl px-3 py-2 text-[13px] text-[#191c1d] bg-white focus:outline-none focus:ring-2 focus:ring-[#1565c0]/30"
+                        className="flex-1 min-w-[200px] border border-[#e1e3e4] rounded-xl px-3 py-2 text-[13px] text-[#191c1d] bg-white focus:outline-none focus:ring-2 focus:ring-[#d32f2f]/30"
                     >
-                        <option value="">— Seleccionar curso —</option>
+                        <option value="">— Seleccionar período —</option>
                         {periodos.map(p => (
                             <option key={p.id} value={p.id}>{p.nombre ?? `Curso ${p.id}`}</option>
                         ))}
@@ -130,7 +144,7 @@ export default function ListaReportes() {
                                 placeholder="Buscar proyecto..."
                                 value={busqueda}
                                 onChange={e => setBusqueda(e.target.value)}
-                                className="w-full border border-[#e1e3e4] rounded-xl pl-9 pr-3 py-2 text-[13px] text-[#191c1d] bg-white focus:outline-none focus:ring-2 focus:ring-[#1565c0]/30"
+                                className="w-full border border-[#e1e3e4] rounded-xl pl-9 pr-3 py-2 text-[13px] text-[#191c1d] bg-white focus:outline-none focus:ring-2 focus:ring-[#d32f2f]/30"
                             />
                         </div>
                     )}
@@ -147,7 +161,7 @@ export default function ListaReportes() {
 
             {cargando && (
                 <div className="flex justify-center py-10">
-                    <div className="w-7 h-7 border-2 border-[#1565c0] border-t-transparent rounded-full animate-spin" />
+                    <div className="w-7 h-7 border-2 border-[#d32f2f] border-t-transparent rounded-full animate-spin" />
                 </div>
             )}
 
@@ -160,8 +174,8 @@ export default function ListaReportes() {
             {reporte && !cargando && (
                 <>
                     <div className="flex items-center gap-2 -mb-2">
-                        <h2 className="text-[15px] font-bold text-[#191c1d]">{reporte.curso?.nombre}</h2>
-                        <span className="text-[12px] text-[#9ba7ae]">· {reporte.total_proyectos} proyecto(s)</span>
+                        <h2 className="text-[15px] font-bold text-[#191c1d]">{periodoNombre}</h2>
+                        <span className="text-[12px] text-[#9ba7ae]">· {proyectosFiltrados.length} proyecto(s)</span>
                     </div>
 
                     {proyectosFiltrados.length === 0 ? (
@@ -173,7 +187,7 @@ export default function ListaReportes() {
                             {proyectosFiltrados.map(p => (
                                 <div
                                     key={p.id}
-                                    className="bg-white rounded-2xl border border-[#e1e3e4] p-5 hover:border-[#1565c0]/40 hover:shadow-sm transition-all cursor-pointer"
+                                    className="bg-white rounded-2xl border border-[#e1e3e4] p-5 hover:border-[#d32f2f]/40 hover:shadow-sm transition-all cursor-pointer"
                                     onClick={() => navigate(`/director/reportes/proyecto/${p.id}`)}
                                 >
                                     <div className="flex items-start justify-between gap-3 mb-3">
@@ -185,7 +199,7 @@ export default function ListaReportes() {
                                         </div>
                                         <div className="flex items-center gap-2 flex-shrink-0">
                                             <EstadoBadge estado={p.estado} />
-                                            <button className="text-[#1565c0] hover:text-[#1976d2] transition-colors">
+                                            <button className="text-[#d32f2f] hover:text-[#c62828] transition-colors">
                                                 <IconArrow />
                                             </button>
                                         </div>
