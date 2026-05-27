@@ -1,4 +1,4 @@
-import { request } from './api'
+import { request, BASE_URL } from './api'
 
 async function parseJSON(response) {
     const text = await response.text()
@@ -77,7 +77,7 @@ export const entregablesApi = {
 
             xhr.onerror = () => reject({ status: 0, data: { detail: 'Error de conexión.' } })
 
-            const baseUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
+            const baseUrl = BASE_URL
             xhr.open('POST', `${baseUrl}/api/entregables/${entregableId}/archivos/`)
             if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`)
             xhr.send(formData)
@@ -99,10 +99,10 @@ export const entregablesApi = {
         return data
     },
 
-    async crearNuevaVersion(entregableId, motivo = '') {
+    async crearNuevaVersion(entregableId) {
         const res = await request(`/api/entregables/${entregableId}/nueva-version/`, {
             method: 'POST',
-            body: JSON.stringify({ motivo_revision: motivo }),
+            body: JSON.stringify({}),
         })
         const data = await parseJSON(res)
         if (!res.ok) throw { status: res.status, data }

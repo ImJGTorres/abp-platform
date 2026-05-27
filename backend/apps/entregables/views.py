@@ -298,7 +298,7 @@ class NuevaVersionEntregableView(generics.GenericAPIView):
         if not es_miembro:
             raise PermissionDenied('No perteneces al equipo dueño de este entregable.')
 
-        if usuario.tipo_rol != 'estudiante':
+        if usuario.tipo_rol not in ('estudiante', 'lider_equipo'):
             raise PermissionDenied('Solo los estudiantes pueden crear nuevas versiones.')
 
         motivo = request.data.get('motivo_revision', '')

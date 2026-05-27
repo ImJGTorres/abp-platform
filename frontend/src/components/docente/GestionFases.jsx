@@ -26,18 +26,6 @@ function IconTrash() {
     )
 }
 
-function IconGrip() {
-    return (
-        <svg viewBox="0 0 20 20" fill="none" className="w-4 h-4 text-[#9ba7ae]">
-            <circle cx="7" cy="6" r="1.5" fill="currentColor" />
-            <circle cx="13" cy="6" r="1.5" fill="currentColor" />
-            <circle cx="7" cy="10" r="1.5" fill="currentColor" />
-            <circle cx="13" cy="10" r="1.5" fill="currentColor" />
-            <circle cx="7" cy="14" r="1.5" fill="currentColor" />
-            <circle cx="13" cy="14" r="1.5" fill="currentColor" />
-        </svg>
-    )
-}
 
 function IconChevron() {
     return (
@@ -135,7 +123,7 @@ export default function GestionFases() {
     const [modalOpen, setModalOpen] = useState(false)
     const [editando, setEditando] = useState(null)
     const [confirmDelete, setConfirmDelete] = useState(null)
-    const [draggedIndex, setDraggedIndex] = useState(null)
+
     const [guardando, setGuardando] = useState(false)
     const [modalError, setModalError] = useState('')
 
@@ -224,28 +212,6 @@ export default function GestionFases() {
         }
     }
 
-    function handleDragStart(index) { setDraggedIndex(index) }
-
-    function handleDragOver(e, index) {
-        e.preventDefault()
-        if (draggedIndex === null || draggedIndex === index) return
-        const newFases = [...fases]
-        const [removed] = newFases.splice(draggedIndex, 1)
-        newFases.splice(index, 0, removed)
-        setFases(newFases)
-        setDraggedIndex(index)
-    }
-
-    async function handleDragEnd() {
-        if (draggedIndex === null) return
-        try {
-            await Promise.all(fases.map((fase, idx) => fasesApi.reordenar(fase.id, idx + 1)))
-        } catch (err) {
-            console.error('Error al reordenar:', err)
-            await cargarFases()
-        }
-        setDraggedIndex(null)
-    }
 
     return (
         <div className="flex-1 overflow-y-auto p-4 sm:p-6" style={{ fontFamily: "'Manrope', sans-serif" }}>
@@ -276,7 +242,7 @@ export default function GestionFases() {
                 <div>
                     <h1 className="text-[22px] font-extrabold text-[#191c1d] mb-1">Fases del proyecto</h1>
                     <p className="text-[13px] text-[#9ba7ae] leading-relaxed">
-                        Define y organiza las fases del ciclo de vida del proyecto. Arrastra para reordenarlas.
+                        Define y organiza las fases del ciclo de vida del proyecto.
                     </p>
                 </div>
                 <button onClick={() => abrirModal()}
@@ -302,13 +268,8 @@ export default function GestionFases() {
                 <div className="space-y-2">
                     {fases.map((fase, idx) => (
                         <div key={fase.id}
-                            draggable
-                            onDragStart={() => handleDragStart(idx)}
-                            onDragOver={e => handleDragOver(e, idx)}
-                            onDragEnd={handleDragEnd}
-                            className="bg-white border border-[#e1e3e4] rounded-xl p-4 hover:shadow-sm transition-all cursor-move group">
+                            className="bg-white border border-[#e1e3e4] rounded-xl p-4 hover:shadow-sm transition-all group">
                             <div className="flex items-start gap-3">
-                                <div className="mt-0.5 flex-shrink-0"><IconGrip /></div>
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-start justify-between gap-3 mb-1">
                                         <div className="flex-1 min-w-0">

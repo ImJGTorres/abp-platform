@@ -243,6 +243,22 @@ class ProyectoDetailView(generics.RetrieveUpdateDestroyAPIView):
         self.perform_destroy(instance)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if instance.equipos.exists():
+            return Response(
+                {'detail': 'No se puede eliminar el proyecto porque tiene equipos vinculados.'},
+                status=status.HTTP_409_CONFLICT,
+            )
+        registrar_evento(
+            request=request,
+            accion=BitacoraSistema.Accion.DELETE,
+            modulo='proyectos',
+            descripcion=f'Proyecto eliminado: ID={instance.id}, nombre={instance.nombre}',
+        )
+        self.perform_destroy(instance)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
 
 # ---------------------------------------------------------------------------
 # Carga masiva de cursos (admin)
