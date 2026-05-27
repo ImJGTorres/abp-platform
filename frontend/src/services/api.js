@@ -66,8 +66,19 @@ async function tryRefresh() {
   }
 }
 
-//  Cliente HTTP base
-
+/**
+ * Cliente HTTP base con soporte de autenticación JWT y renovación automática de token.
+ *
+ * Agrega automáticamente el header `Authorization: Bearer <token>` si existe
+ * un token de acceso en la sesión. Si el servidor responde 401, intenta renovar
+ * el token una vez; si la renovación falla, limpia la sesión y redirige a /login.
+ *
+ * @param {string} path - Ruta relativa del endpoint (ej. '/api/cursos/').
+ * @param {RequestInit} [options={}] - Opciones de fetch (method, body, headers, etc.).
+ * @returns {Promise<Response>} La respuesta HTTP de fetch (sin parsear).
+ * @throws {{type: 'network', message: string}} Si no hay conexión con el servidor.
+ * @throws {{type: 'auth', message: string}} Si el token expiró y no pudo renovarse.
+ */
 async function request(path, options = {}) {
   const headers = {
     'Content-Type': 'application/json',
@@ -110,6 +121,22 @@ export { request, BASE_URL }
 //   POST /api/auth/logout/  → LogoutView (SimpleJWT personalizado) — hace blacklist del refresh token
 
 export const authApi = {
+  /**
+   * Autentica al usuario con correo y contraseña.
+   *
+   * Usa `fetch` directo (no `request()`) para evitar que el interceptor de 401
+   * intente hacer refresh y recargue la página cuando las credenciales son incorrectas.
+   * Al autenticar correctamente, guarda los tokens y los datos del usuario en
+   * `localStorage` y obtiene la foto de perfil en una petición adicional.
+   *
+   * @param {string} correo - Correo electrónico institucional del usuario.
+   * @param {string} contrasena - Contraseña del usuario.
+   * @returns {Promise<{id: number, nombre: string, correo: string, tipo_rol: string, foto_perfil?: string|null}>}
+   *   Datos básicos del usuario autenticado.
+   * @throws {{type: 'network', message: string}} Si no hay conexión con el servidor.
+   * @throws {{status: number, data: object}} Si las credenciales son incorrectas (401)
+   *   o la cuenta está inactiva (403).
+   */
   async login(correo, contrasena) {
     // Usa fetch directo (no request()) para evitar que el interceptor de 401
     // intente hacer refresh y recargue la página cuando las credenciales son incorrectas.
@@ -166,6 +193,15 @@ export const authApi = {
     return user
   },
 
+  /**
+   * Cierra la sesión del usuario.
+   *
+   * Envía el refresh token al backend para que sea añadido a la blacklist
+   * (revocación). Independientemente del resultado de la petición (ej. sin
+   * conexión), limpia siempre los tokens y datos de sesión del `localStorage`.
+   *
+   * @returns {Promise<void>}
+   */
   async logout() {
     const refresh = session.getRefresh()
 
@@ -651,6 +687,34 @@ export function buildMediaUrl(url) {
     return url
   }
   return `${BASE_URL}${url}`
+}
+
+// Exportaciones
+// POST /api/exportar/reporte/          → SolicitarExportacionView
+// GET  /api/exportar/:id/estado/       → EstadoExportacionView
+// GET  /api/exportar/:id/descargar/    → DescargarExportacionView (FileResponse)
+
+export const exportacionesApi = {
+  async solicitar(tipo_reporte, formato, parametros = {}) {
+    const response = await request('/api/exportar/reporte/', {
+      method: 'POST',
+      body: JSON.stringify({ tipo_reporte, formato, parametros }),
+    })
+    const data = await parseJSON(response)
+    if (!response.ok) throw { status: response.status, data }
+    return data
+  },
+
+  async estado(exportacionId) {
+    const response = await request(`/api/exportar/${exportacionId}/estado/`)
+    const data = await parseJSON(response)
+    if (!response.ok) throw { status: response.status, data }
+    return data
+  },
+
+  descargarUrl(exportacionId) {
+    return `${BASE_URL}/api/exportar/${exportacionId}/descargar/`
+  },
 }
 
 export function rutaPorRol(tipo_rol) {

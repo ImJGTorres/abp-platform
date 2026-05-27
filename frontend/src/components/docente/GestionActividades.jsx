@@ -311,7 +311,14 @@ export default function GestionActividades() {
             ) : (
                 <div className="space-y-2">
                     {actividadesFiltradas.map(a => (
-                        <div key={a.id} className="bg-white border border-[#e1e3e4] rounded-xl p-4 hover:shadow-sm transition-all group">
+                        <div
+                            key={a.id}
+                            className="bg-white border border-[#e1e3e4] rounded-xl p-4 hover:shadow-sm hover:border-[#d32f2f]/30 transition-all group cursor-pointer"
+                            onClick={() => navigate(
+                                `/docente/proyectos/${proyectoId}/fases/${faseId}/actividades/${a.id}/actividad`,
+                                { state: { ...location.state, actividadNombre: a.nombre, actividad: a } }
+                            )}
+                        >
                             <div className="flex items-start gap-3">
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-start justify-between gap-3 mb-1">
@@ -347,27 +354,26 @@ export default function GestionActividades() {
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                                    <button onClick={() => abrirModal(a)}
-                                        className="p-2 rounded-lg hover:bg-[#f0f2f3] text-[#4c616c] hover:text-[#191c1d] transition-colors">
+                                    <button
+                                        onClick={e => { e.stopPropagation(); abrirModal(a) }}
+                                        className="p-2 rounded-lg hover:bg-[#f0f2f3] text-[#4c616c] hover:text-[#191c1d] transition-colors"
+                                    >
                                         <IconEdit />
                                     </button>
-                                    <button onClick={() => setConfirmDelete(a)}
-                                        className="p-2 rounded-lg hover:bg-[#fff1f0] text-[#ba1a1a] transition-colors">
+                                    <button
+                                        onClick={e => { e.stopPropagation(); setConfirmDelete(a) }}
+                                        className="p-2 rounded-lg hover:bg-[#fff1f0] text-[#ba1a1a] transition-colors"
+                                    >
                                         <IconTrash />
                                     </button>
                                 </div>
                             </div>
-                            <div className="border-t border-[#f0f2f3] mt-3 pt-3">
-                                <button
-                                    onClick={() => navigate(
-                                        `/docente/proyectos/${proyectoId}/fases/${faseId}/actividades/${a.id}/entregables`,
-                                        { state: { ...location.state, actividadNombre: a.nombre } }
-                                    )}
-                                    className="flex items-center gap-2 px-3 py-1.5 bg-[#eef2ff] hover:bg-[#e0e7ff] text-[#4338ca] rounded-lg transition-colors text-[12px] font-semibold"
-                                >
-                                    <IconClipboardCheck />
-                                    Revisar entregables
-                                </button>
+                            <div className="border-t border-[#f0f2f3] mt-3 pt-3 flex items-center gap-1.5 text-[12px] font-semibold text-[#9ba7ae]">
+                                <IconClipboardCheck />
+                                <span>Ver entregables y rúbricas</span>
+                                <svg viewBox="0 0 16 16" fill="none" className="w-3 h-3 ml-auto" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                                    <path d="M6 3l5 5-5 5" />
+                                </svg>
                             </div>
                         </div>
                     ))}

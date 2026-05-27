@@ -58,3 +58,63 @@ export const estudianteProyectosApi = {
         return data
     },
 }
+
+// ─── Equipo del estudiante en un proyecto ─────────────────────
+export const miEquipoApi = {
+    async obtenerPorProyecto(proyectoId) {
+        const response = await request(`/api/proyectos/${proyectoId}/equipos/`)
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+    async obtenerMiembros(equipoId) {
+        const response = await request(`/api/equipos/${equipoId}/estudiantes/`)
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+}
+
+// ─── Autoevaluacion ───────────────────────────────────────────
+export const autoevaluacionApi = {
+    async mia(proyectoId) {
+        const response = await request(`/api/proyectos/${proyectoId}/autoevaluaciones/mia/`)
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+    async puedeAutoevaluar(proyectoId) {
+        const response = await request(`/api/proyectos/${proyectoId}/puede-autoevaluar/`)
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+    async crear(proyectoId, payload) {
+        const response = await request(`/api/proyectos/${proyectoId}/autoevaluaciones/`, {
+            method: 'POST',
+            body: JSON.stringify(payload),
+        })
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+}
+
+// ─── Coevaluacion ─────────────────────────────────────────────
+export const coevaluacionApi = {
+    async listar(proyectoId) {
+        const response = await request(`/api/proyectos/${proyectoId}/coevaluaciones/`)
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+    async crear(proyectoId, payload) {
+        const response = await request(`/api/proyectos/${proyectoId}/coevaluaciones/`, {
+            method: 'POST',
+            body: JSON.stringify(payload),
+        })
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+}

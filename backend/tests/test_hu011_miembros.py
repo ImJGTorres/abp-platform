@@ -16,7 +16,6 @@ from apps.bitacora.models import BitacoraSistema
 
 @pytest.fixture
 def proyecto_activo(docente_a):
-    """Crea un proyecto activo para testing"""
     from tests.factories import CursoFactory
     from datetime import date
     curso = CursoFactory(
@@ -36,7 +35,14 @@ def proyecto_activo(docente_a):
 
 @pytest.fixture
 def equipo_con_capacidad(proyecto_activo, docente_a):
-    """Crea un equipo con capacidad disponible"""
+    ParametroSistema.objects.get_or_create(
+        clave='max_estudiantes_por_equipo',
+        defaults={
+            'valor': '10',
+            'categoria': ParametroSistema.Categoria.GENERAL,
+            'tipo_dato': ParametroSistema.TipoDato.INTEGER,
+        },
+    )
     return Equipo.objects.create(
         nombre="Equipo Test",
         proyecto=proyecto_activo,
@@ -46,7 +52,6 @@ def equipo_con_capacidad(proyecto_activo, docente_a):
 
 @pytest.fixture
 def estudiante_user():
-    """Crea un usuario estudiante para testing"""
     from tests.factories import UsuarioFactory
     return UsuarioFactory(tipo_rol=Usuario.TipoRol.ESTUDIANTE)
 
@@ -95,7 +100,14 @@ def test_cp02_equipo_lleno(cliente_a, equipo_con_capacidad, estudiante_user, db)
 def test_cp03_estudiante_ya_en_otro_equipo_mismo_proyecto(cliente_a, proyecto_activo, estudiante_user, db):
     """CP-03: Estudiante ya en otro equipo del mismo proyecto → 400"""
     from tests.factories import UsuarioFactory
-    
+    ParametroSistema.objects.get_or_create(
+        clave='max_estudiantes_por_equipo',
+        defaults={
+            'valor': '10',
+            'categoria': ParametroSistema.Categoria.GENERAL,
+            'tipo_dato': ParametroSistema.TipoDato.INTEGER,
+        },
+    )
     # Crear primer equipo y asignar estudiante
     equipo_a = Equipo.objects.create(
         nombre="Equipo A",

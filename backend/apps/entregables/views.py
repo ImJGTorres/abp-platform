@@ -152,6 +152,27 @@ class EnviarEntregableView(generics.UpdateAPIView):
             except Exception:
                 pass
 
+        # Notificar al docente del curso
+        try:
+            from apps.alertas.models import Alerta
+            proyecto = entregable.id_actividad.id_fase.id_proyecto
+            docente_id = proyecto.id_curso.id_docente_id
+            if docente_id:
+                Alerta.objects.get_or_create(
+                    tipo='entregable_enviado',
+                    id_usuario_destino_id=docente_id,
+                    referencia_id=entregable.id,
+                    defaults={
+                        'id_proyecto_id': proyecto.id,
+                        'mensaje': (
+                            f'El equipo "{entregable.id_equipo.nombre}" envió el entregable '
+                            f'"{entregable.titulo}" para revisión en el proyecto "{proyecto.nombre}".'
+                        ),
+                    },
+                )
+        except Exception:
+            pass
+
         return Response(EntregableSerializer(entregable).data, status=status.HTTP_200_OK)
 
 
@@ -454,7 +475,17 @@ class HistorialVersionesView(generics.GenericAPIView):
 
 # HU-022 — Validación de entregables por docente
 def _solo_docente(usuario):
-    """Retorna True si el usuario tiene rol Docente."""
+    """Verifica si el usuario tiene el rol de Docente.
+
+    Se utiliza como guardia en endpoints que solo deben ser accesibles por
+    docentes (ej. validación y retroalimentación de entregables).
+
+    Args:
+        usuario: Instancia de Usuario autenticado obtenida desde request.user.
+
+    Returns:
+        bool: True si el usuario tiene tipo_rol == 'docente', False en caso contrario.
+    """
     return usuario.tipo_rol == 'docente'
 
 

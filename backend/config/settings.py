@@ -44,7 +44,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'corsheaders',
     'rest_framework',
-    'anymail',
+    # 'anymail',  # requiere: pip install django-anymail[sendgrid]
     # SimpleJWT: Librería para autenticación JWT (BE-01)
     # Provee views ready-to-use para login, refresh y logout
     'rest_framework_simplejwt',
@@ -58,6 +58,10 @@ INSTALLED_APPS = [
     'apps.cursos',
     'apps.equipos',
     'apps.entregables',
+    'apps.evaluacion',
+    'apps.reportes',
+    'apps.alertas',
+    'apps.exportaciones',
 ]
 
 # Configuración de Django REST Framework (BE-01)
@@ -135,19 +139,20 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': config('DB_NAME', default='postgres'),
-        'USER': config('DB_USER'),
-        'PASSWORD': config('DB_PASSWORD'),
-        'HOST': config('DB_HOST'),
-        'PORT': config('DB_PORT', default='5432'),
-        'OPTIONS': {
-            'sslmode': 'require',
-        },
+# Usa SQLite en local, Supabase en producción
+if config('USE_SUPABASE', default=False, cast=bool):
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': config('DB_NAME', default='postgres'),
+            'USER': config('DB_USER'),
+            'PASSWORD': config('DB_PASSWORD'),
+            'HOST': config('DB_HOST'),
+            'PORT': config('DB_PORT', default='5432'),
+            'CONN_MAX_AGE': 0,  # pgBouncer cierra conexiones inactivas; no reutilizar
+        }
     }
-}
+
 
 # Custom user model (BE-01)
 # Usa el modelo Usuario personalizado en lugar del User por defecto
@@ -244,6 +249,7 @@ CACHES = {
 
 # CORS: Permitir todos los orígenes (necesario para pruebas E2E con Cypress)
 CORS_ALLOW_ALL_ORIGINS = True
+CORS_EXPOSE_HEADERS = ['Content-Disposition']
 
 # =============================================================================
 # CONFIGURACIÓN DE CORREO ELECTRÓNICO
@@ -259,7 +265,7 @@ EMAIL_TIMEOUT      = config('EMAIL_TIMEOUT',      default=10, cast=int)
 
 SENDGRID_API_KEY = config('SENDGRID_API_KEY', default='')
 if SENDGRID_API_KEY:
-    ANYMAIL = {'SENDGRID_API_KEY': SENDGRID_API_KEY}
+    ANYMAIL = {'SENDGRID_API_KEY': SENDGRID_API_KEY}  # requiere anymail instalado
 
 # =============================================================================
 # ARCHIVOS DE MEDIA (fotos de perfil, etc.)
