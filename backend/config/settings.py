@@ -140,18 +140,21 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
 # Usa SQLite en local, Supabase en producción
-if config('USE_SUPABASE', default=False, cast=bool):
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': config('DB_NAME', default='postgres'),
-            'USER': config('DB_USER'),
-            'PASSWORD': config('DB_PASSWORD'),
-            'HOST': config('DB_HOST'),
-            'PORT': config('DB_PORT', default='5432'),
-            'CONN_MAX_AGE': 0,  # pgBouncer cierra conexiones inactivas; no reutilizar
-        }
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': config('DB_NAME', default='postgres'),
+        'USER': config('DB_USER'),
+        'PASSWORD': config('DB_PASSWORD'),
+        'HOST': config('DB_HOST'),
+        'PORT': config('DB_PORT', default='5432'),
+        'CONN_MAX_AGE': 0,  # pgBouncer cierra conexiones inactivas; no reutilizar
+        'OPTIONS': {
+            'sslmode': 'require',
+        },
     }
+}
 
 
 # Custom user model (BE-01)
