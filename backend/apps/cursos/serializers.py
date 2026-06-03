@@ -155,6 +155,16 @@ class ProyectoSerializer(serializers.ModelSerializer):
     total_fases = serializers.SerializerMethodField()
     total_actividades = serializers.SerializerMethodField()
     actividades_completadas = serializers.SerializerMethodField()
+    periodo_academico_id = serializers.IntegerField(
+        source='id_curso.id_periodo_academico_id',
+        read_only=True,
+        default=None,
+    )
+    periodo_academico_nombre = serializers.CharField(
+        source='id_curso.id_periodo_academico.nombre',
+        read_only=True,
+        default='',
+    )
 
     class Meta:
         model = Proyecto
@@ -173,6 +183,8 @@ class ProyectoSerializer(serializers.ModelSerializer):
             'total_actividades',
             'actividades_completadas',
             'fecha_creacion',
+            'periodo_academico_id',
+            'periodo_academico_nombre',
         ]
         read_only_fields = fields
 

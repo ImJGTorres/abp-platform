@@ -1,5 +1,5 @@
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Q, ProtectedError
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import generics, status
@@ -147,6 +147,17 @@ class RubricaDetailView(generics.RetrieveUpdateDestroyAPIView):
             pass
 
         return Response(serializer.data)
+
+    def delete(self, request, *args, **kwargs):
+        rubrica = self.get_object()
+        try:
+            rubrica.delete()
+        except ProtectedError:
+            return Response(
+                {'detail': 'No se puede eliminar la rúbrica porque ya tiene evaluaciones registradas.'},
+                status=status.HTTP_409_CONFLICT,
+            )
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 # ---------------------------------------------------------------------------
@@ -559,14 +570,25 @@ class AutoevaluacionListCreateView(APIView):
             )
 
         # Verificar pertenencia al proyecto
-        es_miembro = MiembroEquipo.objects.filter(
+        miembro = MiembroEquipo.objects.filter(
             equipo__proyecto_id=id_proyecto,
             usuario=request.user,
             estado='activo',
-        ).exists()
-        if not es_miembro:
+        ).select_related('equipo').first()
+        if not miembro:
             return Response(
                 {'detail': 'No perteneces a este proyecto.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # El estudiante solo puede autoevaluarse si el docente ya evaluó al menos un entregable
+        tiene_evaluacion = Evaluacion.objects.filter(
+            id_entregable__id_equipo=miembro.equipo,
+            estado=Evaluacion.Estado.PUBLICADA,
+        ).exists()
+        if not tiene_evaluacion:
+            return Response(
+                {'detail': 'Aún no puedes autoevaluarte. El docente debe calificar al menos un entregable con rúbrica primero.'},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
@@ -649,6 +671,42 @@ class AutoevaluacionListCreateView(APIView):
             AutoevaluacionSerializer(autoevaluacion, context={'request': request}).data,
             status=status.HTTP_201_CREATED,
         )
+
+
+class AutoevaluacionPuedeView(APIView):
+    """
+    GET /api/proyectos/<id_proyecto>/puede-autoevaluar/
+
+    Retorna { puede: bool, motivo: str } para que el frontend
+    muestre el formulario de autoevaluación bloqueado o disponible.
+    """
+    authentication_classes = [UsuarioJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, id_proyecto):
+        tipo_rol = getattr(request.user, 'tipo_rol', None)
+        if tipo_rol not in ('estudiante', 'lider_equipo'):
+            return Response({'puede': True, 'motivo': ''})
+
+        miembro = MiembroEquipo.objects.filter(
+            equipo__proyecto_id=id_proyecto,
+            usuario=request.user,
+            estado='activo',
+        ).select_related('equipo').first()
+        if not miembro:
+            return Response({'puede': False, 'motivo': 'No perteneces a este proyecto.'})
+
+        tiene_evaluacion = Evaluacion.objects.filter(
+            id_entregable__id_equipo=miembro.equipo,
+            estado=Evaluacion.Estado.PUBLICADA,
+        ).exists()
+        if not tiene_evaluacion:
+            return Response({
+                'puede': False,
+                'motivo': 'El docente aún no ha calificado ningún entregable con rúbrica.',
+            })
+
+        return Response({'puede': True, 'motivo': ''})
 
 
 class AutoevaluacionMiaView(APIView):
