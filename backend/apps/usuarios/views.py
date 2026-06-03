@@ -530,7 +530,9 @@ class CargaMasivaEstudiantesView(APIView):
                 if i is None or i >= len(fila):
                     return ''
                 v = fila[i]
-                return str(v).strip() if v is not None else ''
+                if v is None:
+                    return ''
+                return str(v).replace('\r', '').replace('\n', '').strip()
 
             correo          = _get(idx_correo).lower()
             primer_nombre   = _get(idx_p_nombre)
@@ -707,7 +709,9 @@ class CargaMasivaDocentesView(APIView):
                 if i is None or i >= len(fila):
                     return ''
                 v = fila[i]
-                return str(v).strip() if v is not None else ''
+                if v is None:
+                    return ''
+                return str(v).replace('\r', '').replace('\n', '').strip()
 
             nombre_completo = _get(idx_nombre)
             correo   = _get(idx_correo).lower()
