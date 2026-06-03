@@ -427,9 +427,10 @@ class CursoMatriculaExcelView(APIView):
 
         student_rows = all_rows[header_row_idx + 1:]
 
-        inscritos = 0
-        omitidos = 0
-        errores = []
+        matriculados = 0
+        ya_matriculados = 0
+        no_encontrados = []
+        rol_incorrecto = []
 
         try:
             with transaction.atomic():
@@ -438,22 +439,36 @@ class CursoMatriculaExcelView(APIView):
                         continue
 
                     raw = row[0]
-                    codigo = str(raw).strip() if raw is not None else ''
+                    # openpyxl puede devolver números como float (1152001.0);
+                    # se normaliza a string sin decimales.
+                    if isinstance(raw, float):
+                        codigo = str(int(raw))
+                    elif raw is not None:
+                        codigo = str(raw).strip()
+                    else:
+                        codigo = ''
+
                     if not codigo or codigo.lower() == 'none':
                         continue
 
+                    # Buscar por código independientemente del rol para dar
+                    # un error más útil al usuario.
                     try:
-                        usuario = Usuario.objects.get(codigo=codigo, tipo_rol='estudiante')
+                        usuario = Usuario.objects.get(codigo=codigo)
                     except Usuario.DoesNotExist:
-                        errores.append({'codigo': codigo, 'motivo': f'Estudiante con código {codigo} no encontrado'})
+                        no_encontrados.append(codigo)
+                        continue
+
+                    if usuario.tipo_rol != 'estudiante':
+                        rol_incorrecto.append(codigo)
                         continue
 
                     if CursoEstudiante.objects.filter(curso=curso, estudiante=usuario).exists():
-                        omitidos += 1
+                        ya_matriculados += 1
                         continue
 
                     CursoEstudiante.objects.create(curso=curso, estudiante=usuario, estado='activo')
-                    inscritos += 1
+                    matriculados += 1
 
         except Exception as e:
             return Response({'detail': f'Error procesando el archivo: {e}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -465,16 +480,17 @@ class CursoMatriculaExcelView(APIView):
                 modulo='cursos',
                 descripcion=(
                     f'Matrícula masiva en curso ID={curso_id}: '
-                    f'{inscritos} inscritos, {omitidos} ya inscritos'
+                    f'{matriculados} inscritos, {ya_matriculados} ya inscritos'
                 ),
             )
         except Exception:
             pass
 
         return Response({
-            'inscritos': inscritos,
-            'omitidos': omitidos,
-            'errores': errores,
+            'matriculados': matriculados,
+            'ya_matriculados': ya_matriculados,
+            'no_encontrados': no_encontrados,
+            'rol_incorrecto': rol_incorrecto,
         }, status=status.HTTP_201_CREATED)
 
 
