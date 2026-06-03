@@ -244,11 +244,11 @@ export default function Coevaluacion() {
         setError('')
         try {
             const payload = {
-                id_evaluado: selectedEvaluadoId,
-                id_rubrica:  rubricaSel.id,
-                comentario:  comentario.trim() || null,
+                id_evaluado_id: selectedEvaluadoId,
+                id_rubrica_id:  rubricaSel.id,
+                comentario:     comentario.trim() || null,
                 detalles: criterios.map(c => ({
-                    id_criterio:          c.id,
+                    id_criterio:           c.id,
                     id_nivel_seleccionado: selecciones[c.id],
                 })),
             }

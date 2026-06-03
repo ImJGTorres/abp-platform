@@ -831,8 +831,8 @@ class CoevaluacionListCreateView(APIView):
         user_id  = request.user.pk
         tipo_rol = getattr(request.user, 'tipo_rol', None)
 
-        # BE-02.1 — solo Estudiante
-        if tipo_rol != 'estudiante':
+        # BE-02.1 — solo Estudiante o Líder de Equipo
+        if tipo_rol not in ('estudiante', 'lider_equipo'):
             return Response(
                 {'detail': 'Solo los estudiantes pueden registrar coevaluaciones.'},
                 status=status.HTTP_403_FORBIDDEN,
