@@ -148,7 +148,7 @@ def generar_pdf_proyecto(datos, ruta_destino):
         for e in bajo:
             bajo_rows.append([
                 f"{e.get('nombre','')} {e.get('apellido','')}",
-                e.get('codigo_estudiante', '-'),
+                e.get('codigo', '-'),
                 str(e.get('nota_promedio_5', '-')),
                 str(e.get('promedio_avance_pct', '-')),
             ])

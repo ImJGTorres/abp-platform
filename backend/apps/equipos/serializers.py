@@ -152,12 +152,12 @@ class EquipoDetalleSerializer(serializers.ModelSerializer):
 
 
 # Serializer para listar usuarios (estudiantes) con información resumida.
-# Retorna solo campos básicos: id, nombre, apellido, correo y codigo_estudiante.
+# Retorna solo campos básicos: id, nombre, apellido, correo y codigo.
 # Utilizado para mostrar estudiantes disponibles para asignación.
 class UsuarioResumenSerializer(serializers.ModelSerializer):
     class Meta:
         model = Usuario
-        fields = ['id', 'nombre', 'apellido', 'correo', 'codigo_estudiante']
+        fields = ['id', 'nombre', 'apellido', 'correo', 'codigo']
 
 
 class EditarEquipoSerializer(serializers.ModelSerializer):

@@ -289,7 +289,7 @@ export default function PerfilRendimientoEstudiante() {
                     <h1 className="text-[20px] font-extrabold text-[#191c1d] leading-tight">
                         {est.nombre} {est.apellido}
                     </h1>
-                    <p className="text-[13px] text-[#9ba7ae]">{est.correo} · {est.codigo_estudiante ?? 'Sin código'}</p>
+                    <p className="text-[13px] text-[#9ba7ae]">{est.correo} · {est.codigo ?? 'Sin código'}</p>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                     {ind.en_riesgo && (

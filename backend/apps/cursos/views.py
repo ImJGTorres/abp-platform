@@ -459,7 +459,7 @@ class CursoMatriculaExcelView(APIView):
                         continue
 
                     try:
-                        usuario = Usuario.objects.get(codigo_estudiante=codigo, tipo_rol='estudiante')
+                        usuario = Usuario.objects.get(codigo=codigo, tipo_rol='estudiante')
                     except Usuario.DoesNotExist:
                         errores.append({'codigo': codigo, 'motivo': f'Estudiante con código {codigo} no encontrado'})
                         continue
@@ -881,7 +881,7 @@ class CursoEstudianteView(APIView):
                 'nombre': est.nombre,
                 'apellido': est.apellido,
                 'correo': est.correo,
-                'codigo_estudiante': getattr(est, 'codigo_estudiante', '') or '',
+                'codigo': getattr(est, 'codigo', '') or '',
                 'estado_en_curso': 'en_proyecto' if proyecto_data else 'disponible',
                 'proyecto': proyecto_data,
             })

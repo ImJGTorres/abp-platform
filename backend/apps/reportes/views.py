@@ -123,7 +123,7 @@ class RendimientoEstudianteView(APIView):
                     'nombre': estudiante.nombre,
                     'apellido': estudiante.apellido,
                     'correo': estudiante.correo,
-                    'codigo_estudiante': estudiante.codigo_estudiante,
+                    'codigo': estudiante.codigo,
                 },
                 'indicadores': indicadores,
                 'comparativo_grupo': comparativo,

@@ -415,7 +415,7 @@ export default function ReporteProyecto() {
                                                 <p className="text-[13px] font-semibold text-[#191c1d]">
                                                     {est.nombre} {est.apellido}
                                                 </p>
-                                                <p className="text-[11px] text-[#9ba7ae]">{est.codigo_estudiante}</p>
+                                                <p className="text-[11px] text-[#9ba7ae]">{est.codigo}</p>
                                             </td>
                                             <td className="px-3 py-3">
                                                 <div className="flex items-center gap-2">

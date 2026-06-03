@@ -42,6 +42,8 @@ class CursoSerializer(serializers.ModelSerializer):
 
     def get_docente_nombre(self, obj):
         d = obj.id_docente
+        if d is None:
+            return ''
         return f'{d.nombre} {d.apellido}'
 
     def get_periodo_nombre(self, obj):
