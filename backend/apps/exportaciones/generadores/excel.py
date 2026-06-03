@@ -103,7 +103,7 @@ def generar_excel_proyecto(datos, ruta_destino):
     avances = datos.get('avance_por_estudiante', [])
     enc_est = ['ID', 'Nombre', 'Apellido', 'Código', 'Avance (%)', 'Nota (0-5)', 'Actividades con avance']
     filas_est = [
-        [e.get('usuario_id'), e.get('nombre'), e.get('apellido'), e.get('codigo_estudiante'),
+        [e.get('usuario_id'), e.get('nombre'), e.get('apellido'), e.get('codigo'),
          e.get('promedio_avance_pct'), e.get('nota_promedio_5'), e.get('actividades_con_avance')]
         for e in avances
     ]
@@ -116,7 +116,7 @@ def generar_excel_proyecto(datos, ruta_destino):
     bajo = datos.get('estudiantes_bajo_rendimiento', [])
     _escribir_tabla(ws_bajo, 3,
                     ['Nombre', 'Apellido', 'Código', 'Nota (0-5)', 'Avance (%)'],
-                    [[e.get('nombre'), e.get('apellido'), e.get('codigo_estudiante'),
+                    [[e.get('nombre'), e.get('apellido'), e.get('codigo'),
                       e.get('nota_promedio_5'), e.get('promedio_avance_pct')]
                      for e in bajo])
     _autoajustar(ws_bajo)
@@ -134,7 +134,7 @@ def generar_excel_estudiante(datos, ruta_destino):
     ws_info['A4'] = 'Estudiante:'
     ws_info['B4'] = f"{est.get('nombre','')} {est.get('apellido','')}"
     ws_info['A5'] = 'Código:'
-    ws_info['B5'] = est.get('codigo_estudiante', '-')
+    ws_info['B5'] = est.get('codigo', '-')
     ws_info['A6'] = 'Proyecto:'
     ws_info['B6'] = datos.get('proyecto', {}).get('nombre', '-')
 

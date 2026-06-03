@@ -116,7 +116,7 @@ def get_estudiantes_bajo_rendimiento(curso_id=None, proyecto_id=None, periodo_id
                 'nombre': est.nombre,
                 'apellido': est.apellido,
                 'correo': est.correo,
-                'codigo_estudiante': est.codigo_estudiante,
+                'codigo': est.codigo,
                 **indicadores,
             })
 
@@ -199,7 +199,7 @@ def reporte_proyecto(proyecto_id):
             .select_related('usuario')
             .values(
                 'usuario__id', 'usuario__nombre', 'usuario__apellido',
-                'usuario__correo', 'usuario__codigo_estudiante', 'rol_interno',
+                'usuario__correo', 'usuario__codigo', 'rol_interno',
             )
         )
         ents = Entregable.objects.filter(id_equipo_id=eq.id)
@@ -225,7 +225,7 @@ def reporte_proyecto(proyecto_id):
                 u.nombre,
                 u.apellido,
                 u.correo,
-                u.codigo_estudiante,
+                u.codigo,
                 vae.promedio_avance_pct,
                 vae.nota_promedio_5,
                 vae.actividades_con_avance
@@ -503,7 +503,7 @@ def reporte_estudiante_proyecto(estudiante_id, proyecto_id):
             'nombre': estudiante.nombre,
             'apellido': estudiante.apellido,
             'correo': estudiante.correo,
-            'codigo_estudiante': estudiante.codigo_estudiante,
+            'codigo': estudiante.codigo,
         },
         'proyecto': {
             'id': proyecto.id,
@@ -549,7 +549,7 @@ def reporte_equipo_estudiantes(equipo_id):
         .select_related('usuario')
         .values(
             'usuario__id', 'usuario__nombre', 'usuario__apellido',
-            'usuario__correo', 'usuario__codigo_estudiante', 'rol_interno',
+            'usuario__correo', 'usuario__codigo', 'rol_interno',
         )
     )
 
@@ -579,7 +579,7 @@ def reporte_equipo_estudiantes(equipo_id):
                 'nombre': m['usuario__nombre'],
                 'apellido': m['usuario__apellido'],
                 'correo': m['usuario__correo'],
-                'codigo_estudiante': m['usuario__codigo_estudiante'],
+                'codigo': m['usuario__codigo'],
                 'rol_interno': m['rol_interno'],
             },
             'nota_final': nota_pond['nota_final'],

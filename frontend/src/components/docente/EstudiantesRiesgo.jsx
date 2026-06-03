@@ -178,7 +178,7 @@ export default function EstudiantesRiesgo() {
                                             </div>
                                         </td>
                                         <td className="px-4 py-3 text-[13px] text-[#4c616c] font-mono">
-                                            {est.codigo_estudiante ?? '—'}
+                                            {est.codigo ?? '—'}
                                         </td>
                                         <CeldaCritica critica={est.nota_promedio < UMBRAL_NOTA}>
                                             {est.nota_promedio?.toFixed(2)} / 5.0
