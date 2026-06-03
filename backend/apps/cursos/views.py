@@ -247,7 +247,7 @@ class ProyectoDetailView(generics.RetrieveUpdateDestroyAPIView):
         tipo_rol = getattr(user, 'tipo_rol', None)
         qs = (
             Proyecto.objects
-            .select_related('id_curso')
+            .select_related('id_curso__id_periodo_academico')
             .prefetch_related('equipos')
         )
         if tipo_rol == 'docente':

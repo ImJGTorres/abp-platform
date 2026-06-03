@@ -34,6 +34,8 @@ class NivelDesempenoSerializer(serializers.ModelSerializer):
 
 
 class NivelDesempenoWriteSerializer(serializers.ModelSerializer):
+    descripcion = serializers.CharField(required=False, allow_blank=True, default='')
+
     class Meta:
         model = NivelDesempeno
         fields = ['nivel', 'etiqueta', 'descripcion', 'puntos']
@@ -482,12 +484,10 @@ class EvaluacionCreateSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         calificaciones_data = validated_data.pop('calificaciones')
 
-        # Calcular puntuacion_total ponderada
+        # Puntuacion_total = suma directa de puntos del nivel seleccionado
         total = Decimal('0')
         for cal in calificaciones_data:
-            puntos = cal['id_nivel_seleccionado'].puntos
-            peso = cal['id_criterio'].peso_porcentual
-            total += puntos * peso / Decimal('100')
+            total += cal['id_nivel_seleccionado'].puntos
 
         evaluacion = Evaluacion.objects.create(
             puntuacion_total=total,
@@ -785,7 +785,7 @@ class AutoevaluacionCreateSerializer(serializers.ModelSerializer):
 
         total = Decimal("0")
         for d in detalles_data:
-            total += d["id_nivel_seleccionado"].puntos * d["id_criterio"].peso_porcentual / Decimal("100")
+            total += d["id_nivel_seleccionado"].puntos
 
         autoevaluacion = Autoevaluacion.objects.create(
             id_proyecto=proyecto,
@@ -1089,7 +1089,7 @@ class CoevaluacionCreateSerializer(serializers.ModelSerializer):
 
         total = Decimal("0")
         for d in detalles_data:
-            total += d["id_nivel_seleccionado"].puntos * d["id_criterio"].peso_porcentual / Decimal("100")
+            total += d["id_nivel_seleccionado"].puntos
 
         coevaluacion = Coevaluacion.objects.create(
             id_proyecto=proyecto,
