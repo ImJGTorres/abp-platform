@@ -283,7 +283,13 @@ class ProyectoDetailView(generics.RetrieveUpdateDestroyAPIView):
 # ---------------------------------------------------------------------------
 
 class CursoCargaMasivaView(APIView):
-    """POST /api/cursos/carga-masiva/ — importa cursos desde Excel."""
+    """
+    POST /api/cursos/carga-masiva/
+    Importa cursos desde Excel con formato del cliente:
+    columnas Materia (→ codigo), Nombre (→ nombre). Filas con Materia vacía se omiten
+    (corresponden a horarios adicionales del mismo curso).
+    El docente queda en NULL; el administrador lo asigna después.
+    """
     authentication_classes = [UsuarioJWTAuthentication]
     permission_classes = [EsAdministrador]
     parser_classes = [MultiPartParser]
@@ -303,69 +309,57 @@ class CursoCargaMasivaView(APIView):
         except Exception:
             return Response({'detail': 'No se pudo leer el archivo Excel.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        creados = 0
-        omitidos = 0
-        errores = []
-
         periodo_activo = PeriodoAcademico.objects.filter(estado=PeriodoAcademico.Estado.ACTIVO).first()
         if not periodo_activo:
             return Response({'detail': 'No hay un período académico activo.'}, status=status.HTTP_400_BAD_REQUEST)
 
+        creados = 0
+        omitidos = 0
+        errores = []
+
+        # Columna 0 = Materia (código), columna 1 = Nombre; omitir filas donde col 0 es None
         for i, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
-            if not any(row):
+            if not any(row) or row[0] is None:
                 continue
 
-            nombre = str(row[0]).strip() if row[0] else ''
-            codigo = str(row[1]).strip().upper() if row[1] else ''
-            descripcion = str(row[2]).strip() if len(row) > 2 and row[2] else ''
-            correo_docente = str(row[3]).strip() if len(row) > 3 and row[3] else ''
-            try:
-                cantidad_max = int(row[4]) if len(row) > 4 and row[4] else 30
-            except (ValueError, TypeError):
-                cantidad_max = 30
+            codigo = str(row[0]).strip().upper()
+            nombre = str(row[1]).strip() if len(row) > 1 and row[1] else ''
 
-            if not nombre or not codigo:
-                errores.append({'fila': i, 'codigo': codigo or '—', 'motivo': 'nombre y código son obligatorios'})
-                omitidos += 1
-                continue
-
-            docente = None
-            if correo_docente:
-                docente = Usuario.objects.filter(correo=correo_docente, tipo_rol='docente').first()
-                if not docente:
-                    errores.append({'fila': i, 'codigo': codigo, 'motivo': f'docente no encontrado: {correo_docente}'})
-                    omitidos += 1
-                    continue
-
-            if not docente:
-                errores.append({'fila': i, 'codigo': codigo, 'motivo': 'correo del docente es obligatorio'})
+            if not codigo or not nombre:
+                errores.append({'fila': i, 'codigo': codigo or '—', 'motivo': 'código y nombre son obligatorios'})
                 omitidos += 1
                 continue
 
             if Curso.objects.filter(codigo=codigo, id_periodo_academico=periodo_activo).exists():
-                errores.append({'fila': i, 'codigo': codigo, 'motivo': 'código ya existe en este período'})
                 omitidos += 1
                 continue
 
-            Curso.objects.create(
-                nombre=nombre,
-                codigo=codigo,
-                descripcion=descripcion,
-                id_docente=docente,
-                id_periodo_academico=periodo_activo,
-                usuario_creo=request.user,
-                cantidad_max_estudiantes=cantidad_max,
+            try:
+                Curso.objects.create(
+                    nombre=nombre,
+                    codigo=codigo,
+                    id_docente=None,
+                    id_periodo_academico=periodo_activo,
+                    usuario_creo=request.user,
+                    cantidad_max_estudiantes=30,
+                    estado=Curso.Estado.ACTIVO,
+                )
+                creados += 1
+            except Exception as exc:
+                errores.append({'fila': i, 'codigo': codigo, 'motivo': f'error al crear: {exc}'})
+                omitidos += 1
+
+        try:
+            registrar_evento(
+                request=request,
+                accion=BitacoraSistema.Accion.CREATE,
+                modulo='cursos',
+                descripcion=f'Carga masiva de cursos: {creados} creados, {omitidos} omitidos',
             )
-            creados += 1
+        except Exception:
+            pass
 
-        registrar_evento(
-            request=request,
-            accion=BitacoraSistema.Accion.CREATE,
-            modulo='cursos',
-            descripcion=f'Carga masiva de cursos: {creados} creados, {omitidos} omitidos',
-        )
-
-        return Response({'creados': creados, 'omitidos': omitidos, 'errores': errores}, status=status.HTTP_200_OK)
+        return Response({'creados': creados, 'omitidos': omitidos, 'errores': errores}, status=status.HTTP_201_CREATED)
 
 
 # ---------------------------------------------------------------------------
@@ -373,20 +367,36 @@ class CursoCargaMasivaView(APIView):
 # ---------------------------------------------------------------------------
 
 class CursoMatriculaExcelView(APIView):
-    """POST /api/cursos/<curso_id>/estudiantes/importar/ — matricula estudiantes desde Excel."""
+    """
+    POST /api/cursos/<curso_id>/estudiantes/importar/
+    Matricula estudiantes desde Excel con formato del cliente (Matriculados POR MATERIA).
+    El archivo tiene una sección de encabezado del curso (filas 1-N) seguida de una sección
+    de estudiantes que comienza con una fila de encabezados que incluye 'Código'.
+    Busca esa fila de encabezados y lee los datos de estudiantes a partir de la siguiente.
+    Permiso: administrador o docente propietario del curso.
+    """
     authentication_classes = [UsuarioJWTAuthentication]
-    permission_classes = [EsAdministrador]
+    permission_classes = [EsDocenteOAdministrador]
     parser_classes = [MultiPartParser]
 
     def post(self, request, curso_id):
+        import unicodedata
+
         curso = get_object_or_404(Curso, pk=curso_id)
+
+        tipo_rol = getattr(request.user, 'tipo_rol', None)
+        if tipo_rol == 'docente' and curso.id_docente_id != request.user.pk:
+            return Response(
+                {'detail': 'No eres el docente de este curso.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
         archivo = request.FILES.get('archivo')
         if not archivo:
             return Response({'detail': 'Se requiere un archivo Excel.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        if not archivo.name.lower().endswith(('.xlsx', '.xls')):
-            return Response({'detail': 'El archivo debe ser formato .xlsx o .xls.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not archivo.name.lower().endswith('.xlsx'):
+            return Response({'detail': 'El archivo debe ser formato .xlsx.'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             import openpyxl
@@ -395,49 +405,55 @@ class CursoMatriculaExcelView(APIView):
         except Exception:
             return Response({'detail': 'No se pudo leer el archivo Excel.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        raw_headers = [cell.value for cell in next(ws.iter_rows(min_row=1, max_row=1))]
-        headers = [str(h).strip().lower() if h is not None else '' for h in raw_headers]
+        def _norm(s):
+            if s is None:
+                return ''
+            s = str(s).strip().lower()
+            return unicodedata.normalize('NFD', s).encode('ascii', 'ignore').decode('ascii')
 
-        if 'codigo' not in headers:
+        # Buscar la fila de encabezados de estudiantes (la que tiene 'Código' en col 0)
+        all_rows = list(ws.iter_rows(values_only=True))
+        header_row_idx = None
+        for idx, row in enumerate(all_rows):
+            if row and _norm(row[0]) == 'codigo':
+                header_row_idx = idx
+                break
+
+        if header_row_idx is None:
             return Response(
-                {'detail': 'El archivo no contiene la columna requerida: "codigo".'},
+                {'detail': 'No se encontró la sección de estudiantes (fila con "Código") en el archivo.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        col_idx = {h: i for i, h in enumerate(headers)}
+        student_rows = all_rows[header_row_idx + 1:]
 
-        matriculados = []
-        ya_matriculados = []
-        no_encontrados = []
-        rol_incorrecto = []
+        inscritos = 0
+        omitidos = 0
+        errores = []
 
         try:
             with transaction.atomic():
-                for row in ws.iter_rows(min_row=2, values_only=True):
+                for row in student_rows:
                     if not any(row):
                         continue
 
-                    raw = row[col_idx['codigo']]
+                    raw = row[0]
                     codigo = str(raw).strip() if raw is not None else ''
                     if not codigo or codigo.lower() == 'none':
                         continue
 
                     try:
-                        usuario = Usuario.objects.get(codigo_estudiante=codigo)
+                        usuario = Usuario.objects.get(codigo_estudiante=codigo, tipo_rol='estudiante')
                     except Usuario.DoesNotExist:
-                        no_encontrados.append(codigo)
-                        continue
-
-                    if getattr(usuario, 'tipo_rol', None) not in ('estudiante', 'lider_equipo'):
-                        rol_incorrecto.append(codigo)
+                        errores.append({'codigo': codigo, 'motivo': f'Estudiante con código {codigo} no encontrado'})
                         continue
 
                     if CursoEstudiante.objects.filter(curso=curso, estudiante=usuario).exists():
-                        ya_matriculados.append(codigo)
+                        omitidos += 1
                         continue
 
                     CursoEstudiante.objects.create(curso=curso, estudiante=usuario, estado='activo')
-                    matriculados.append(codigo)
+                    inscritos += 1
 
         except Exception as e:
             return Response({'detail': f'Error procesando el archivo: {e}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -449,20 +465,17 @@ class CursoMatriculaExcelView(APIView):
                 modulo='cursos',
                 descripcion=(
                     f'Matrícula masiva en curso ID={curso_id}: '
-                    f'{len(matriculados)} matriculados, {len(ya_matriculados)} ya matriculados, '
-                    f'{len(no_encontrados)} no encontrados'
+                    f'{inscritos} inscritos, {omitidos} ya inscritos'
                 ),
             )
         except Exception:
             pass
 
         return Response({
-            'matriculados': len(matriculados),
-            'ya_matriculados': len(ya_matriculados),
-            'no_encontrados': no_encontrados,
-            'rol_incorrecto': rol_incorrecto,
-            'errores': [],
-        }, status=status.HTTP_200_OK)
+            'inscritos': inscritos,
+            'omitidos': omitidos,
+            'errores': errores,
+        }, status=status.HTTP_201_CREATED)
 
 
 # ---------------------------------------------------------------------------
