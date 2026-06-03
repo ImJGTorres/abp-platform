@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useParams, Link, useLocation } from 'react-router-dom'
-import { proyectosApi } from '../../services/docenteApi'
+import { useFormValidation, required, between } from '../../hooks/useFormValidation'
+import { useRAPsGestion } from '../../hooks/useRAPsGestion'
 
 function IconPlus() {
     return <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M8 3v10M3 8h10" /></svg>
@@ -40,6 +41,12 @@ function ModalConfirmar({ mensaje, onConfirmar, onCancelar }) {
     )
 }
 
+/**
+ * @param {object|null} rap - RAP a editar, o null para creación.
+ * @param {Function} onGuardar - Callback ejecutado al confirmar; recibe los datos del form.
+ * @param {Function} onCancelar - Callback al cancelar.
+ * @param {number} totalActual - Suma de porcentajes de todos los RAPs del proyecto.
+ */
 function ModalRAP({ rap, onGuardar, onCancelar, totalActual }) {
     const esEdicion = !!rap
     const [form, setForm] = useState({
@@ -51,27 +58,26 @@ function ModalRAP({ rap, onGuardar, onCancelar, totalActual }) {
     const [errores, setErrores] = useState({})
     const [guardando, setGuardando] = useState(false)
 
-    function validar() {
-        const e = {}
-        if (!form.nombre.trim()) e.nombre = 'El código es obligatorio.'
-        if (!form.descripcion.trim()) e.descripcion = 'La descripción es obligatoria.'
-        if (!form.porcentaje_evaluacion || form.porcentaje_evaluacion <= 0 || form.porcentaje_evaluacion > 100) {
-            e.porcentaje_evaluacion = 'El porcentaje debe estar entre 1 y 100.'
-        }
+    const porcentajeActual = parseFloat(rap?.porcentaje_evaluacion ?? 0)
+    const totalSinEste = totalActual - porcentajeActual
+    const maxPermitido = 100 - totalSinEste
 
-        const porcentajeActual = parseFloat(rap?.porcentaje_evaluacion ?? 0)
-        const porcentajeNuevo = parseFloat(form.porcentaje_evaluacion)
-        const totalSinEste = totalActual - porcentajeActual
-        if (totalSinEste + porcentajeNuevo > 100) {
-            e.porcentaje_evaluacion = `El total excedería 100% (actual: ${totalSinEste}%)`
-        }
-
-        return e
-    }
+    const { validar } = useFormValidation(form, {
+        nombre:                [required('El código es obligatorio.')],
+        descripcion:           [required('La descripción es obligatoria.')],
+        porcentaje_evaluacion: [
+            required(),
+            between(1, maxPermitido,
+                maxPermitido < 100
+                    ? `El total excedería 100% (disponible: ${maxPermitido}%)`
+                    : 'El porcentaje debe estar entre 1 y 100.'
+            ),
+        ],
+    })
 
     async function handleGuardar() {
-        const e = validar()
-        if (Object.keys(e).length > 0) { setErrores(e); return }
+        const { esValido, errores: erroresValidacion } = validar()
+        if (!esValido) { setErrores(erroresValidacion); return }
         setGuardando(true)
         try {
             await onGuardar(form)
@@ -149,76 +155,39 @@ function ModalRAP({ rap, onGuardar, onCancelar, totalActual }) {
     )
 }
 
+/**
+ * Página de gestión de Resultados de Aprendizaje del Proyecto (RAPs).
+ *
+ * Lee proyectoId desde los parámetros de ruta y cursoId/nombres desde location.state.
+ * Permite crear, editar y eliminar RAPs validando que la suma de porcentajes no exceda 100%.
+ *
+ * Toda la lógica de estado y operaciones de API está delegada al hook
+ * `useRAPsGestion`, por lo que este componente se encarga únicamente de renderizar.
+ */
 export default function RAPsProyecto() {
     const { proyectoId } = useParams()
     const location = useLocation()
     const cursoId = location.state?.cursoId
     const cursoNombre = location.state?.cursoNombre
     const proyectoNombre = location.state?.nombre
-    const [raps, setRaps] = useState([])
-    const [loading, setLoading] = useState(true)
-    const [modalRAP, setModalRAP] = useState(false)
-    const [rapEditando, setRapEditando] = useState(null)
-    const [eliminando, setEliminando] = useState(null)
-    const [confirmarEliminar, setConfirmarEliminar] = useState(null)
 
-    useEffect(() => { cargarRAPs() }, [proyectoId])
-
-    async function cargarRAPs() {
-        setLoading(true)
-        try {
-            const data = await proyectosApi.listarRAPs(proyectoId)
-            setRaps(data.results ?? data)
-        } catch (err) {
-            console.error('Error cargando RAPs:', err)
-            setRaps([])
-        } finally {
-            setLoading(false)
-        }
-    }
-
-    async function handleGuardarRAP(formData) {
-        try {
-            if (rapEditando) {
-                await proyectosApi.editarRAP(proyectoId, rapEditando.id, {
-                    nombre: formData.nombre,
-                    descripcion: formData.descripcion,
-                    competencia_asociada: formData.competencia_asociada || null,
-                    porcentaje_evaluacion: parseFloat(formData.porcentaje_evaluacion),
-                })
-            } else {
-                await proyectosApi.crearRAP(proyectoId, {
-                    nombre: formData.nombre,
-                    descripcion: formData.descripcion,
-                    competencia_asociada: formData.competencia_asociada || null,
-                    porcentaje_evaluacion: parseFloat(formData.porcentaje_evaluacion),
-                    orden: raps.length + 1,
-                })
-            }
-            setModalRAP(false)
-            setRapEditando(null)
-            cargarRAPs()
-        } catch (err) {
-            console.error('Error guardando RAP:', err)
-            throw err
-        }
-    }
-
-    async function ejecutarEliminar(id) {
-        setConfirmarEliminar(null)
-        setEliminando(id)
-        try {
-            await proyectosApi.eliminarRAP(proyectoId, id)
-            cargarRAPs()
-        } catch (err) {
-            console.error('Error eliminando RAP:', err)
-        } finally {
-            setEliminando(null)
-        }
-    }
-
-    const totalPorcentaje = raps.reduce((sum, r) => sum + (r.porcentaje_evaluacion ?? 0), 0)
-    const porcentajeRestante = 100 - totalPorcentaje
+    const {
+        raps,
+        loading,
+        modalRAP,
+        rapEditando,
+        eliminando,
+        confirmarEliminar,
+        totalPorcentaje,
+        porcentajeRestante,
+        abrirCrear,
+        abrirEditar,
+        cerrarModal,
+        handleGuardarRAP,
+        pedirConfirmarEliminar,
+        cancelarEliminar,
+        ejecutarEliminar,
+    } = useRAPsGestion(proyectoId)
 
     if (loading) {
         return (
@@ -262,7 +231,7 @@ export default function RAPsProyecto() {
                     </p>
                 </div>
                 <button
-                    onClick={() => setModalRAP(true)}
+                    onClick={abrirCrear}
                     disabled={totalPorcentaje >= 100}
                     className="h-11 px-5 rounded-xl bg-[#d32f2f] text-white font-semibold text-[14px] hover:bg-[#af101a] transition-colors flex items-center gap-2 shadow-sm disabled:opacity-60 disabled:cursor-not-allowed">
                     <IconPlus />
@@ -305,7 +274,7 @@ export default function RAPsProyecto() {
                     <h3 className="text-[15px] font-semibold text-[#191c1d] mb-1">No hay RAPs aún</h3>
                     <p className="text-[13px] text-[#9ba7ae] mb-4">Crea el primer resultado de aprendizaje para este proyecto</p>
                     <button
-                        onClick={() => setModalRAP(true)}
+                        onClick={abrirCrear}
                         className="inline-flex items-center gap-2 h-10 px-4 rounded-xl bg-[#d32f2f] text-white font-semibold text-[13px] hover:bg-[#af101a] transition-colors">
                         <IconPlus />
                         Crear primer RAP
@@ -349,13 +318,13 @@ export default function RAPsProyecto() {
                                     <td className="px-4 py-3.5">
                                         <div className="flex items-center justify-end gap-1">
                                             <button
-                                                onClick={() => { setRapEditando(rap); setModalRAP(true) }}
+                                                onClick={() => abrirEditar(rap)}
                                                 className="w-8 h-8 rounded-lg hover:bg-[#f0f2f3] flex items-center justify-center transition-colors"
                                                 title="Editar">
                                                 <IconEdit />
                                             </button>
                                             <button
-                                                onClick={() => setConfirmarEliminar(rap.id)}
+                                                onClick={() => pedirConfirmarEliminar(rap.id)}
                                                 disabled={eliminando === rap.id}
                                                 className="w-8 h-8 rounded-lg hover:bg-[#fff1f0] flex items-center justify-center transition-colors disabled:opacity-50"
                                                 title="Eliminar">
@@ -394,7 +363,7 @@ export default function RAPsProyecto() {
                 <ModalRAP
                     rap={rapEditando}
                     onGuardar={handleGuardarRAP}
-                    onCancelar={() => { setModalRAP(false); setRapEditando(null) }}
+                    onCancelar={cerrarModal}
                     totalActual={totalPorcentaje}
                 />
             )}
@@ -402,7 +371,7 @@ export default function RAPsProyecto() {
                 <ModalConfirmar
                     mensaje="Esta acción eliminará el RAP permanentemente y no se puede deshacer."
                     onConfirmar={() => ejecutarEliminar(confirmarEliminar)}
-                    onCancelar={() => setConfirmarEliminar(null)}
+                    onCancelar={cancelarEliminar}
                 />
             )}
         </div>

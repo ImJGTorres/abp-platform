@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { NavLink, Outlet, useNavigate, Link, useLocation } from 'react-router-dom'
 import { authApi, session, buildMediaUrl } from '../../services/api'
+import NotificacionesBell from '../NotificacionesBell'
+import AlertasBell from '../AlertasBell'
 
 function IconDashboard() {
     return (
@@ -79,6 +81,15 @@ function IconChevronRight() {
     )
 }
 
+function IconHistory() {
+    return (
+        <svg viewBox="0 0 20 20" fill="none" className="w-5 h-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="10" cy="10" r="8" />
+            <path d="M10 6v4l3 2" />
+        </svg>
+    )
+}
+
 function navLinkClass({ isActive }) {
     const base = 'flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] font-medium transition-all duration-150 select-none cursor-pointer'
     return isActive
@@ -95,6 +106,7 @@ function SidebarContent({ collapsed, onCollapse, loggingOut, handleLogout, onNav
         NAV_ITEMS.push(
             { label: 'Progreso', to: `/estudiante/proyectos/${proyectoId}/progreso`, icon: <IconTrend /> },
             { label: 'Tablero Kanban', to: `/estudiante/proyectos/${proyectoId}/kanban`, icon: <IconKanban /> },
+            { label: 'Historial', to: `/estudiante/proyectos/${proyectoId}/historial`, icon: <IconHistory /> },
         )
     }
 
@@ -194,7 +206,7 @@ export default function EstudianteLayout() {
 
     const { backTo, backLabel } = (() => {
         const path = location.pathname
-        if (/^\/estudiante\/proyectos\/\d+\/(progreso|kanban)/.test(path))
+        if (/^\/estudiante\/proyectos\/\d+\/(progreso|kanban|historial)/.test(path))
             return { backTo: `/estudiante/proyectos/${proyectoId}`, backLabel: 'Proyecto' }
         if (/^\/estudiante\/proyectos\/\d+$/.test(path) || /^\/estudiante\/actividades\/\d+\/entregables/.test(path))
             return { backTo: '/estudiante/dashboard', backLabel: 'Inicio' }
@@ -251,6 +263,8 @@ export default function EstudianteLayout() {
                         {mobileOpen ? <IconX /> : <IconMenu />}
                     </button>
                     <div className="flex-1" />
+                    <NotificacionesBell />
+                    <AlertasBell pollingMinutos={5} />
                     {user && (
                         <div className="relative">
                             <button onClick={e => { e.stopPropagation(); setTopbarMenuOpen(o => !o) }}

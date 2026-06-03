@@ -1,3 +1,19 @@
+"""
+HU-013 — Gestión de equipos y membresías.
+
+Este módulo define las rutas URL para la gestión completa de equipos dentro
+de un proyecto. Incluye operaciones de creación, edición, disolución,
+asignación y reubicación de miembros.
+
+Endpoints implementados:
+    - Listar / crear equipos de un proyecto.
+    - Editar equipo (nombre, descripción, cupo máximo).
+    - Reubicar estudiante entre equipos del mismo proyecto.
+    - Disolver equipo (soft-delete con retiro de todos sus miembros).
+    - Todas las operaciones CRUD registran eventos en BitacoraSistema.
+    - El historial de membresías se preserva mediante soft-delete.
+"""
+
 from django.urls import path
 from apps.cursos.views import ActividadesPorEquipoView
 from .views import (
@@ -13,17 +29,6 @@ from .views import (
     RetirarMiembroView,
     ActualizarRolMiembroView,
 )
-
-"""
-HU-013 — Gestión de equipos y membresías
-Endpoints implementados:
-
-Editar equipo — PUT /api/equipos/<equipo_id>/
-Reubicar estudiante — POST /api/equipos/<equipo_id>/miembros/mover/
-Disolver equipo — DELETE /api/equipos/<equipo_id>/disolver/
-Registro de cambios en bitácora para todas las operaciones CRUD
-Historial de cambios en membresías preservado mediante soft-delete
-"""
 
 urlpatterns = [
     # GET/POST — Listar y crear equipos de un proyecto

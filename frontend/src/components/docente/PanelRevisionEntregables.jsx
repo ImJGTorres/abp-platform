@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react'
-import { useParams, Link, useLocation } from 'react-router-dom'
+import { useParams, useLocation } from 'react-router-dom'
 import { entregablesApi } from '../../services/entregablesApi'
+import { rubricasApi } from '../../services/docenteApi'
+import ModalEvaluacionRubrica from './ModalEvaluacionRubrica'
 
 // ── Iconos ────────────────────────────────────────────────────────────────────
 
-function IconChevron() {
-    return <svg className="w-3 h-3 text-[#9ba7ae]" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 3l5 5-5 5" /></svg>
-}
 function IconChevronDown({ open }) {
     return (
         <svg viewBox="0 0 16 16" fill="none" className={`w-4 h-4 transition-transform ${open ? 'rotate-180' : ''}`} stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -132,13 +131,9 @@ function ListaArchivos({ archivos }) {
 // ── Vista principal ───────────────────────────────────────────────────────────
 
 export default function PanelRevisionEntregables() {
-    const { proyectoId, faseId, actividadId } = useParams()
+    const { actividadId, proyectoId } = useParams()
     const location = useLocation()
-    const cursoId = location.state?.cursoId
-    const cursoNombre = location.state?.cursoNombre
-    const proyectoNombre = location.state?.nombre
-    const faseNombre = location.state?.faseNombre
-    const actividadNombre = location.state?.actividadNombre ?? 'Actividad'
+    const actividadNombre = location.state?.actividadNombre ?? ''
 
     const [entregables, setEntregables] = useState([])
     const [loading, setLoading] = useState(true)
@@ -153,7 +148,22 @@ export default function PanelRevisionEntregables() {
     const [confirmModal, setConfirmModal] = useState(null)
     const [filtroEstado, setFiltroEstado] = useState('enviado')
 
+    // Evaluación por rúbrica
+    const [rubricas,           setRubricas]           = useState([])
+    const [entregableEvaluar,  setEntregableEvaluar]  = useState(null)
+
     useEffect(() => { cargar() }, [actividadId])
+
+    useEffect(() => {
+        if (proyectoId) cargarRubricas()
+    }, [proyectoId])
+
+    async function cargarRubricas() {
+        try {
+            const data = await rubricasApi.listar(proyectoId)
+            setRubricas(Array.isArray(data) ? data : (data.results ?? []))
+        } catch { /* silencioso */ }
+    }
 
     async function cargar() {
         setLoading(true)
@@ -219,43 +229,14 @@ export default function PanelRevisionEntregables() {
     return (
         <div className="flex-1 overflow-y-auto p-4 sm:p-6" style={{ fontFamily: "'Manrope', sans-serif" }}>
 
-            {/* Breadcrumb */}
-            <div className="mb-5 flex items-center gap-2 text-[13px] flex-wrap">
-                <Link to="/docente/cursos" className="text-[#9ba7ae] hover:text-[#4c616c] transition-colors">Mis cursos</Link>
-                {cursoId && (
-                    <>
-                        <IconChevron />
-                        <Link to={`/docente/cursos/${cursoId}`} state={location.state} className="text-[#9ba7ae] hover:text-[#4c616c] transition-colors">
-                            {cursoNombre ?? 'Curso'}
-                        </Link>
-                    </>
-                )}
-                {proyectoNombre && (
-                    <>
-                        <IconChevron />
-                        <Link to={`/docente/proyectos/${proyectoId}/fases`} state={location.state} className="text-[#9ba7ae] hover:text-[#4c616c] transition-colors">
-                            {proyectoNombre}
-                        </Link>
-                    </>
-                )}
-                {faseNombre && (
-                    <>
-                        <IconChevron />
-                        <Link to={`/docente/proyectos/${proyectoId}/fases/${faseId}/actividades`} state={location.state} className="text-[#9ba7ae] hover:text-[#4c616c] transition-colors">
-                            {faseNombre}
-                        </Link>
-                    </>
-                )}
-                <IconChevron />
-                <span className="text-[#191c1d] font-semibold">{actividadNombre} — Entregables</span>
-            </div>
-
             {/* Header */}
             <div className="mb-6">
-                <h1 className="text-[22px] font-extrabold text-[#191c1d] mb-1">Panel de revisión</h1>
-                <p className="text-[13px] text-[#9ba7ae]">
-                    Actividad: <span className="font-semibold text-[#4c616c]">{actividadNombre}</span>
-                </p>
+                <h1 className="text-[22px] font-extrabold text-[#191c1d] mb-1">Entregables</h1>
+                {actividadNombre && (
+                    <p className="text-[13px] text-[#9ba7ae]">
+                        Actividad: <span className="font-semibold text-[#4c616c]">{actividadNombre}</span>
+                    </p>
+                )}
             </div>
 
             {/* Estadísticas rápidas */}
@@ -386,7 +367,7 @@ export default function PanelRevisionEntregables() {
                                                     placeholder="Escribe tus comentarios para el estudiante... (opcional)"
                                                     className="w-full px-3 py-2.5 border border-[#e1e3e4] rounded-xl text-[14px] resize-none focus:outline-none focus:ring-2 focus:ring-[#d32f2f]/20 focus:border-[#d32f2f] bg-white"
                                                 />
-                                                <div className="flex gap-2">
+                                                <div className="flex items-center gap-2 flex-wrap">
                                                     <button
                                                         onClick={() => setConfirmModal({ entregable: e, accion: 'aprobar' })}
                                                         disabled={!!validando[e.id]}
@@ -401,13 +382,35 @@ export default function PanelRevisionEntregables() {
                                                     >
                                                         <IconX />Rechazar
                                                     </button>
+                                                    <div className="flex-1" />
+                                                    <button
+                                                        onClick={() => setEntregableEvaluar(e)}
+                                                        className="flex items-center gap-2 px-4 py-2.5 bg-white border-2 border-[#d32f2f] text-[#d32f2f] rounded-xl hover:bg-[#fff1f0] transition-colors text-[13px] font-bold"
+                                                    >
+                                                        <svg viewBox="0 0 20 20" fill="none" className="w-4 h-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                                                            <rect x="2" y="3" width="16" height="14" rx="2" /><path d="M6 8h8M6 11h8M6 14h5" />
+                                                        </svg>
+                                                        Evaluar por Rúbrica
+                                                    </button>
                                                 </div>
                                             </div>
                                         )}
 
                                         {!esValidable && e.fecha_validacion && (
-                                            <div className="text-[12px] text-[#9ba7ae]">
-                                                Validado el {formatFecha(e.fecha_validacion)}
+                                            <div className="flex items-center justify-between">
+                                                <div className="text-[12px] text-[#9ba7ae]">
+                                                    Validado el {formatFecha(e.fecha_validacion)}
+                                                </div>
+                                                {/* Evaluar también para entregables ya validados */}
+                                                <button
+                                                    onClick={() => setEntregableEvaluar(e)}
+                                                    className="flex items-center gap-1.5 px-3 py-2 bg-white border border-[#d32f2f]/40 text-[#d32f2f] rounded-xl hover:bg-[#fff1f0] hover:border-[#d32f2f] transition-colors text-[12px] font-bold"
+                                                >
+                                                    <svg viewBox="0 0 20 20" fill="none" className="w-3.5 h-3.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                                                        <rect x="2" y="3" width="16" height="14" rx="2" /><path d="M6 8h8M6 11h8M6 14h5" />
+                                                    </svg>
+                                                    Evaluar por Rúbrica
+                                                </button>
                                             </div>
                                         )}
                                     </div>
@@ -418,7 +421,22 @@ export default function PanelRevisionEntregables() {
                 </div>
             )}
 
-            {/* Modal confirmación */}
+            {/* Modal evaluación por rúbrica */}
+            {entregableEvaluar && (
+                <ModalEvaluacionRubrica
+                    entregable={entregableEvaluar}
+                    rubricas={rubricas}
+                    onClose={() => setEntregableEvaluar(null)}
+                    onGuardado={() => {
+                        const eid = entregableEvaluar.id
+                        setEntregableEvaluar(null)
+                        setExitos(p => ({ ...p, [eid]: 'Evaluación guardada correctamente.' }))
+                        setTimeout(() => setExitos(p => ({ ...p, [eid]: '' })), 5000)
+                    }}
+                />
+            )}
+
+            {/* Modal confirmación aprobar/rechazar */}
             <Modal
                 open={!!confirmModal}
                 title={confirmModal?.accion === 'aprobar' ? 'Confirmar aprobación' : 'Confirmar rechazo'}

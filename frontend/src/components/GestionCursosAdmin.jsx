@@ -1,8 +1,17 @@
 import { useState, useEffect, useRef } from 'react'
 import { cursosAdminApi, periodosApi } from '../services/api'
+import { handleApiError } from '../utils/errorHandler'
+import { useFormValidation, required, minValue } from '../hooks/useFormValidation'
 
 // ── Modal crear/editar curso ──────────────────────────────────────────────────
 
+/**
+ * @param {object|null} curso - Curso a editar, o null para creación.
+ * @param {Array} periodos - Lista de períodos académicos disponibles.
+ * @param {Array} docentes - Lista de docentes disponibles.
+ * @param {Function} onGuardar - Callback con el resultado guardado.
+ * @param {Function} onCancelar - Callback al cancelar.
+ */
 function ModalCurso({ curso, periodos, docentes, onGuardar, onCancelar }) {
     const esEdicion = !!curso
     const [form, setForm] = useState({
@@ -23,20 +32,18 @@ function ModalCurso({ curso, periodos, docentes, onGuardar, onCancelar }) {
         setErrores(e => ({ ...e, [campo]: '' }))
     }
 
-    function validar() {
-        const e = {}
-        if (!form.nombre.trim()) e.nombre = 'El nombre es obligatorio.'
-        if (!form.codigo.trim()) e.codigo = 'El código es obligatorio.'
-        if (!form.id_periodo_academico) e.id_periodo_academico = 'Selecciona un periodo.'
-        if (!form.id_docente) e.id_docente = 'Selecciona un docente.'
-        if (!form.cantidad_max_estudiantes || form.cantidad_max_estudiantes < 1) e.cantidad_max_estudiantes = 'Debe ser mayor a 0.'
-        if (!form.semanas_por_sprint || form.semanas_por_sprint < 1) e.semanas_por_sprint = 'Debe ser mayor a 0.'
-        return e
-    }
+    const { validar } = useFormValidation(form, {
+        nombre:                   [required('El nombre es obligatorio.')],
+        codigo:                   [required('El código es obligatorio.')],
+        id_periodo_academico:     [required('Selecciona un periodo.')],
+        id_docente:               [required('Selecciona un docente.')],
+        cantidad_max_estudiantes: [required(), minValue(1, 'Debe ser mayor a 0.')],
+        semanas_por_sprint:       [required(), minValue(1, 'Debe ser mayor a 0.')],
+    })
 
     async function handleGuardar() {
-        const e = validar()
-        if (Object.keys(e).length > 0) { setErrores(e); return }
+        const { esValido, errores: erroresValidacion } = validar()
+        if (!esValido) { setErrores(erroresValidacion); return }
         setGuardando(true)
         try {
             const payload = {
@@ -57,9 +64,8 @@ function ModalCurso({ curso, periodos, docentes, onGuardar, onCancelar }) {
             }
             onGuardar(resultado)
         } catch (error) {
-            if (error?.data?.codigo) setErrores(e => ({ ...e, codigo: error.data.codigo[0] }))
-            else if (error?.data?.non_field_errors) alert(error.data.non_field_errors[0])
-            else alert('Error al guardar el curso.')
+            const errorGeneral = handleApiError(error, setErrores)
+            if (errorGeneral) setErrores(e => ({ ...e, _general: errorGeneral }))
         } finally {
             setGuardando(false)
         }
@@ -374,6 +380,12 @@ const ESTADO_BADGE = {
 
 // ── Componente principal ──────────────────────────────────────────────────────
 
+/**
+ * Pantalla de administración de cursos del sistema.
+ *
+ * Permite listar, crear, editar y eliminar cursos. Accesible solo para
+ * usuarios con rol administrador.
+ */
 export default function GestionCursosAdmin() {
     const [cursos, setCursos] = useState([])
     const [periodos, setPeriodos] = useState([])
@@ -414,11 +426,10 @@ export default function GestionCursosAdmin() {
             setCursoEliminar(null)
             cargarDatos()
         } catch (error) {
-            if (error?.status === 409) {
-                alert(error?.data?.detail ?? 'No se puede eliminar: tiene proyectos vinculados.')
-            } else {
-                alert('Error al eliminar el curso.')
-            }
+            const mensaje = error?.status === 409
+                ? (error?.data?.detail ?? 'No se puede eliminar: tiene proyectos vinculados.')
+                : 'Error al eliminar el curso.'
+            console.error(mensaje, error)
         } finally {
             setEliminando(false)
         }

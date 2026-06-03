@@ -442,14 +442,17 @@ ROLES_VALIDOS = ['administrador', 'director', 'docente', 'lider_equipo', 'estudi
 class CargaMasivaEstudiantesView(APIView):
     """
     POST /api/usuarios/carga-masiva/
-    Recibe un archivo .xlsx y un campo 'rol', crea usuarios con ese rol.
-    Columnas esperadas: nombre, apellido, correo (y opcionalmente codigo_estudiante).
+    Crea estudiantes desde Excel con formato del cliente:
+    Codigo, Primer Nombre, Segundo Nombre, Primer Apellido, Segundo Apellido,
+    Celular, Correo Electrónico Institucional.
     """
     authentication_classes = [UsuarioJWTAuthentication]
     permission_classes     = [EsAdministrador]
     parser_classes         = [MultiPartParser]
 
     def post(self, request):
+        import unicodedata
+
         archivo = request.FILES.get('archivo')
         if archivo is None:
             return Response(
@@ -457,15 +460,7 @@ class CargaMasivaEstudiantesView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        rol = request.data.get('rol', '').strip()
-        if rol not in ROLES_VALIDOS:
-            return Response(
-                {'detail': f'Rol inválido. Opciones: {ROLES_VALIDOS}'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        nombre_archivo = (archivo.name or '').lower()
-        if not nombre_archivo.endswith('.xlsx'):
+        if not (archivo.name or '').lower().endswith('.xlsx'):
             return Response(
                 {'detail': 'El archivo debe ser formato .xlsx.'},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -473,20 +468,7 @@ class CargaMasivaEstudiantesView(APIView):
 
         try:
             from openpyxl import load_workbook
-            from openpyxl.utils.exceptions import InvalidFileException
-        except ImportError:
-            return Response(
-                {'detail': 'Dependencia openpyxl no instalada en el servidor.'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
-
-        try:
             wb = load_workbook(archivo, read_only=True, data_only=True)
-        except InvalidFileException:
-            return Response(
-                {'detail': 'El archivo .xlsx es inválido o está corrupto.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
         except Exception:
             return Response(
                 {'detail': 'No fue posible leer el archivo .xlsx.'},
@@ -496,56 +478,97 @@ class CargaMasivaEstudiantesView(APIView):
         ws = wb.active
         filas = list(ws.iter_rows(values_only=True))
 
-        if len(filas) <= 1:
+        if len(filas) < 2:
             return Response(
                 {'detail': 'El archivo está vacío o no contiene filas de datos.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        rol_obj = Rol.objects.filter(nombre__iexact=rol).first()
+        def _norm(s):
+            if s is None:
+                return ''
+            s = str(s).strip().lower()
+            return unicodedata.normalize('NFD', s).encode('ascii', 'ignore').decode('ascii')
+
+        headers = [_norm(h) for h in filas[0]]
+
+        COL_CODIGO     = 'codigo'
+        COL_P_NOMBRE   = 'primer nombre'
+        COL_S_NOMBRE   = 'segundo nombre'
+        COL_P_APELLIDO = 'primer apellido'
+        COL_S_APELLIDO = 'segundo apellido'
+        COL_CELULAR    = 'celular'
+        COL_CORREO     = 'correo electronico institucional'
+
+        def _find_col(col):
+            try:
+                return headers.index(col)
+            except ValueError:
+                return None
+
+        idx_codigo     = _find_col(COL_CODIGO)
+        idx_p_nombre   = _find_col(COL_P_NOMBRE)
+        idx_s_nombre   = _find_col(COL_S_NOMBRE)
+        idx_p_apellido = _find_col(COL_P_APELLIDO)
+        idx_s_apellido = _find_col(COL_S_APELLIDO)
+        idx_celular    = _find_col(COL_CELULAR)
+        idx_correo     = _find_col(COL_CORREO)
+
+        if idx_correo is None:
+            return Response(
+                {'detail': 'El archivo no contiene la columna "Correo Electrónico Institucional".'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         creados = 0
         omitidos = 0
         errores = []
         correos_archivo = set()
 
-        for idx, fila in enumerate(filas[1:], start=2):
-            fila = list(fila) + [None] * (4 - len(fila)) if len(fila) < 4 else fila
-            codigo_estudiante, nombre, apellido, correo = fila[0], fila[1], fila[2], fila[3]
+        for fila_num, fila in enumerate(filas[1:], start=2):
+            def _get(i):
+                if i is None or i >= len(fila):
+                    return ''
+                v = fila[i]
+                return str(v).strip() if v is not None else ''
 
-            codigo_estudiante = str(codigo_estudiante).strip() if codigo_estudiante is not None else ''
-            nombre   = str(nombre).strip() if nombre is not None else ''
-            apellido = str(apellido).strip() if apellido is not None else ''
-            correo   = str(correo).strip().lower() if correo is not None else ''
+            correo          = _get(idx_correo).lower()
+            primer_nombre   = _get(idx_p_nombre)
+            segundo_nombre  = _get(idx_s_nombre)
+            primer_apellido = _get(idx_p_apellido)
+            segundo_apellido = _get(idx_s_apellido)
+            codigo   = _get(idx_codigo)
+            telefono = _get(idx_celular)
 
-            if not any([codigo_estudiante, nombre, apellido, correo]):
+            nombre   = ' '.join(p for p in [primer_nombre, segundo_nombre] if p)
+            apellido = ' '.join(p for p in [primer_apellido, segundo_apellido] if p)
+
+            if not any([correo, nombre, apellido, codigo]):
                 continue
 
             if not correo:
+                errores.append({'fila': fila_num, 'motivo': 'correo institucional vacío'})
                 omitidos += 1
-                errores.append({'fila': idx, 'correo': correo, 'motivo': 'correo vacío'})
                 continue
 
             try:
                 validate_email(correo)
             except ValidationError:
+                errores.append({'fila': fila_num, 'correo': correo, 'motivo': 'correo con formato inválido'})
                 omitidos += 1
-                errores.append({'fila': idx, 'correo': correo, 'motivo': 'correo con formato inválido'})
                 continue
 
             if not nombre or not apellido:
+                errores.append({'fila': fila_num, 'correo': correo, 'motivo': 'nombre o apellido vacío'})
                 omitidos += 1
-                errores.append({'fila': idx, 'correo': correo, 'motivo': 'nombre o apellido vacío'})
                 continue
 
             if correo in correos_archivo:
                 omitidos += 1
-                errores.append({'fila': idx, 'correo': correo, 'motivo': 'correo duplicado en el archivo'})
                 continue
 
             if Usuario.objects.filter(correo=correo).exists():
                 omitidos += 1
-                errores.append({'fila': idx, 'correo': correo, 'motivo': 'correo ya registrado'})
                 continue
 
             correos_archivo.add(correo)
@@ -553,45 +576,225 @@ class CargaMasivaEstudiantesView(APIView):
 
             try:
                 usuario = Usuario.objects.create(
-                    codigo_estudiante=codigo_estudiante if codigo_estudiante else None,
+                    codigo_estudiante=codigo or None,
                     nombre=nombre,
                     apellido=apellido,
                     correo=correo,
                     password=make_password(contrasena),
-                    tipo_rol=rol,
+                    telefono=telefono or None,
+                    tipo_rol='estudiante',
                     estado=Usuario.Estado.ACTIVO,
                     is_staff=False,
                     is_superuser=False,
                 )
             except Exception as exc:
+                errores.append({'fila': fila_num, 'correo': correo, 'motivo': f'error al crear: {exc}'})
                 omitidos += 1
-                errores.append({'fila': idx, 'correo': correo, 'motivo': f'error al crear: {exc}'})
                 continue
 
-            if rol_obj is not None:
-                UsuarioRol.objects.get_or_create(usuario=usuario, rol=rol_obj)
+            try:
+                rol_obj = Rol.objects.filter(nombre__iexact='estudiante').first()
+                if rol_obj:
+                    UsuarioRol.objects.get_or_create(usuario=usuario, rol=rol_obj)
+            except Exception:
+                pass
 
             try:
                 enviar_contrasena_bienvenida(nombre, correo, contrasena)
             except Exception as exc:
                 logger.error('Error al enviar correo a %s: %s', correo, exc)
-                errores.append({'fila': idx, 'correo': correo, 'motivo': f'usuario creado, pero fallo el correo: {exc}'})
 
             creados += 1
 
-        registrar_evento(
-            request=request,
-            accion=BitacoraSistema.Accion.CREATE,
-            modulo='usuarios',
-            descripcion=(
-                f'Carga masiva ({rol}): creados={creados}, '
-                f'omitidos={omitidos}, archivo={archivo.name}'
-            ),
-        )
+        try:
+            registrar_evento(
+                request=request,
+                accion=BitacoraSistema.Accion.CREATE,
+                modulo='usuarios',
+                descripcion=f'Carga masiva estudiantes: creados={creados}, omitidos={omitidos}, archivo={archivo.name}',
+            )
+        except Exception:
+            pass
 
         return Response(
             {'creados': creados, 'omitidos': omitidos, 'errores': errores},
-            status=status.HTTP_200_OK,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class CargaMasivaDocentesView(APIView):
+    """
+    POST /api/usuarios/docentes/carga-masiva/
+    Crea docentes desde Excel con formato del cliente:
+    Nombre Docente, Correo Institucional, Celular.
+    Split de nombre: 2 palabras finales = apellidos, resto = nombres.
+    """
+    authentication_classes = [UsuarioJWTAuthentication]
+    permission_classes     = [EsAdministrador]
+    parser_classes         = [MultiPartParser]
+
+    def post(self, request):
+        import unicodedata
+
+        archivo = request.FILES.get('archivo')
+        if archivo is None:
+            return Response(
+                {'detail': 'Debe adjuntar el archivo en el campo "archivo".'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not (archivo.name or '').lower().endswith('.xlsx'):
+            return Response(
+                {'detail': 'El archivo debe ser formato .xlsx.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            from openpyxl import load_workbook
+            wb = load_workbook(archivo, read_only=True, data_only=True)
+        except Exception:
+            return Response(
+                {'detail': 'No fue posible leer el archivo .xlsx.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        ws = wb.active
+        filas = list(ws.iter_rows(values_only=True))
+
+        if len(filas) < 2:
+            return Response(
+                {'detail': 'El archivo está vacío o no contiene filas de datos.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        def _norm(s):
+            if s is None:
+                return ''
+            s = str(s).strip().lower()
+            return unicodedata.normalize('NFD', s).encode('ascii', 'ignore').decode('ascii')
+
+        headers = [_norm(h) for h in filas[0]]
+
+        def _find_col(col):
+            try:
+                return headers.index(col)
+            except ValueError:
+                return None
+
+        idx_nombre  = _find_col('nombre docente')
+        idx_correo  = _find_col('correo institucional')
+        idx_celular = _find_col('celular')
+
+        if idx_correo is None:
+            return Response(
+                {'detail': 'El archivo no contiene la columna "Correo Institucional".'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if idx_nombre is None:
+            return Response(
+                {'detail': 'El archivo no contiene la columna "Nombre Docente".'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        creados = 0
+        omitidos = 0
+        errores = []
+        correos_archivo = set()
+
+        for fila_num, fila in enumerate(filas[1:], start=2):
+            def _get(i):
+                if i is None or i >= len(fila):
+                    return ''
+                v = fila[i]
+                return str(v).strip() if v is not None else ''
+
+            nombre_completo = _get(idx_nombre)
+            correo   = _get(idx_correo).lower()
+            telefono = _get(idx_celular)
+
+            if not any([nombre_completo, correo]):
+                continue
+
+            if not correo:
+                errores.append({'fila': fila_num, 'motivo': 'correo institucional vacío'})
+                omitidos += 1
+                continue
+
+            try:
+                validate_email(correo)
+            except ValidationError:
+                errores.append({'fila': fila_num, 'correo': correo, 'motivo': 'correo con formato inválido'})
+                omitidos += 1
+                continue
+
+            palabras = nombre_completo.split()
+            if len(palabras) >= 3:
+                apellido = ' '.join(palabras[-2:])
+                nombre   = ' '.join(palabras[:-2])
+            elif len(palabras) == 2:
+                nombre, apellido = palabras[0], palabras[1]
+            elif len(palabras) == 1:
+                nombre = apellido = palabras[0]
+            else:
+                errores.append({'fila': fila_num, 'correo': correo, 'motivo': 'nombre docente vacío'})
+                omitidos += 1
+                continue
+
+            if correo in correos_archivo:
+                omitidos += 1
+                continue
+
+            if Usuario.objects.filter(correo=correo).exists():
+                omitidos += 1
+                continue
+
+            correos_archivo.add(correo)
+            contrasena = generar_contrasena()
+
+            try:
+                usuario = Usuario.objects.create(
+                    nombre=nombre,
+                    apellido=apellido,
+                    correo=correo,
+                    password=make_password(contrasena),
+                    telefono=telefono or None,
+                    tipo_rol='docente',
+                    estado=Usuario.Estado.ACTIVO,
+                    is_staff=False,
+                    is_superuser=False,
+                )
+            except Exception as exc:
+                errores.append({'fila': fila_num, 'correo': correo, 'motivo': f'error al crear: {exc}'})
+                omitidos += 1
+                continue
+
+            try:
+                rol_obj = Rol.objects.filter(nombre__iexact='docente').first()
+                if rol_obj:
+                    UsuarioRol.objects.get_or_create(usuario=usuario, rol=rol_obj)
+            except Exception:
+                pass
+
+            try:
+                enviar_contrasena_bienvenida(nombre, correo, contrasena)
+            except Exception as exc:
+                logger.error('Error al enviar correo a %s: %s', correo, exc)
+
+            creados += 1
+
+        try:
+            registrar_evento(
+                request=request,
+                accion=BitacoraSistema.Accion.CREATE,
+                modulo='usuarios',
+                descripcion=f'Carga masiva docentes: creados={creados}, omitidos={omitidos}, archivo={archivo.name}',
+            )
+        except Exception:
+            pass
+
+        return Response(
+            {'creados': creados, 'omitidos': omitidos, 'errores': errores},
+            status=status.HTTP_201_CREATED,
         )
 
 

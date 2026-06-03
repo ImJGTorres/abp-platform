@@ -11,6 +11,7 @@ from datetime import date
 from apps.usuarios.models import Usuario
 from apps.cursos.models import Proyecto, Curso
 from apps.equipos.models import Equipo, MiembroEquipo
+from apps.configuracion.models import ParametroSistema
 
 
 @pytest.fixture
@@ -34,8 +35,15 @@ def proyecto_activo(docente_a):
 
 @pytest.fixture
 def equipo_con_estudiantes(proyecto_activo, docente_a):
-    """Crea un equipo con estudiantes asignados"""
     from tests.factories import UsuarioFactory
+    ParametroSistema.objects.get_or_create(
+        clave='max_estudiantes_por_equipo',
+        defaults={
+            'valor': '10',
+            'categoria': ParametroSistema.Categoria.GENERAL,
+            'tipo_dato': ParametroSistema.TipoDato.INTEGER,
+        },
+    )
     equipo = Equipo.objects.create(
         nombre="Equipo Test",
         proyecto=proyecto_activo,

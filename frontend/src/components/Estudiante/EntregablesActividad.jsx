@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, Link, useLocation } from 'react-router-dom'
 import { entregablesApi } from '../../services/entregablesApi'
+import { evaluacionesApi } from '../../services/docenteApi'
 import { buildMediaUrl } from '../../services/api'
 
 // ── Iconos ────────────────────────────────────────────────────────────────────
@@ -371,6 +372,72 @@ function HistorialVersiones({ entregableId, estadoActual }) {
     )
 }
 
+// ── Evaluación con rúbrica (vista del estudiante) ─────────────────────────────
+
+const NIVEL_COLOR = {
+    excelente:    { text: '#2e7d32', bg: '#f1f8e9' },
+    satisfactorio:{ text: '#1565c0', bg: '#e3f2fd' },
+    basico:       { text: '#e65100', bg: '#fff3e0' },
+    insuficiente: { text: '#c62828', bg: '#ffebee' },
+}
+
+function EvaluacionRubricaDetalle({ evaluacion }) {
+    const colorNivel = (etq) => {
+        const key = etq?.toLowerCase()?.normalize('NFD').replace(/[̀-ͯ]/g, '')
+        const map = { excelente: 'excelente', satisfactorio: 'satisfactorio', basico: 'basico', insuficiente: 'insuficiente' }
+        return NIVEL_COLOR[map[key]] ?? NIVEL_COLOR.satisfactorio
+    }
+    return (
+        <div className="rounded-xl border border-[#e3f2fd] bg-[#f8fbff] px-4 py-3">
+            <div className="flex items-center justify-between mb-2 gap-3 flex-wrap">
+                <p className="text-[12px] font-bold text-[#1565c0] uppercase tracking-[0.6px]">
+                    Evaluación del docente · {evaluacion.rubrica_nombre}
+                </p>
+                <div className="flex items-baseline gap-1">
+                    <span className="text-[22px] font-extrabold text-[#1565c0] leading-none">
+                        {parseFloat(evaluacion.puntuacion_total).toFixed(1)}
+                    </span>
+                    <span className="text-[12px] font-bold text-[#9ba7ae]">/ 100</span>
+                </div>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+                {(evaluacion.calificaciones ?? []).map(cal => {
+                    const c = colorNivel(cal.nivel_etiqueta)
+                    return (
+                        <div key={cal.id} className="flex items-start gap-2.5 py-1.5 border-b border-[#e3f2fd] last:border-0">
+                            <div className="flex-1 min-w-0">
+                                <p className="text-[12px] font-semibold text-[#191c1d] truncate">{cal.criterio_nombre}</p>
+                                {cal.nivel_descripcion && (
+                                    <p className="text-[11px] text-[#6b7b83] mt-0.5 leading-snug">{cal.nivel_descripcion}</p>
+                                )}
+                            </div>
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                                <span
+                                    className="text-[10px] font-bold px-2 py-0.5 rounded-lg"
+                                    style={{ color: c.text, backgroundColor: c.bg }}
+                                >
+                                    {cal.nivel_etiqueta}
+                                </span>
+                                <span className="text-[11px] font-bold" style={{ color: c.text }}>
+                                    {parseFloat(cal.puntos_obtenidos).toFixed(1)} pts
+                                </span>
+                            </div>
+                        </div>
+                    )
+                })}
+            </div>
+
+            {evaluacion.comentario_general && (
+                <div className="mt-2 bg-white border border-[#e3f2fd] rounded-lg px-3 py-2">
+                    <p className="text-[11px] font-semibold text-[#9ba7ae] mb-0.5">Comentarios del docente</p>
+                    <p className="text-[12px] text-[#4c616c] leading-snug">{evaluacion.comentario_general}</p>
+                </div>
+            )}
+        </div>
+    )
+}
+
 // ── Vista principal ───────────────────────────────────────────────────────────
 
 export default function EntregablesActividad() {
@@ -395,6 +462,9 @@ export default function EntregablesActividad() {
     const [archivos, setArchivos] = useState({})
     const [subiendoMap, setSubiendoMap] = useState({})
     const [erroresArchivo, setErroresArchivo] = useState({})
+
+    // Evaluación rubrica (solo para entregables aprobados)
+    const [evaluacionesMap, setEvaluacionesMap] = useState({})
 
     // Confirmación enviar
     const [confirmEnviar, setConfirmEnviar] = useState(null)
@@ -425,11 +495,24 @@ export default function EntregablesActividad() {
         } catch { }
     }
 
+    async function cargarEvaluacion(entregableId) {
+        if (evaluacionesMap[entregableId] !== undefined) return
+        setEvaluacionesMap(p => ({ ...p, [entregableId]: null }))
+        try {
+            const evals = await evaluacionesApi.listar(entregableId)
+            const arr = Array.isArray(evals) ? evals : (evals.results ?? [])
+            setEvaluacionesMap(p => ({ ...p, [entregableId]: arr[0] ?? null }))
+        } catch {
+            setEvaluacionesMap(p => ({ ...p, [entregableId]: null }))
+        }
+    }
+
     function abrirDetalle(entregable) {
         const nuevoActivo = activoId === entregable.id ? null : entregable.id
         setActivoId(nuevoActivo)
-        if (nuevoActivo && !archivos[nuevoActivo]) {
-            cargarArchivos(nuevoActivo)
+        if (nuevoActivo) {
+            if (!archivos[nuevoActivo]) cargarArchivos(nuevoActivo)
+            if (entregable.estado === 'aprobado') cargarEvaluacion(nuevoActivo)
         }
     }
 
@@ -631,6 +714,11 @@ export default function EntregablesActividad() {
                                                 </p>
                                                 <p className="text-[13px] text-[#4c616c]">{e.retroalimentacion}</p>
                                             </div>
+                                        )}
+
+                                        {/* Evaluación con rúbrica (solo aprobados) */}
+                                        {e.estado === 'aprobado' && evaluacionesMap[e.id] && (
+                                            <EvaluacionRubricaDetalle evaluacion={evaluacionesMap[e.id]} />
                                         )}
 
                                         {/* Archivos */}

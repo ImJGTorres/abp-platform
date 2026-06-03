@@ -17,7 +17,6 @@ from apps.bitacora.models import BitacoraSistema
 
 @pytest.fixture
 def proyecto_activo(docente_a):
-    """Crea un proyecto activo para testing"""
     from tests.factories import PeriodoAcademicoFactory, CursoFactory
     periodo = PeriodoAcademicoFactory(usuario_creo=docente_a)
     curso = CursoFactory(

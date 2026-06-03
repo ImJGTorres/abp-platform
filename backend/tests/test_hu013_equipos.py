@@ -16,7 +16,6 @@ from apps.configuracion.models import ParametroSistema
 
 @pytest.fixture
 def proyecto_activo(docente_a):
-    """Crea un proyecto activo para testing"""
     from tests.factories import CursoFactory
     curso = CursoFactory(
         nombre="Curso Test",
@@ -35,7 +34,6 @@ def proyecto_activo(docente_a):
 
 @pytest.fixture
 def equipo_con_varios_miembros(proyecto_activo):
-    """Crea un equipo con varios miembros"""
     from tests.factories import UsuarioFactory
     
     ParametroSistema.objects.create(
