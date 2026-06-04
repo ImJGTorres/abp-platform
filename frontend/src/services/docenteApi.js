@@ -649,3 +649,19 @@ export const monitoreoApi = {
         return data
     },
 }
+
+export const evaluacionesEstudiantesApi = {
+    async listarAutoevaluaciones(proyectoId) {
+        const response = await request(`/api/proyectos/${proyectoId}/autoevaluaciones/`)
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+
+    async listarCoevaluaciones(proyectoId) {
+        const response = await request(`/api/proyectos/${proyectoId}/coevaluaciones/`)
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+}
