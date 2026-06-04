@@ -13,6 +13,7 @@ from .views import (
     RetroalimentacionEquipoView,
     RetroalimentacionEstudianteView,
     RubricaDetailView,
+    RubricaDesignarProyectoView,
     RubricaListCreateView,
 )
 
@@ -20,6 +21,7 @@ urlpatterns = [
     # HU-23 — Rúbricas
     path('rubricas/', RubricaListCreateView.as_view(), name='rubrica-list-create'),
     path('rubricas/<int:pk>/', RubricaDetailView.as_view(), name='rubrica-detail'),
+    path('rubricas/<int:pk>/designar-proyecto/', RubricaDesignarProyectoView.as_view(), name='rubrica-designar-proyecto'),
     path(
         'proyectos/<int:proyecto_id>/rubricas/',
         ProyectoRubricaListCreateView.as_view(),
