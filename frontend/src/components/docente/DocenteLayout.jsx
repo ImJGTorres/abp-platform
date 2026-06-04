@@ -78,9 +78,10 @@ function IconShuffle() {
 function IconRisk() {
     return (
         <svg viewBox="0 0 20 20" fill="none" className="w-5 h-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M10 2L1.5 17h17L10 2z" />
-            <path d="M10 8v4" />
-            <circle cx="10" cy="14" r="0.6" fill="currentColor" />
+            <path d="M10 3a7 7 0 100 14A7 7 0 0010 3z" />
+            <path d="M10 7v4" />
+            <path d="M10 13h.01" strokeWidth="2" strokeLinecap="round" />
+            <path d="M7 10l1.5 1.5L11 8" />
         </svg>
     )
 }
@@ -133,7 +134,7 @@ function SidebarContent({ collapsed, onCollapse, loggingOut, handleLogout, onNav
             { label: 'Estudiantes', to: `/docente/cursos/${cursoId}/estudiantes`, icon: <IconUsers /> },
             { label: 'Proyectos', to: `/docente/cursos/${cursoId}`, icon: <IconTeam /> },
             { label: 'Reorganizar equipos', to: `/docente/cursos/${cursoId}/reorganizar`, icon: <IconShuffle /> },
-            { label: 'En riesgo', to: `/docente/cursos/${cursoId}/riesgo`, icon: <IconRisk /> }
+            { label: 'Desempeño', to: `/docente/cursos/${cursoId}/riesgo`, icon: <IconRisk /> }
         )
     }
 

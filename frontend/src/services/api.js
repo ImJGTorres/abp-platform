@@ -306,7 +306,10 @@ export const usuariosApi = {
   async cargaMasiva(archivo, rol) {
     const formData = new FormData()
     formData.append('archivo', archivo)
-    formData.append('rol', rol)
+
+    const endpoint = rol === 'docente'
+      ? `${BASE_URL}/api/usuarios/docentes/carga-masiva/`
+      : `${BASE_URL}/api/usuarios/carga-masiva/`
 
     const token = session.getAccess()
     const headers = {}
@@ -314,7 +317,7 @@ export const usuariosApi = {
 
     let response
     try {
-      response = await fetch(`${BASE_URL}/api/usuarios/carga-masiva/`, {
+      response = await fetch(endpoint, {
         method: 'POST',
         headers,
         body: formData,

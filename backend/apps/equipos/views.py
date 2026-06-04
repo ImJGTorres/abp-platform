@@ -391,7 +391,7 @@ class EstudiantesCursoView(APIView):
                 'nombre':            est.nombre,
                 'apellido':          est.apellido,
                 'correo':            est.correo,
-                'codigo_estudiante': est.codigo_estudiante or '',
+                'codigo': est.codigo or '',
             }
             if est.id in usuario_equipos:
                 data['equipos'] = usuario_equipos[est.id]

@@ -530,7 +530,9 @@ class CargaMasivaEstudiantesView(APIView):
                 if i is None or i >= len(fila):
                     return ''
                 v = fila[i]
-                return str(v).strip() if v is not None else ''
+                if v is None:
+                    return ''
+                return str(v).replace('\r', '').replace('\n', '').strip()
 
             correo          = _get(idx_correo).lower()
             primer_nombre   = _get(idx_p_nombre)
@@ -576,7 +578,7 @@ class CargaMasivaEstudiantesView(APIView):
 
             try:
                 usuario = Usuario.objects.create(
-                    codigo_estudiante=codigo or None,
+                    codigo=codigo or None,
                     nombre=nombre,
                     apellido=apellido,
                     correo=correo,
@@ -684,6 +686,7 @@ class CargaMasivaDocentesView(APIView):
         idx_nombre  = _find_col('nombre docente')
         idx_correo  = _find_col('correo institucional')
         idx_celular = _find_col('celular')
+        idx_codigo  = _find_col('codigo docente')
 
         if idx_correo is None:
             return Response(
@@ -706,11 +709,14 @@ class CargaMasivaDocentesView(APIView):
                 if i is None or i >= len(fila):
                     return ''
                 v = fila[i]
-                return str(v).strip() if v is not None else ''
+                if v is None:
+                    return ''
+                return str(v).replace('\r', '').replace('\n', '').strip()
 
             nombre_completo = _get(idx_nombre)
             correo   = _get(idx_correo).lower()
             telefono = _get(idx_celular)
+            codigo   = _get(idx_codigo)
 
             if not any([nombre_completo, correo]):
                 continue
@@ -753,6 +759,7 @@ class CargaMasivaDocentesView(APIView):
 
             try:
                 usuario = Usuario.objects.create(
+                    codigo=codigo or None,
                     nombre=nombre,
                     apellido=apellido,
                     correo=correo,

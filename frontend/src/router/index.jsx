@@ -40,6 +40,8 @@ import HistorialEvaluaciones from '../components/docente/HistorialEvaluaciones'
 import EstudiantesRiesgo from '../components/docente/EstudiantesRiesgo'
 import PerfilRendimientoEstudiante from '../components/docente/PerfilRendimientoEstudiante'
 import MonitoreoProyecto from '../components/docente/MonitoreoProyecto'
+import AutoevaluacionesDocente from '../components/docente/AutoevaluacionesDocente'
+import CoevaluacionesDocente from '../components/docente/CoevaluacionesDocente'
 
 import EstudianteLayout from '../components/Estudiante/EstudianteLayout'
 import DashboardEstudiante from '../components/Estudiante/DashboardEstudiante'
@@ -62,6 +64,7 @@ import DirectorLayout from '../components/director/DirectorLayout'
 import DashboardDirector from '../components/director/DashboardDirector'
 import ListaReportes from '../components/director/ListaReportes'
 import ReporteProyecto from '../components/director/ReporteProyecto'
+import EstudiantesRiesgoDirector from '../components/director/EstudiantesRiesgoDirector'
 
 function PanelEstudiante() { return <div className="p-10">Estudiante</div> }
 
@@ -141,6 +144,8 @@ export default function AppRouter() {
             <Route path="/docente/proyectos/:proyectoId/kanban" element={<TableroKanban />} />
             <Route path="/docente/proyectos/:proyectoId/perfiles-roles" element={<PerfilesRolesProyecto />} />
             <Route path="/docente/proyectos/:proyectoId/historial" element={<HistorialEvaluaciones />} />
+            <Route path="/docente/proyectos/:proyectoId/autoevaluaciones" element={<AutoevaluacionesDocente />} />
+            <Route path="/docente/proyectos/:proyectoId/coevaluaciones" element={<CoevaluacionesDocente />} />
             <Route path="/docente/proyectos/:proyectoId/monitoreo" element={<MonitoreoProyecto />} />
           </Route>
 
@@ -158,6 +163,7 @@ export default function AppRouter() {
           <Route element={<DirectorLayout />}>
             <Route path="/director" element={<DashboardDirector />} />
             <Route path="/director/indicadores" element={<DashboardDirector />} />
+            <Route path="/director/riesgo" element={<EstudiantesRiesgoDirector />} />
             <Route path="/director/reportes" element={<ListaReportes />} />
             <Route path="/director/reportes/proyecto/:proyectoId" element={<ReporteProyecto />} />
           </Route>

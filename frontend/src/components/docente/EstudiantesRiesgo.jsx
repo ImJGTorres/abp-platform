@@ -2,9 +2,14 @@ import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { reportesApi, cursosApi } from '../../services/docenteApi'
 
-// Umbrales por defecto (coinciden con los del backend)
 const UMBRAL_NOTA = 3.0
 const UMBRAL_PCT_INCUMPLIDAS = 50
+
+function riesgoScore(est) {
+    const notaRisk = Math.max(0, (UMBRAL_NOTA - (est.nota_promedio ?? UMBRAL_NOTA)) / UMBRAL_NOTA) * 100
+    const pctRisk = est.porcentaje_actividades_incumplidas ?? 0
+    return (notaRisk + pctRisk) / 2
+}
 
 function IconAlert() {
     return (
@@ -83,8 +88,12 @@ export default function EstudiantesRiesgo() {
             const data = await reportesApi.bajoRendimiento({
                 cursoId: cursoId ? Number(cursoId) : undefined,
                 proyectoId: proyectoFiltro ? Number(proyectoFiltro) : undefined,
+                soloRiesgo: false,
             })
-            setEstudiantes(data.estudiantes ?? [])
+            const ordenados = (data.estudiantes ?? []).slice().sort(
+                (a, b) => riesgoScore(b) - riesgoScore(a)
+            )
+            setEstudiantes(ordenados)
         } catch {
             setError('No se pudo cargar el reporte de estudiantes en riesgo.')
         } finally {
@@ -110,7 +119,10 @@ export default function EstudiantesRiesgo() {
                     <div>
                         <h1 className="text-[18px] font-bold text-[#191c1d]">Estudiantes en Riesgo</h1>
                         <p className="text-[13px] text-[#9ba7ae]">
-                            {cargando ? 'Cargando...' : `${estudiantes.length} estudiante${estudiantes.length !== 1 ? 's' : ''} detectado${estudiantes.length !== 1 ? 's' : ''}`}
+                            {cargando ? 'Cargando...' : (() => {
+                                const enRiesgo = estudiantes.filter(e => e.en_riesgo).length
+                                return `${estudiantes.length} estudiante${estudiantes.length !== 1 ? 's' : ''} · ${enRiesgo} en riesgo · ordenados de mayor a menor`
+                            })()}
                         </p>
                     </div>
                 </div>
@@ -142,13 +154,11 @@ export default function EstudiantesRiesgo() {
                 </div>
             ) : estudiantes.length === 0 ? (
                 <div className="bg-white rounded-2xl border border-[#e1e3e4] flex flex-col items-center justify-center py-16 gap-3">
-                    <div className="w-12 h-12 rounded-full bg-green-50 flex items-center justify-center">
-                        <svg viewBox="0 0 20 20" fill="none" className="w-6 h-6 text-green-600" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-                            <path d="M4 10l4 4 8-8" />
-                        </svg>
+                    <div className="w-12 h-12 rounded-full bg-[#f0f2f3] flex items-center justify-center">
+                        <IconUser />
                     </div>
-                    <p className="text-[15px] font-semibold text-[#191c1d]">Sin estudiantes en riesgo</p>
-                    <p className="text-[13px] text-[#9ba7ae]">Todos los estudiantes están dentro de los parámetros aceptables.</p>
+                    <p className="text-[15px] font-semibold text-[#191c1d]">Sin estudiantes registrados</p>
+                    <p className="text-[13px] text-[#9ba7ae]">No hay estudiantes activos en este curso.</p>
                 </div>
             ) : (
                 <div className="bg-white rounded-2xl border border-[#e1e3e4] overflow-hidden">
@@ -160,6 +170,7 @@ export default function EstudiantesRiesgo() {
                                     <th className="px-4 py-3 text-left text-[11px] font-bold text-[#9ba7ae] uppercase tracking-wide">Código</th>
                                     <th className="px-4 py-3 text-left text-[11px] font-bold text-[#9ba7ae] uppercase tracking-wide">Nota Prom.</th>
                                     <th className="px-4 py-3 text-left text-[11px] font-bold text-[#9ba7ae] uppercase tracking-wide">% Incumplidas</th>
+                                    <th className="px-4 py-3 text-left text-[11px] font-bold text-[#9ba7ae] uppercase tracking-wide">Estado</th>
                                     <th className="px-4 py-3" />
                                 </tr>
                             </thead>
@@ -168,7 +179,7 @@ export default function EstudiantesRiesgo() {
                                     <tr key={est.id} className="hover:bg-[#fafafa] transition-colors">
                                         <td className="px-4 py-3">
                                             <div className="flex items-center gap-2.5">
-                                                <div className="w-7 h-7 rounded-full bg-red-50 flex items-center justify-center text-[#d32f2f] flex-shrink-0">
+                                                <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${est.en_riesgo ? 'bg-red-50 text-[#d32f2f]' : 'bg-green-50 text-green-600'}`}>
                                                     <IconUser />
                                                 </div>
                                                 <div>
@@ -178,7 +189,7 @@ export default function EstudiantesRiesgo() {
                                             </div>
                                         </td>
                                         <td className="px-4 py-3 text-[13px] text-[#4c616c] font-mono">
-                                            {est.codigo_estudiante ?? '—'}
+                                            {est.codigo ?? '—'}
                                         </td>
                                         <CeldaCritica critica={est.nota_promedio < UMBRAL_NOTA}>
                                             {est.nota_promedio?.toFixed(2)} / 5.0
@@ -189,6 +200,17 @@ export default function EstudiantesRiesgo() {
                                                 ({est.actividades_incumplidas}/{est.total_actividades})
                                             </span>
                                         </CeldaCritica>
+                                        <td className="px-4 py-3">
+                                            {est.en_riesgo ? (
+                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-50 border border-red-200 text-[#d32f2f] text-[11px] font-bold">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-[#d32f2f]" />En riesgo
+                                                </span>
+                                            ) : (
+                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-50 border border-green-200 text-green-700 text-[11px] font-bold">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-green-500" />Normal
+                                                </span>
+                                            )}
+                                        </td>
                                         <td className="px-4 py-3">
                                             <Link
                                                 to={perfilUrl(est.id)}

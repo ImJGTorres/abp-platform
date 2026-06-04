@@ -539,15 +539,26 @@ export const rubricasApi = {
         const data = await parseJSON(response)
         if (!response.ok) throw { status: response.status, data }
     },
+
+    async designarProyecto(rubricaId, designar = true) {
+        const response = await request(`/api/rubricas/${rubricaId}/designar-proyecto/`, {
+            method: 'PATCH',
+            body: JSON.stringify({ es_rubrica_proyecto: designar }),
+        })
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
 }
 
 // ─── Reportes de rendimiento ───────────────────────────────────
 export const reportesApi = {
-    async bajoRendimiento({ cursoId, proyectoId, periodoId } = {}) {
+    async bajoRendimiento({ cursoId, proyectoId, periodoId, soloRiesgo = true } = {}) {
         const params = new URLSearchParams()
         if (cursoId) params.set('curso_id', cursoId)
         if (proyectoId) params.set('proyecto_id', proyectoId)
         if (periodoId) params.set('periodo_id', periodoId)
+        if (!soloRiesgo) params.set('solo_riesgo', 'false')
         const qs = params.toString() ? `?${params}` : ''
         const response = await request(`/api/reportes/bajo-rendimiento/${qs}`)
         const data = await parseJSON(response)
@@ -633,6 +644,22 @@ export const alertasApi = {
 export const monitoreoApi = {
     async progreso(proyectoId) {
         const response = await request(`/api/proyectos/${proyectoId}/progreso/`)
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+}
+
+export const evaluacionesEstudiantesApi = {
+    async listarAutoevaluaciones(proyectoId) {
+        const response = await request(`/api/proyectos/${proyectoId}/autoevaluaciones/`)
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+
+    async listarCoevaluaciones(proyectoId) {
+        const response = await request(`/api/proyectos/${proyectoId}/coevaluaciones/`)
         const data = await parseJSON(response)
         if (!response.ok) throw { status: response.status, data }
         return data

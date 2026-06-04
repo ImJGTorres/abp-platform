@@ -61,7 +61,7 @@ export default function CargaMasivaEstudiantes() {
             <p className="text-xs text-gray-500 mb-4">
                 Sube un archivo <strong>.xlsx</strong> con columnas:
                 <span className="font-mono"> nombre, apellido, correo</span> (y opcionalmente{" "}
-                <span className="font-mono">codigo_estudiante</span>).
+                <span className="font-mono">codigo</span>).
                 Se generará una contraseña temporal y se enviará al correo de cada usuario.
             </p>
 

@@ -280,7 +280,7 @@ export default function EstudiantesCurso() {
         return disp.filter(e =>
             `${e.nombre} ${e.apellido}`.toLowerCase().includes(q) ||
             e.correo.toLowerCase().includes(q) ||
-            (e.codigo_estudiante ?? '').toLowerCase().includes(q)
+            (e.codigo ?? '').toLowerCase().includes(q)
         )
     }, [estudiantes, busqueda])
 
@@ -292,7 +292,7 @@ export default function EstudiantesCurso() {
         return enEq.filter(e =>
             `${e.nombre} ${e.apellido}`.toLowerCase().includes(q) ||
             e.correo.toLowerCase().includes(q) ||
-            (e.codigo_estudiante ?? '').toLowerCase().includes(q)
+            (e.codigo ?? '').toLowerCase().includes(q)
         )
     }, [estudiantes, busqueda])
 
@@ -438,7 +438,7 @@ export default function EstudiantesCurso() {
                                          <div className="flex-1 min-w-0">
                                              <p className="text-[13px] font-semibold text-[#9ba7ae] truncate">{est.nombre} {est.apellido}</p>
                                              <p className="text-[12px] text-[#c8cdd1] truncate">
-                                                 {est.codigo_estudiante ? `${est.codigo_estudiante} · ` : ''}{est.correo}
+                                                 {est.codigo ? `${est.codigo} · ` : ''}{est.correo}
                                              </p>
                                          </div>
                                          <span className="flex items-center gap-1 text-[11px] font-semibold text-[#1565c0] flex-shrink-0 max-w-[160px]">

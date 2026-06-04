@@ -2,6 +2,14 @@ import { useState, useEffect, Fragment } from 'react'
 import { useParams } from 'react-router-dom'
 import { rubricasApi } from '../../services/docenteApi'
 
+function IconStar({ filled }) {
+    return (
+        <svg viewBox="0 0 20 20" fill={filled ? 'currentColor' : 'none'} className="w-4 h-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M10 2l2.4 4.9 5.4.8-3.9 3.8.9 5.4L10 14.4l-4.8 2.5.9-5.4L2.2 7.7l5.4-.8L10 2z" />
+        </svg>
+    )
+}
+
 // ── Icons ─────────────────────────────────────────────────────────────────────
 
 function IconPlus() {
@@ -213,6 +221,18 @@ export default function ConstructorRubricas() {
         setSaveError(null)
     }
 
+    async function toggleDesignar(r) {
+        const designar = !r.es_rubrica_proyecto
+        try {
+            const actualizada = await rubricasApi.designarProyecto(r.id, designar)
+            setRubricas(prev => prev.map(x => ({
+                ...x,
+                es_rubrica_proyecto: x.id === r.id ? actualizada.es_rubrica_proyecto : (designar ? false : x.es_rubrica_proyecto),
+            })))
+            if (rubricaVista?.id === r.id) setRubricaVista(actualizada)
+        } catch { }
+    }
+
     async function ejecutarEliminar() {
         if (!confirmEliminar) return
         setEliminando(true)
@@ -399,9 +419,26 @@ export default function ConstructorRubricas() {
                                                 {r.tipo_display ?? r.tipo}
                                             </span>
                                         )}
+                                        {r.es_rubrica_proyecto && (
+                                            <span className="flex items-center gap-1 text-[11px] font-bold text-[#e65100] bg-[#fff3e0] border border-[#ffcc80] px-2 py-0.5 rounded-lg">
+                                                <IconStar filled />
+                                                Auto/Coevaluación
+                                            </span>
+                                        )}
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-2 flex-shrink-0" onClick={e => e.stopPropagation()}>
+                                    <button
+                                        onClick={() => toggleDesignar(r)}
+                                        title={r.es_rubrica_proyecto ? 'Quitar designación' : 'Usar para auto/coevaluación'}
+                                        className={`flex items-center justify-center w-8 h-8 rounded-xl transition-colors ${
+                                            r.es_rubrica_proyecto
+                                                ? 'text-[#e65100] bg-[#fff3e0] hover:bg-[#ffe0b2]'
+                                                : 'text-[#9ba7ae] bg-[#f0f2f3] hover:bg-[#e1e3e4]'
+                                        }`}
+                                    >
+                                        <IconStar filled={r.es_rubrica_proyecto} />
+                                    </button>
                                     <button
                                         onClick={() => editarRubrica(r)}
                                         className="flex items-center gap-1.5 px-3 py-2 text-[12px] font-semibold text-[#4c616c] bg-[#f0f2f3] rounded-xl hover:bg-[#e1e3e4] transition-colors"

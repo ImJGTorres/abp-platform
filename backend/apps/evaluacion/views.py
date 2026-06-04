@@ -1,5 +1,6 @@
+from datetime import timedelta
 from django.db import transaction
-from django.db.models import Avg, Count, Q
+from django.db.models import Avg, Count, Q, ProtectedError
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import generics, status
@@ -147,6 +148,54 @@ class RubricaDetailView(generics.RetrieveUpdateDestroyAPIView):
             pass
 
         return Response(serializer.data)
+
+    def delete(self, request, *args, **kwargs):
+        rubrica = self.get_object()
+        try:
+            rubrica.delete()
+        except ProtectedError:
+            return Response(
+                {'detail': 'No se puede eliminar la rúbrica porque ya tiene evaluaciones registradas.'},
+                status=status.HTTP_409_CONFLICT,
+            )
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class RubricaDesignarProyectoView(APIView):
+    """
+    PATCH /api/rubricas/<pk>/designar-proyecto/
+    Marca esta rúbrica como la rúbrica de auto/coevaluación del proyecto.
+    Desactiva cualquier otra rúbrica que estuviera designada en el mismo proyecto.
+    El docente solo puede designar sus propias rúbricas.
+    """
+    authentication_classes = [UsuarioJWTAuthentication]
+    permission_classes = [EsDocente]
+
+    def patch(self, request, pk):
+        rubrica = get_object_or_404(
+            Rubrica.objects.select_related('id_proyecto'),
+            pk=pk,
+            id_docente=request.user,
+        )
+        if not rubrica.id_proyecto_id:
+            return Response(
+                {'detail': 'La rúbrica no está asociada a ningún proyecto.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        designar = request.data.get('es_rubrica_proyecto', True)
+
+        with transaction.atomic():
+            if designar:
+                # Desactivar cualquier otra del mismo proyecto
+                Rubrica.objects.filter(
+                    id_proyecto=rubrica.id_proyecto,
+                    es_rubrica_proyecto=True,
+                ).exclude(pk=pk).update(es_rubrica_proyecto=False)
+            rubrica.es_rubrica_proyecto = designar
+            rubrica.save(update_fields=['es_rubrica_proyecto'])
+
+        return Response(RubricaSerializer(rubrica).data)
 
 
 # ---------------------------------------------------------------------------
@@ -559,18 +608,43 @@ class AutoevaluacionListCreateView(APIView):
             )
 
         # Verificar pertenencia al proyecto
-        es_miembro = MiembroEquipo.objects.filter(
+        miembro = MiembroEquipo.objects.filter(
             equipo__proyecto_id=id_proyecto,
             usuario=request.user,
             estado='activo',
-        ).exists()
-        if not es_miembro:
+        ).select_related('equipo').first()
+        if not miembro:
             return Response(
                 {'detail': 'No perteneces a este proyecto.'},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        proyecto = get_object_or_404(Proyecto, pk=id_proyecto)
+        proyecto = get_object_or_404(
+            Proyecto.objects.select_related('id_curso'),
+            pk=id_proyecto,
+        )
+
+        # Gate 1: existe rúbrica designada para el proyecto
+        rubrica_proyecto = Rubrica.objects.filter(
+            id_proyecto=proyecto,
+            es_rubrica_proyecto=True,
+        ).first()
+        if not rubrica_proyecto:
+            return Response(
+                {'detail': 'El docente aún no ha designado la rúbrica de evaluación del proyecto.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # Gate 2: ventana de 7 días antes de la fecha de finalización
+        hoy = timezone.localdate()
+        if not proyecto.fecha_fin_estimada or hoy < proyecto.fecha_fin_estimada - timedelta(days=7):
+            dias = (proyecto.fecha_fin_estimada - hoy).days if proyecto.fecha_fin_estimada else None
+            motivo = (
+                f'La autoevaluación se habilitará en {dias - 7} día(s) (una semana antes del cierre).'
+                if dias is not None else
+                'El proyecto no tiene fecha de finalización definida.'
+            )
+            return Response({'detail': motivo}, status=status.HTTP_403_FORBIDDEN)
 
         # Verificar periodo académico activo
         hoy = timezone.localdate()
@@ -649,6 +723,62 @@ class AutoevaluacionListCreateView(APIView):
             AutoevaluacionSerializer(autoevaluacion, context={'request': request}).data,
             status=status.HTTP_201_CREATED,
         )
+
+
+class AutoevaluacionPuedeView(APIView):
+    """
+    GET /api/proyectos/<id_proyecto>/puede-autoevaluar/
+
+    Retorna { puede: bool, motivo: str } para que el frontend
+    muestre el formulario de autoevaluación bloqueado o disponible.
+    """
+    authentication_classes = [UsuarioJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, id_proyecto):
+        tipo_rol = getattr(request.user, 'tipo_rol', None)
+        if tipo_rol not in ('estudiante', 'lider_equipo'):
+            return Response({'puede': True, 'motivo': ''})
+
+        miembro = MiembroEquipo.objects.filter(
+            equipo__proyecto_id=id_proyecto,
+            usuario=request.user,
+            estado='activo',
+        ).select_related('equipo').first()
+        if not miembro:
+            return Response({'puede': False, 'motivo': 'No perteneces a este proyecto.'})
+
+        proyecto = get_object_or_404(
+            Proyecto.objects.select_related('id_curso'),
+            pk=id_proyecto,
+        )
+
+        rubrica_proyecto = Rubrica.objects.filter(
+            id_proyecto=proyecto,
+            es_rubrica_proyecto=True,
+        ).first()
+        if not rubrica_proyecto:
+            return Response({
+                'puede': False,
+                'motivo': 'El docente aún no ha designado la rúbrica de evaluación del proyecto.',
+            })
+
+        hoy = timezone.localdate()
+        if not proyecto.fecha_fin_estimada or hoy < proyecto.fecha_fin_estimada - timedelta(days=7):
+            dias = (proyecto.fecha_fin_estimada - hoy).days if proyecto.fecha_fin_estimada else None
+            motivo = (
+                f'La autoevaluación se habilitará en {dias - 7} día(s) (una semana antes del cierre).'
+                if dias is not None else
+                'El proyecto no tiene fecha de finalización definida.'
+            )
+            return Response({'puede': False, 'motivo': motivo})
+
+        return Response({
+            'puede': True,
+            'motivo': '',
+            'rubrica_id': rubrica_proyecto.id,
+            'rubrica_nombre': rubrica_proyecto.nombre,
+        })
 
 
 class AutoevaluacionMiaView(APIView):
@@ -773,8 +903,8 @@ class CoevaluacionListCreateView(APIView):
         user_id  = request.user.pk
         tipo_rol = getattr(request.user, 'tipo_rol', None)
 
-        # BE-02.1 — solo Estudiante
-        if tipo_rol != 'estudiante':
+        # BE-02.1 — solo Estudiante o Líder de Equipo
+        if tipo_rol not in ('estudiante', 'lider_equipo'):
             return Response(
                 {'detail': 'Solo los estudiantes pueden registrar coevaluaciones.'},
                 status=status.HTTP_403_FORBIDDEN,

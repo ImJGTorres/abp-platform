@@ -9,6 +9,25 @@ import ExportarReporte from '../Compartidos/ExportarReporte'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+const RADIAN = Math.PI / 180
+function renderPieLabel({ cx, cy, midAngle, outerRadius, percent }) {
+    if (percent < 0.04) return null
+    const r = outerRadius + 28
+    const x = cx + r * Math.cos(-midAngle * RADIAN)
+    const y = cy + r * Math.sin(-midAngle * RADIAN)
+    return (
+        <text
+            x={x} y={y}
+            fill="#4c616c"
+            textAnchor={x > cx ? 'start' : 'end'}
+            dominantBaseline="central"
+            style={{ fontSize: 11, fontWeight: 700 }}
+        >
+            {`${(percent * 100).toFixed(0)}%`}
+        </text>
+    )
+}
+
 function fmt(iso) {
     if (!iso) return '—'
     return new Date(iso).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
@@ -316,17 +335,17 @@ export default function ReporteProyecto() {
                     <div>
                         <p className="text-[13px] font-semibold text-[#4c616c] mb-3">Estado de entregables</p>
                         {dataEntregables.length > 0 ? (
-                            <ResponsiveContainer width="100%" height={200}>
+                            <ResponsiveContainer width="100%" height={240}>
                                 <PieChart>
                                     <Pie
                                         data={dataEntregables}
                                         cx="50%"
                                         cy="50%"
-                                        innerRadius={55}
-                                        outerRadius={80}
+                                        innerRadius={45}
+                                        outerRadius={68}
                                         dataKey="value"
-                                        label={({ name, percent }) => `${(percent * 100).toFixed(0)}%`}
-                                        labelLine={false}
+                                        label={renderPieLabel}
+                                        labelLine={{ stroke: '#c4cdd2', strokeWidth: 1 }}
                                     >
                                         {dataEntregables.map((_, i) => (
                                             <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
@@ -415,7 +434,7 @@ export default function ReporteProyecto() {
                                                 <p className="text-[13px] font-semibold text-[#191c1d]">
                                                     {est.nombre} {est.apellido}
                                                 </p>
-                                                <p className="text-[11px] text-[#9ba7ae]">{est.codigo_estudiante}</p>
+                                                <p className="text-[11px] text-[#9ba7ae]">{est.codigo}</p>
                                             </td>
                                             <td className="px-3 py-3">
                                                 <div className="flex items-center gap-2">
