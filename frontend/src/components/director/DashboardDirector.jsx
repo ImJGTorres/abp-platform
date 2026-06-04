@@ -6,7 +6,6 @@ import {
 } from 'recharts'
 import { reportesApi } from '../../services/docenteApi'
 import { periodosApi } from '../../services/api'
-import ExportarReporte from '../Compartidos/ExportarReporte'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -166,20 +165,14 @@ export default function DashboardDirector() {
                         Indicadores de desempeño académico por periodo
                     </p>
                 </div>
-                <div className="flex items-center gap-2">
-                    <button
-                        onClick={handleRefresh}
-                        disabled={cargando}
-                        className="flex items-center gap-1.5 px-3 py-1.5 border border-[#e1e3e4] rounded-xl text-[12px] font-semibold text-[#4c616c] hover:bg-[#f0f2f3] transition-colors disabled:opacity-50"
-                    >
-                        <IconRefresh spinning={refreshing} />
-                        Actualizar
-                    </button>
-                    <ExportarReporte
-                        tipo_reporte="indicadores"
-                        parametros={{ periodo_id: periodoSel ? Number(periodoSel) : undefined }}
-                    />
-                </div>
+                <button
+                    onClick={handleRefresh}
+                    disabled={cargando}
+                    className="flex items-center gap-1.5 px-3 py-1.5 border border-[#e1e3e4] rounded-xl text-[12px] font-semibold text-[#4c616c] hover:bg-[#f0f2f3] transition-colors disabled:opacity-50"
+                >
+                    <IconRefresh spinning={refreshing} />
+                    Actualizar
+                </button>
             </div>
 
             {/* Selector de periodo */}
@@ -242,10 +235,7 @@ export default function DashboardDirector() {
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
                         {/* Tendencia histórica */}
                         <div className="bg-white rounded-2xl border border-[#e1e3e4] p-5">
-                            <div className="flex items-center justify-between mb-4">
-                                <h2 className="text-[14px] font-bold text-[#191c1d]">Tendencia histórica</h2>
-                                <ExportarReporte tipo_reporte="tendencia" parametros={{}} />
-                            </div>
+                            <h2 className="text-[14px] font-bold text-[#191c1d] mb-4">Tendencia histórica</h2>
                             {dataTendencia.length > 1 ? (
                                 <ResponsiveContainer width="100%" height={220}>
                                     <LineChart data={dataTendencia} margin={{ left: 0, right: 8, top: 4, bottom: 0 }}>
