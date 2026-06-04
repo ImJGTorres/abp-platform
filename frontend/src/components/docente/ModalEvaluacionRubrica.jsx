@@ -41,6 +41,34 @@ export default function ModalEvaluacionRubrica({ entregable, rubricas, onClose, 
     const [comentario,   setComentario]   = useState('')
     const [guardando,    setGuardando]    = useState(false)
     const [error,        setError]        = useState('')
+    const [evaluaciones, setEvaluaciones] = useState([])
+    const [cargando,     setCargando]     = useState(true)
+
+    // Cargar evaluaciones existentes al abrir el modal
+    useEffect(() => {
+        evaluacionesApi.listar(entregable.id)
+            .then(data => setEvaluaciones(Array.isArray(data) ? data : (data.results ?? [])))
+            .catch(() => {})
+            .finally(() => setCargando(false))
+    }, [entregable.id])
+
+    // Pre-cargar selecciones desde la evaluación guardada (o limpiar si no hay)
+    useEffect(() => {
+        if (cargando) return
+        setError('')
+        const evalPrev = evaluaciones.find(ev => ev.id_rubrica === rubricaSelId)
+        if (evalPrev) {
+            const mapa = {}
+            for (const cal of evalPrev.calificaciones ?? []) {
+                mapa[cal.id_criterio] = cal.id_nivel_seleccionado
+            }
+            setSelecciones(mapa)
+            setComentario(evalPrev.comentario_general ?? '')
+        } else {
+            setSelecciones({})
+            setComentario('')
+        }
+    }, [rubricaSelId, evaluaciones, cargando])
 
     // Rúbrica activa con sus criterios y niveles ordenados
     const rubrica = rubricas.find(r => r.id === rubricaSelId) ?? null
@@ -51,9 +79,6 @@ export default function ModalEvaluacionRubrica({ entregable, rubricas, onClose, 
 
     // Columnas de encabezado: usamos los metadatos globales en el orden visual estándar
     const columnasHeader = NIVELES_META
-
-    // Reiniciar selecciones al cambiar rúbrica
-    useEffect(() => { setSelecciones({}); setError('') }, [rubricaSelId])
 
     // ── Cálculo ───────────────────────────────────────────────────────────────
     // Puntuación total = suma directa de los puntos del nivel seleccionado.
@@ -121,7 +146,11 @@ export default function ModalEvaluacionRubrica({ entregable, rubricas, onClose, 
                 {/* ── Cuerpo scrolleable ───────────────────────────────────── */}
                 <div className="flex-1 overflow-y-auto">
 
-                    {rubricas.length === 0 ? (
+                    {cargando ? (
+                        <div className="flex items-center justify-center py-16 text-[#9ba7ae]">
+                            <p className="text-[14px]">Cargando evaluación...</p>
+                        </div>
+                    ) : rubricas.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-16 text-[#9ba7ae]">
                             <p className="text-[14px] font-semibold mb-1">Sin rúbricas disponibles</p>
                             <p className="text-[13px]">Crea una rúbrica en la sección de Rúbricas para poder evaluar.</p>
@@ -312,7 +341,7 @@ export default function ModalEvaluacionRubrica({ entregable, rubricas, onClose, 
                     </button>
                     <button
                         onClick={guardar}
-                        disabled={!todoSeleccionado || guardando || rubricas.length === 0}
+                        disabled={cargando || !todoSeleccionado || guardando || rubricas.length === 0}
                         className="flex items-center gap-2 px-5 py-2.5 bg-[#d32f2f] text-white text-[13px] font-bold rounded-xl hover:bg-[#b71c1c] transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
                     >
                         <IconRubricSave />
