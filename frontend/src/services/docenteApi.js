@@ -539,6 +539,16 @@ export const rubricasApi = {
         const data = await parseJSON(response)
         if (!response.ok) throw { status: response.status, data }
     },
+
+    async designarProyecto(rubricaId, designar = true) {
+        const response = await request(`/api/rubricas/${rubricaId}/designar-proyecto/`, {
+            method: 'PATCH',
+            body: JSON.stringify({ es_rubrica_proyecto: designar }),
+        })
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
 }
 
 // ─── Reportes de rendimiento ───────────────────────────────────

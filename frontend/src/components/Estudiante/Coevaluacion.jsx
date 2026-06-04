@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import { rubricasApi } from '../../services/docenteApi'
-import { coevaluacionApi } from '../../services/estudianteApi'
+import { coevaluacionApi, autoevaluacionApi } from '../../services/estudianteApi'
 
 // ── Niveles visuales ──────────────────────────────────────────────────────────
 
@@ -69,14 +69,19 @@ function CriterioCard({ criterio, seleccionado, onChange }) {
                                     ? `${style.selBg} ${style.selBorder} shadow-md ring-2 ring-offset-1 ${style.selBorder.replace('border-', 'ring-')}`
                                     : `bg-[#fafafa] border-[#e1e3e4] hover:border-[#c8cdd0] hover:bg-[#f5f6f7]`
                             }`}>
-                            <p className={`text-[12px] font-extrabold mb-1.5 ${isSelected ? style.text : 'text-[#4c616c]'}`}>
-                                {ETIQUETA_DISPLAY[etq] ?? etq}
-                            </p>
+                            <div className="flex items-start justify-between gap-1 mb-1.5">
+                                <p className={`text-[12px] font-extrabold ${isSelected ? style.text : 'text-[#4c616c]'}`}>
+                                    {ETIQUETA_DISPLAY[etq] ?? etq}
+                                </p>
+                                <span className={`text-[11px] font-bold flex-shrink-0 ${isSelected ? style.text : 'text-[#9ba7ae]'}`}>
+                                    {nivel.puntos} pts
+                                </span>
+                            </div>
                             <p className={`text-[12px] leading-snug ${isSelected ? style.text : 'text-[#9ba7ae]'}`}>
                                 {nivel.descripcion}
                             </p>
                             {isSelected && (
-                                <span className={`absolute top-2 right-2 w-4 h-4 rounded-full ${style.selBorder.replace('border-', 'bg-')} flex items-center justify-center`}>
+                                <span className={`absolute bottom-2 right-2 w-4 h-4 rounded-full ${style.selBorder.replace('border-', 'bg-')} flex items-center justify-center`}>
                                     <svg viewBox="0 0 12 12" fill="none" className="w-2.5 h-2.5" stroke="white" strokeWidth="2" strokeLinecap="round">
                                         <path d="M2 6l3 3 5-5" />
                                     </svg>
@@ -161,11 +166,13 @@ export default function Coevaluacion() {
     const ctx = useOutletContext() ?? {}
     const { proyectoId, proyecto, companeros, selectedEvaluadoId, setSelectedEvaluadoId, recargarCompaneros } = ctx
 
-    const [rubricas,    setRubricas]    = useState([])
-    const [rubricaSel,  setRubricaSel]  = useState(null)
-    const [misCoev,     setMisCoev]     = useState([])  // coevaluaciones que yo hice
-    const [loading,     setLoading]     = useState(true)
-    const [periodoError,setPeriodoError]= useState(false)
+    const [rubricas,     setRubricas]    = useState([])
+    const [rubricaSel,   setRubricaSel]  = useState(null)
+    const [rubricaFijada,setRubricaFijada]= useState(false)
+    const [bloqueada,    setBloqueada]   = useState(false)
+    const [misCoev,      setMisCoev]     = useState([])
+    const [loading,      setLoading]     = useState(true)
+    const [periodoError, setPeriodoError]= useState(false)
 
     // Form state
     const [selecciones, setSelecciones] = useState({})   // { criterioId: nivelId }
@@ -188,16 +195,35 @@ export default function Coevaluacion() {
         setLoading(true)
         setError('')
         try {
-            const [rubData, coevData] = await Promise.allSettled([
+            const [rubData, coevData, puedeData] = await Promise.allSettled([
                 rubricasApi.listar(proyectoId),
                 coevaluacionApi.listar(proyectoId),
+                autoevaluacionApi.puedeAutoevaluar(proyectoId),
             ])
 
             const rubs = rubData.status === 'fulfilled'
                 ? (Array.isArray(rubData.value) ? rubData.value : (rubData.value.results ?? []))
                 : []
             setRubricas(rubs)
-            if (rubs.length > 0) setRubricaSel(rubs[0])
+
+            if (puedeData.status === 'fulfilled') {
+                const puede = puedeData.value
+                if (!puede.puede) {
+                    setBloqueada(true)
+                } else if (puede.rubrica_id) {
+                    const rubricaDocente = rubs.find(r => r.id === puede.rubrica_id)
+                    if (rubricaDocente) {
+                        setRubricaSel(rubricaDocente)
+                        setRubricaFijada(true)
+                    } else if (rubs.length > 0) {
+                        setRubricaSel(rubs[0])
+                    }
+                } else if (rubs.length > 0) {
+                    setRubricaSel(rubs[0])
+                }
+            } else if (rubs.length > 0) {
+                setRubricaSel(rubs[0])
+            }
 
             const coevs = coevData.status === 'fulfilled'
                 ? (Array.isArray(coevData.value) ? coevData.value : (coevData.value.results ?? []))
@@ -281,6 +307,25 @@ export default function Coevaluacion() {
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                     </svg>
                     <span>Cargando coevaluación...</span>
+                </div>
+            </div>
+        )
+    }
+
+    // Bloqueada: docente aún no ha aprobado + calificado un entregable
+    if (bloqueada) {
+        return (
+            <div className="flex-1 flex items-center justify-center p-6" style={{ fontFamily: "'Manrope', sans-serif" }}>
+                <div className="text-center max-w-sm">
+                    <div className="w-14 h-14 rounded-2xl bg-[#fff8e1] flex items-center justify-center mx-auto mb-4">
+                        <svg viewBox="0 0 24 24" fill="none" className="w-7 h-7 text-[#f9a825]" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" />
+                        </svg>
+                    </div>
+                    <p className="text-[16px] font-bold text-[#191c1d] mb-2">Coevaluación no disponible aún</p>
+                    <p className="text-[13px] text-[#9ba7ae] leading-relaxed">
+                        El docente debe aprobar y calificar al menos un entregable con rúbrica antes de que puedas coevaluar.
+                    </p>
                 </div>
             </div>
         )
@@ -412,8 +457,17 @@ export default function Coevaluacion() {
                 </>
             ) : (
                 <>
-                    {/* Selector de rúbrica (si hay más de una) */}
-                    {rubricas.length > 1 && (
+                    {/* Rúbrica — fijada por el docente o seleccionable */}
+                    {rubricaFijada ? (
+                        <div className="mb-5 flex items-center gap-2 px-3 py-2 bg-[#e3f2fd] border border-[#90caf9] rounded-xl w-fit">
+                            <svg viewBox="0 0 16 16" fill="none" className="w-3.5 h-3.5 text-[#1565c0] flex-shrink-0" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <rect x="3" y="7" width="10" height="7" rx="1" /><path d="M5 7V5a3 3 0 016 0v2" />
+                            </svg>
+                            <span className="text-[12px] font-semibold text-[#1565c0]">
+                                Rúbrica del docente: <strong>{rubricaSel?.nombre}</strong>
+                            </span>
+                        </div>
+                    ) : rubricas.length > 1 && (
                         <div className="mb-5">
                             <label className="block text-[12px] font-bold text-[#9ba7ae] uppercase tracking-[0.7px] mb-2">
                                 Seleccionar rúbrica
