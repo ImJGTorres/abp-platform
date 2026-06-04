@@ -79,8 +79,8 @@ def calcular_rendimiento_estudiante(estudiante_id, proyecto_id=None, curso_id=No
     }
 
 
-def get_estudiantes_bajo_rendimiento(curso_id=None, proyecto_id=None, periodo_id=None):
-    """Retorna lista de estudiantes en riesgo con sus indicadores."""
+def get_estudiantes_bajo_rendimiento(curso_id=None, proyecto_id=None, periodo_id=None, solo_riesgo=True):
+    """Retorna lista de estudiantes con sus indicadores, filtrados o no por riesgo."""
     from apps.usuarios.models import Usuario
     from apps.equipos.models import MiembroEquipo
 
@@ -110,15 +110,16 @@ def get_estudiantes_bajo_rendimiento(curso_id=None, proyecto_id=None, periodo_id
         indicadores = calcular_rendimiento_estudiante(
             est.id, proyecto_id=proyecto_id, curso_id=curso_id
         )
-        if indicadores['en_riesgo']:
-            resultado.append({
-                'id': est.id,
-                'nombre': est.nombre,
-                'apellido': est.apellido,
-                'correo': est.correo,
-                'codigo_estudiante': est.codigo_estudiante,
-                **indicadores,
-            })
+        if solo_riesgo and not indicadores['en_riesgo']:
+            continue
+        resultado.append({
+            'id': est.id,
+            'nombre': est.nombre,
+            'apellido': est.apellido,
+            'correo': est.correo,
+            'codigo_estudiante': est.codigo_estudiante,
+            **indicadores,
+        })
 
     return resultado
 
