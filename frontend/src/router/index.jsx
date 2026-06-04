@@ -62,6 +62,7 @@ import DirectorLayout from '../components/director/DirectorLayout'
 import DashboardDirector from '../components/director/DashboardDirector'
 import ListaReportes from '../components/director/ListaReportes'
 import ReporteProyecto from '../components/director/ReporteProyecto'
+import EstudiantesRiesgoDirector from '../components/director/EstudiantesRiesgoDirector'
 
 function PanelEstudiante() { return <div className="p-10">Estudiante</div> }
 
@@ -158,6 +159,7 @@ export default function AppRouter() {
           <Route element={<DirectorLayout />}>
             <Route path="/director" element={<DashboardDirector />} />
             <Route path="/director/indicadores" element={<DashboardDirector />} />
+            <Route path="/director/riesgo" element={<EstudiantesRiesgoDirector />} />
             <Route path="/director/reportes" element={<ListaReportes />} />
             <Route path="/director/reportes/proyecto/:proyectoId" element={<ReporteProyecto />} />
           </Route>

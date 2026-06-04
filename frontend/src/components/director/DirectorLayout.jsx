@@ -86,11 +86,21 @@ function IconChevronRight() {
     )
 }
 
+function IconAlert() {
+    return (
+        <svg viewBox="0 0 20 20" fill="none" className="w-5 h-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M10 2L1.5 17h17L10 2z" />
+            <path d="M10 8v4" />
+            <circle cx="10" cy="14" r="0.6" fill="currentColor" />
+        </svg>
+    )
+}
+
 // ── Sidebar ───────────────────────────────────────────────────────────────────
 
 const NAV_ITEMS = [
     { label: 'Dashboard', to: '/director', icon: <IconHome />, exact: true },
-    { label: 'Indicadores', to: '/director/indicadores', icon: <IconChart /> },
+    { label: 'Riesgo', to: '/director/riesgo', icon: <IconAlert /> },
     { label: 'Reportes', to: '/director/reportes', icon: <IconClipboard /> },
 ]
 
