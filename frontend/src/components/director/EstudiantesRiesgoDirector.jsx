@@ -168,7 +168,7 @@ export default function EstudiantesRiesgoDirector() {
                                                 </div>
                                             </td>
                                             <td className="px-4 py-3 text-[13px] text-[#4c616c] font-mono">
-                                                {est.codigo_estudiante ?? '—'}
+                                                {est.codigo ?? '—'}
                                             </td>
                                             <td className="px-4 py-3">
                                                 <BarraRiesgo valor={est.nota_promedio != null ? est.nota_promedio * 20 : null} critica={notaCritica} />

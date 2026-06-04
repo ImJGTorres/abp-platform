@@ -117,7 +117,7 @@ def get_estudiantes_bajo_rendimiento(curso_id=None, proyecto_id=None, periodo_id
             'nombre': est.nombre,
             'apellido': est.apellido,
             'correo': est.correo,
-            'codigo_estudiante': est.codigo_estudiante,
+            'codigo': est.codigo,
             **indicadores,
         })
 
