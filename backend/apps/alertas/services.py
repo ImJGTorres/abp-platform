@@ -41,7 +41,7 @@ def generar_alertas_actividades_vencidas():
         'id_fase__id_proyecto__id_curso',
         'id_responsable',
         'id_equipo_asignado',
-    )
+    ).prefetch_related('responsables')
 
     creadas = 0
     for act in actividades_vencidas:
@@ -51,6 +51,9 @@ def generar_alertas_actividades_vencidas():
         usuarios_destino = set()
         if act.id_responsable_id:
             usuarios_destino.add(act.id_responsable_id)
+        # Responsables M2M (pueden asignarse desde el frontend)
+        responsables_m2m = act.responsables.values_list('id', flat=True)
+        usuarios_destino.update(responsables_m2m)
         if act.id_equipo_asignado_id:
             miembros = MiembroEquipo.objects.filter(
                 equipo_id=act.id_equipo_asignado_id,

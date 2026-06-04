@@ -27,6 +27,7 @@ class BajoRendimientoView(APIView):
         curso_id = request.query_params.get('curso_id')
         proyecto_id = request.query_params.get('proyecto_id')
         periodo_id = request.query_params.get('periodo_id')
+        solo_riesgo = request.query_params.get('solo_riesgo', 'true').lower() != 'false'
 
         try:
             curso_id = int(curso_id) if curso_id else None
@@ -43,6 +44,7 @@ class BajoRendimientoView(APIView):
                 curso_id=curso_id,
                 proyecto_id=proyecto_id,
                 periodo_id=periodo_id,
+                solo_riesgo=solo_riesgo,
             )
 
             try:
