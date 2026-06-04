@@ -40,6 +40,8 @@ import HistorialEvaluaciones from '../components/docente/HistorialEvaluaciones'
 import EstudiantesRiesgo from '../components/docente/EstudiantesRiesgo'
 import PerfilRendimientoEstudiante from '../components/docente/PerfilRendimientoEstudiante'
 import MonitoreoProyecto from '../components/docente/MonitoreoProyecto'
+import AutoevaluacionesDocente from '../components/docente/AutoevaluacionesDocente'
+import CoevaluacionesDocente from '../components/docente/CoevaluacionesDocente'
 
 import EstudianteLayout from '../components/Estudiante/EstudianteLayout'
 import DashboardEstudiante from '../components/Estudiante/DashboardEstudiante'
@@ -142,6 +144,8 @@ export default function AppRouter() {
             <Route path="/docente/proyectos/:proyectoId/kanban" element={<TableroKanban />} />
             <Route path="/docente/proyectos/:proyectoId/perfiles-roles" element={<PerfilesRolesProyecto />} />
             <Route path="/docente/proyectos/:proyectoId/historial" element={<HistorialEvaluaciones />} />
+            <Route path="/docente/proyectos/:proyectoId/autoevaluaciones" element={<AutoevaluacionesDocente />} />
+            <Route path="/docente/proyectos/:proyectoId/coevaluaciones" element={<CoevaluacionesDocente />} />
             <Route path="/docente/proyectos/:proyectoId/monitoreo" element={<MonitoreoProyecto />} />
           </Route>
 

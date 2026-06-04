@@ -125,6 +125,27 @@ function IconMonitoreo() {
     )
 }
 
+function IconAutoeval() {
+    return (
+        <svg viewBox="0 0 20 20" fill="none" className="w-5 h-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="8" cy="6" r="3" />
+            <path d="M2 17a6 6 0 0112 0" />
+            <path d="M14 9l2 2 4-4" strokeWidth="1.8" />
+        </svg>
+    )
+}
+
+function IconCoeval() {
+    return (
+        <svg viewBox="0 0 20 20" fill="none" className="w-5 h-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="7" cy="5" r="2.5" />
+            <path d="M1 15a6 6 0 0112 0" />
+            <circle cx="14" cy="6" r="2" />
+            <path d="M14 11c2.5 0 4 1.5 4 4" />
+        </svg>
+    )
+}
+
 function navLinkClass({ isActive }) {
     const base = 'flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] font-medium transition-all duration-150 select-none cursor-pointer'
     return isActive
@@ -141,6 +162,8 @@ function SidebarContent({ collapsed, onCollapse, loggingOut, handleLogout, onNav
         { label: 'Tablero Kanban', to: `/docente/proyectos/${proyectoId}/kanban`, icon: <IconKanban /> },
         { label: 'Perfiles y Roles', to: `/docente/proyectos/${proyectoId}/perfiles-roles`, icon: <IconUsers /> },
         { label: 'Historial', to: `/docente/proyectos/${proyectoId}/historial`, icon: <IconHistory /> },
+        { label: 'Autoevaluaciones', to: `/docente/proyectos/${proyectoId}/autoevaluaciones`, icon: <IconAutoeval /> },
+        { label: 'Coevaluaciones', to: `/docente/proyectos/${proyectoId}/coevaluaciones`, icon: <IconCoeval /> },
         { label: 'Monitoreo', to: `/docente/proyectos/${proyectoId}/monitoreo`, icon: <IconMonitoreo /> },
     ]
 
