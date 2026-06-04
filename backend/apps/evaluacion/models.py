@@ -31,6 +31,7 @@ class Rubrica(models.Model):
         default=Tipo.ENTREGABLE,
     )
     peso_total = models.DecimalField(max_digits=5, decimal_places=2, default=100)
+    es_rubrica_proyecto = models.BooleanField(default=False)
     fecha_creacion = models.DateTimeField(auto_now_add=True)
 
     class Meta:

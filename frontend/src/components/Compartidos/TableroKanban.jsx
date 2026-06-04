@@ -92,7 +92,7 @@ export default function TableroKanban() {
     const { proyectoId } = useParams()
     const location = useLocation()
     const user = session.getUser()
-    const esEstudiante = user?.tipo_rol === 'estudiante'
+    const esEstudiante = user?.tipo_rol === 'estudiante' || user?.tipo_rol === 'lider_equipo'
 
     const cursoId = location.state?.cursoId
     const cursoNombre = location.state?.cursoNombre
