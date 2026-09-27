@@ -11,13 +11,24 @@ pip install -r requirements.txt
 echo "Building frontend..."
 cd ../frontend
 
-if ! command -v pnpm &> /dev/null; then
-    echo "pnpm not found, installing..."
-    npm install -g pnpm
+# Limpiar node_modules previo de npm en cache si existe
+if [ -d "node_modules" ] && [ ! -d "node_modules/.pnpm" ]; then
+    echo "Eliminando node_modules previo de npm para evitar conflictos..."
+    rm -rf node_modules
 fi
 
-pnpm install
-pnpm run build
+# Habilitar pnpm nativo vía Corepack (incluido en Node.js 22)
+corepack enable 2>/dev/null || true
+corepack prepare pnpm@12.6.0 --activate 2>/dev/null || true
+
+if command -v pnpm &> /dev/null; then
+    pnpm install
+    pnpm run build
+else
+    echo "pnpm no detectado en PATH, usando npx pnpm..."
+    npx -y pnpm install
+    npx -y pnpm run build
+fi
 
 # Copy frontend files to backend
 echo "Copying frontend build to backend..."
