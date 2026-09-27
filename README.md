@@ -260,11 +260,11 @@ El backend queda disponible en **http://localhost:8000**
 ```bash
 cd frontend
 
-npm install
+pnpm install
 
 cp .env.example .env           # Verificar VITE_API_URL=http://localhost:8000
 
-npm run dev
+pnpm dev
 ```
 
 El frontend queda disponible en **http://localhost:5173**
