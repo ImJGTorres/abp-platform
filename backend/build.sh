@@ -10,8 +10,14 @@ pip install -r requirements.txt
 # Build frontend
 echo "Building frontend..."
 cd ../frontend
-npm install
-npm run build
+
+if ! command -v pnpm &> /dev/null; then
+    echo "pnpm not found, installing..."
+    npm install -g pnpm
+fi
+
+pnpm install
+pnpm run build
 
 # Copy frontend files to backend
 echo "Copying frontend build to backend..."
