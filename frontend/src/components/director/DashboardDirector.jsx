@@ -6,6 +6,7 @@ import {
 } from 'recharts'
 import { reportesApi } from '../../services/docenteApi'
 import { periodosApi } from '../../services/api'
+import Semaforo, { nivelPorPorcentaje } from '../Compartidos/Semaforo'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -61,14 +62,6 @@ function KpiCard({ label, value, sub, variacion, invertido = false }) {
             )}
         </div>
     )
-}
-
-// ── Semáforo ──────────────────────────────────────────────────────────────────
-
-function Semaforo({ value }) {
-    if (value >= 60) return <span className="inline-flex items-center gap-1 text-green-600 text-[11px] font-bold"><span className="w-2.5 h-2.5 rounded-full bg-green-500" />Bueno</span>
-    if (value >= 30) return <span className="inline-flex items-center gap-1 text-yellow-600 text-[11px] font-bold"><span className="w-2.5 h-2.5 rounded-full bg-yellow-400" />Regular</span>
-    return <span className="inline-flex items-center gap-1 text-[#d32f2f] text-[11px] font-bold"><span className="w-2.5 h-2.5 rounded-full bg-[#d32f2f]" />En riesgo</span>
 }
 
 // ── Vista principal ───────────────────────────────────────────────────────────
@@ -358,7 +351,7 @@ export default function DashboardDirector() {
                                                     {p.actividades_completadas ?? 0}/{p.total_actividades ?? 0}
                                                 </td>
                                                 <td className="px-3 py-3">
-                                                    <Semaforo value={Number(p.porcentaje_progreso ?? 0)} />
+                                                    <Semaforo nivel={nivelPorPorcentaje(p.porcentaje_progreso)} size="sm" />
                                                 </td>
                                             </tr>
                                         ))}

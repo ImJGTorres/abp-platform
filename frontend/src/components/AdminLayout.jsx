@@ -37,6 +37,15 @@ function IconShield() {
   )
 }
 
+function IconBuilding() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" className="w-5 h-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2 18h16M3 8l7-5 7 5" />
+      <path d="M5 8v8M8.5 8v8M11.5 8v8M15 8v8" />
+    </svg>
+  )
+}
+
 function IconFileText() {
   return (
     <svg viewBox="0 0 20 20" fill="none" className="w-5 h-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
@@ -107,6 +116,7 @@ const NAV_ITEMS = [
   { label: 'Usuarios', to: '/admin/registro', icon: <IconUsers /> },
   { label: 'Cursos', to: '/admin/cursos', icon: <IconBook /> },
   { label: 'Configuración', to: '/admin/configuracion', icon: <IconSettings /> },
+  { label: 'Identidad', to: '/admin/identidad', icon: <IconBuilding /> },
   { label: 'Períodos', to: '/admin/periodos', icon: <IconCalendar /> },
   { label: 'Bitácoras', to: '/admin/bitacoras', icon: <IconFileText /> },
   { label: 'Roles', to: '/admin/roles', icon: <IconShield /> },
