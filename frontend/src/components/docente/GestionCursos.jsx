@@ -113,7 +113,7 @@ export default function GestionCursos() {
 
             {/* Header */}
             <div className="mb-6">
-                <h1 className="text-[22px] sm:text-[24px] font-bold text-[#191c1d] leading-tight">Mis cursos</h1>
+                <h1 className="text-[22px] font-extrabold text-[#191c1d] leading-tight tracking-tight">Mis cursos</h1>
                 <p className="text-[13px] text-[#9ba7ae] mt-0.5">Selecciona un curso para ver sus proyectos y equipos</p>
             </div>
 

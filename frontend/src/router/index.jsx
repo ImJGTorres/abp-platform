@@ -27,9 +27,7 @@ import RAPsProyecto from '../components/docente/RAPsProyecto'
 import ProyectoLayout from '../components/docente/ProyectoLayout'
 import CronogramaProyecto from '../components/docente/CronogramaProyecto'
 import PerfilesRolesProyecto from '../components/docente/PerfilesRolesProyecto'
-import EquipoProyecto from '../components/docente/EquipoProyecto'
 import ReorganizarEquipos from '../components/docente/ReorganizarEquipos'
-import CronogramaHitos from '../components/docente/CronogramaHitos'
 import EquiposCurso from '../components/docente/EquiposCurso'
 import GestionFases from '../components/docente/GestionFases'
 import GestionActividades from '../components/docente/GestionActividades'
@@ -128,9 +126,7 @@ export default function AppRouter() {
             <Route path="/docente/cursos/:id" element={<DetalleCurso />} />
             <Route path="/docente/cursos/:id/estudiantes" element={<EstudiantesCurso />} />
             <Route path="/docente/cursos/:id/equipos" element={<EquiposCurso />} />
-            <Route path="/docente/cursos/:cursoId/proyectos/:proyectoId/equipo" element={<EquipoProyecto />} />
             <Route path="/docente/cursos/:cursoId/reorganizar" element={<ReorganizarEquipos />} />
-            <Route path="/docente/cursos/:cursoId/proyectos/:proyectoId/cronograma" element={<CronogramaHitos />} />
             <Route path="/docente/proyectos/:proyectoId/equipos" element={<GestionEquipos />} />
             <Route path="/docente/equipos/:equipoId/asignar" element={<AsignarEstudiantes />} />
             <Route path="/docente/cursos/:cursoId/riesgo" element={<EstudiantesRiesgo />} />

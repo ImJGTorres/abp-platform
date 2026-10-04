@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useLocation } from 'react-router-dom'
 import { equiposApi } from '../../services/docenteApi'
+import MigasDePan from '../Compartidos/MigasDePan'
 
 const AVATAR_COLORS = ['#d32f2f', '#1976d2', '#388e3c', '#7b1fa2', '#f57c00', '#0097a7', '#5d4037', '#37474f']
 
@@ -18,7 +19,7 @@ function colorFor(id) {
 
 export default function AsignarEstudiantes() {
     const { equipoId } = useParams()
-    const navigate     = useNavigate()
+    const ctx          = useLocation().state  // { proyectoId, proyectoNombre, cursoId, cursoNombre } desde GestionEquipos
 
     const [datos, setDatos]             = useState(null)
     const [loading, setLoading]         = useState(true)
@@ -93,15 +94,17 @@ export default function AsignarEstudiantes() {
     return (
         <div className="flex-1 overflow-y-auto p-6" style={{ fontFamily: "'Manrope', sans-serif" }}>
 
-            {/* Breadcrumb */}
-            <div className="mb-5 flex items-center gap-2 text-[13px]">
-                <button onClick={() => navigate(-1)} className="text-[#9ba7ae] hover:text-[#4c616c] transition-colors flex items-center gap-1.5">
-                    <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M10 3L5 8l5 5" /></svg>
-                    Equipos
-                </button>
-                <svg className="w-3 h-3 text-[#9ba7ae]" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 3l5 5-5 5" /></svg>
-                <span className="font-semibold text-[#191c1d]">{datos?.equipo?.nombre ?? 'Asignar estudiantes'}</span>
-            </div>
+            <MigasDePan className="mb-5" items={[
+                { label: 'Mis cursos', to: '/docente/cursos' },
+                ctx?.cursoId && { label: ctx.cursoNombre ?? 'Curso', to: `/docente/cursos/${ctx.cursoId}` },
+                ctx?.proyectoId && {
+                    label: ctx.proyectoNombre ?? 'Proyecto',
+                    to: `/docente/proyectos/${ctx.proyectoId}/monitoreo`,
+                    state: { nombre: ctx.proyectoNombre, cursoId: ctx.cursoId, cursoNombre: ctx.cursoNombre },
+                },
+                ctx?.proyectoId && { label: 'Gestión de equipos', to: `/docente/proyectos/${ctx.proyectoId}/equipos` },
+                { label: datos?.equipo?.nombre ?? 'Asignar estudiantes' },
+            ]} />
 
             {error && (
                 <div className="mb-4 px-4 py-3 rounded-xl bg-[#ffdad6] text-[#ba1a1a] text-[13px] font-medium flex items-center gap-2">

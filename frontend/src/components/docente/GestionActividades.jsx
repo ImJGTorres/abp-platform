@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link, useLocation, useNavigate } from 'react-router-dom'
 import { actividadesApi, equiposApi } from '../../services/docenteApi'
+import MigasDePan from '../Compartidos/MigasDePan'
+import { migasProyecto } from '../../utils/migasDocente'
 
 function IconPlus() {
     return (
@@ -96,9 +98,6 @@ export default function GestionActividades() {
     const location = useLocation()
     const navigate = useNavigate()
 
-    const cursoId = location.state?.cursoId
-    const cursoNombre = location.state?.cursoNombre
-    const proyectoNombre = location.state?.nombre
     const faseNombre = location.state?.faseNombre
 
     const [actividades, setActividades] = useState([])
@@ -231,35 +230,16 @@ export default function GestionActividades() {
     return (
         <div className="flex-1 overflow-y-auto p-4 sm:p-6" style={{ fontFamily: "'Manrope', sans-serif" }}>
 
-            {/* Breadcrumb */}
-            <div className="mb-5 flex items-center gap-2 text-[13px] flex-wrap">
-                <Link to="/docente/cursos" className="text-[#9ba7ae] hover:text-[#4c616c] transition-colors">Mis cursos</Link>
-                {cursoId && (
-                    <>
-                        <IconChevron />
-                        <Link to={`/docente/cursos/${cursoId}`} state={location.state} className="text-[#9ba7ae] hover:text-[#4c616c] transition-colors">
-                            {cursoNombre ?? 'Curso'}
-                        </Link>
-                    </>
-                )}
-                {proyectoNombre && (
-                    <>
-                        <IconChevron />
-                        <span className="text-[#9ba7ae]">{proyectoNombre}</span>
-                    </>
-                )}
-                <IconChevron />
-                <Link to={`/docente/proyectos/${proyectoId}/fases`} state={location.state} className="text-[#9ba7ae] hover:text-[#4c616c] transition-colors">
-                    Fases
-                </Link>
-                <IconChevron />
-                <span className="text-[#191c1d] font-semibold">{faseNombre ?? 'Actividades'}</span>
-            </div>
+            <MigasDePan className="mb-5" items={[
+                ...migasProyecto(proyectoId, location.state),
+                { label: 'Fases', to: `/docente/proyectos/${proyectoId}/fases`, state: location.state },
+                { label: faseNombre ?? 'Actividades' },
+            ]} />
 
             {/* Header */}
             <div className="flex items-start justify-between mb-6 gap-4">
                 <div>
-                    <h1 className="text-[22px] font-extrabold text-[#191c1d] mb-1">Actividades</h1>
+                    <h1 className="text-[22px] font-extrabold text-[#191c1d] mb-1 tracking-tight">Actividades</h1>
                     {faseNombre && (
                         <p className="text-[13px] text-[#9ba7ae]">Fase: <span className="font-semibold text-[#4c616c]">{faseNombre}</span></p>
                     )}

@@ -1,37 +1,10 @@
 import { useState, useEffect } from 'react'
 import { Outlet, useNavigate, Link, useLocation } from 'react-router-dom'
 import { authApi, session } from '../../services/api'
+import MenuLateral from '../Compartidos/MenuLateral'
+import BarraSuperior from '../Compartidos/BarraSuperior'
 
 // ── Iconos ────────────────────────────────────────────────────────────────────
-
-function IconHome() {
-    return (
-        <svg viewBox="0 0 20 20" fill="none" className="w-5 h-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 8.5L10 3l7 5.5V17a1 1 0 01-1 1H4a1 1 0 01-1-1V8.5z" />
-            <path d="M8 18v-6h4v6" />
-        </svg>
-    )
-}
-
-function IconChart() {
-    return (
-        <svg viewBox="0 0 20 20" fill="none" className="w-5 h-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="2" y="11" width="4" height="7" rx="1" />
-            <rect x="8" y="6" width="4" height="12" rx="1" />
-            <rect x="14" y="2" width="4" height="16" rx="1" />
-        </svg>
-    )
-}
-
-function IconClipboard() {
-    return (
-        <svg viewBox="0 0 20 20" fill="none" className="w-5 h-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="4" width="14" height="14" rx="2" />
-            <path d="M7 2h6v4H7z" />
-            <path d="M7 10h6M7 13h4" />
-        </svg>
-    )
-}
 
 function IconSettings() {
     return (
@@ -58,14 +31,6 @@ function IconLogout() {
     )
 }
 
-function IconMenu() {
-    return (
-        <svg viewBox="0 0 20 20" fill="none" className="w-5 h-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-            <path d="M3 5h14M3 10h14M3 15h14" />
-        </svg>
-    )
-}
-
 function IconX() {
     return (
         <svg viewBox="0 0 20 20" fill="none" className="w-5 h-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
@@ -86,23 +51,7 @@ function IconChevronRight() {
     )
 }
 
-function IconAlert() {
-    return (
-        <svg viewBox="0 0 20 20" fill="none" className="w-5 h-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M10 2L1.5 17h17L10 2z" />
-            <path d="M10 8v4" />
-            <circle cx="10" cy="14" r="0.6" fill="currentColor" />
-        </svg>
-    )
-}
-
 // ── Sidebar ───────────────────────────────────────────────────────────────────
-
-const NAV_ITEMS = [
-    { label: 'Dashboard', to: '/director', icon: <IconHome />, exact: true },
-    { label: 'Riesgo', to: '/director/riesgo', icon: <IconAlert /> },
-    { label: 'Reportes', to: '/director/reportes', icon: <IconClipboard /> },
-]
 
 function SidebarContent({ collapsed, onCollapse, loggingOut, handleLogout, onNavClick, user }) {
     const location = useLocation()
@@ -139,20 +88,7 @@ function SidebarContent({ collapsed, onCollapse, loggingOut, handleLogout, onNav
                 {!collapsed && (
                     <p className="text-[10px] font-semibold text-[#9ba7ae] tracking-[0.8px] uppercase px-3 pb-1.5 pt-1">Director</p>
                 )}
-                {NAV_ITEMS.map(({ label, to, icon, exact }) => {
-                    const isActive = exact
-                        ? location.pathname === to
-                        : location.pathname.startsWith(to)
-                    const classes = isActive
-                        ? 'flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] font-medium transition-all duration-150 select-none cursor-pointer bg-[#d32f2f] text-white shadow-[0_4px_12px_rgba(211,47,47,0.30)]'
-                        : 'flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] font-medium transition-all duration-150 select-none cursor-pointer text-[#4c616c] hover:bg-[#f0f2f3] hover:text-[#191c1d]'
-                    return (
-                        <Link key={to} to={to} className={classes} title={collapsed ? label : undefined} onClick={onNavClick}>
-                            <span className="flex-shrink-0">{icon}</span>
-                            {!collapsed && <span>{label}</span>}
-                        </Link>
-                    )
-                })}
+                <MenuLateral rol="director" collapsed={collapsed} onNavClick={onNavClick} />
 
                 {/* Sección de administración — visible solo para administrador */}
                 {esAdmin && (
@@ -218,7 +154,7 @@ export default function DirectorLayout() {
     return (
         <div className="flex h-screen bg-[#f8f9fa] overflow-hidden">
             {/* Sidebar escritorio */}
-            <aside className={`hidden md:flex flex-col bg-white border-r border-[#e1e3e4] transition-all duration-200 ${collapsed ? 'w-[60px]' : 'w-[220px]'}`}>
+            <aside className={`hidden lg:flex flex-col bg-white border-r border-[#e1e3e4] transition-all duration-200 ${collapsed ? 'w-[60px]' : 'w-[220px]'}`}>
                 <SidebarContent
                     collapsed={collapsed}
                     onCollapse={() => setCollapsed(c => !c)}
@@ -231,7 +167,7 @@ export default function DirectorLayout() {
 
             {/* Sidebar móvil */}
             {mobileOpen && (
-                <div className="fixed inset-0 z-40 md:hidden">
+                <div className="fixed inset-0 z-40 lg:hidden">
                     <div className="absolute inset-0 bg-black/30" onClick={() => setMobileOpen(false)} />
                     <aside className="relative z-50 flex flex-col w-[220px] h-full bg-white border-r border-[#e1e3e4]">
                         <SidebarContent
@@ -247,18 +183,8 @@ export default function DirectorLayout() {
 
             {/* Contenido */}
             <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-                {/* Topbar móvil */}
-                <header className="md:hidden flex items-center gap-3 h-[56px] px-4 bg-white border-b border-[#e1e3e4] flex-shrink-0">
-                    <button onClick={() => setMobileOpen(true)} className="text-[#4c616c] hover:text-[#191c1d] transition-colors">
-                        <IconMenu />
-                    </button>
-                    <span className="text-[15px] font-extrabold text-[#191c1d] tracking-tight">Projex ABP</span>
-                    {user?.nombre && (
-                        <span className="ml-auto text-[12px] text-[#9ba7ae]">
-                            {user.nombre}
-                        </span>
-                    )}
-                </header>
+                <BarraSuperior user={user} menuAbierto={mobileOpen} onToggleMenu={() => setMobileOpen(o => !o)}
+                    onLogout={handleLogout} loggingOut={loggingOut} />
 
                 <main className="flex-1 overflow-y-auto">
                     <Outlet />

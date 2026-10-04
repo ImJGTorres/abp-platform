@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useLocation } from 'react-router-dom'
 import { evaluacionesEstudiantesApi } from '../../services/docenteApi'
+import MigasDePan from '../Compartidos/MigasDePan'
+import { migasProyecto } from '../../utils/migasDocente'
 
 const NIVEL_STYLES = {
     insuficiente:  { bg: 'bg-[#ffebee]', border: 'border-[#ef9a9a]', text: 'text-[#c62828]', dot: 'bg-[#ef9a9a]' },
@@ -21,16 +23,6 @@ function formatFecha(fecha) {
     return new Date(fecha).toLocaleDateString('es-CO', {
         day: '2-digit', month: 'short', year: 'numeric',
     })
-}
-
-function IconSelf() {
-    return (
-        <svg viewBox="0 0 24 24" fill="none" className="w-6 h-6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="8" r="4" />
-            <path d="M4 20a8 8 0 0116 0" />
-            <path d="M16 11l2 2 4-4" strokeWidth="2" />
-        </svg>
-    )
 }
 
 function IconEmpty() {
@@ -131,6 +123,7 @@ function TarjetaAutoevaluacion({ item }) {
 
 export default function AutoevaluacionesDocente() {
     const { proyectoId } = useParams()
+    const location = useLocation()
     const [autoevaluaciones, setAutoevaluaciones] = useState([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
@@ -145,14 +138,16 @@ export default function AutoevaluacionesDocente() {
 
     return (
         <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-            <div className="max-w-3xl mx-auto">
+            <div>
+                <MigasDePan items={[
+                    ...migasProyecto(proyectoId, location.state),
+                    { label: 'Autoevaluaciones' },
+                ]} />
+
                 <div className="flex items-center gap-3 mb-6">
-                    <div className="w-10 h-10 bg-[#ffdad6] rounded-xl flex items-center justify-center text-[#d32f2f]">
-                        <IconSelf />
-                    </div>
                     <div>
-                        <h1 className="text-[20px] font-extrabold text-[#191c1d]">Autoevaluaciones</h1>
-                        <p className="text-[13px] text-[#9ba7ae]">Autoevaluaciones enviadas por los estudiantes en este proyecto</p>
+                        <h1 className="text-[22px] font-extrabold text-[#191c1d] tracking-tight leading-tight">Autoevaluaciones</h1>
+                        <p className="text-[13px] text-[#9ba7ae] mt-0.5">Autoevaluaciones enviadas por los estudiantes en este proyecto</p>
                     </div>
                 </div>
 

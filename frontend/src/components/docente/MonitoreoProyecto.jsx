@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useLocation } from 'react-router-dom'
 import { monitoreoApi } from '../../services/docenteApi'
 import Semaforo, { SEMAFORO_NIVELES, nivelPorPorcentaje } from '../Compartidos/Semaforo'
+import MigasDePan from '../Compartidos/MigasDePan'
+import { migasProyecto } from '../../utils/migasDocente'
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 
@@ -220,6 +222,7 @@ function TarjetaEquipo({ equipo }) {
 
 export default function MonitoreoProyecto() {
     const { proyectoId } = useParams()
+    const location = useLocation()
 
     const [data,    setData]    = useState(null)
     const [loading, setLoading] = useState(true)
@@ -289,6 +292,11 @@ export default function MonitoreoProyecto() {
 
     return (
         <div className="flex-1 overflow-y-auto p-4 sm:p-6" style={{ fontFamily: "'Manrope', sans-serif" }}>
+
+            <MigasDePan items={[
+                ...migasProyecto(proyectoId, location.state),
+                { label: 'Monitoreo' },
+            ]} />
 
             {/* ── Cabecera ─────────────────────────────────────────────────── */}
             <div className="flex items-start justify-between gap-4 mb-6">

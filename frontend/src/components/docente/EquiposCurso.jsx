@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { cursosApi, equiposApi } from '../../services/docenteApi'
+import MigasDePan from '../Compartidos/MigasDePan'
 
 const TEAM_COLORS = ['#1976d2', '#388e3c', '#f57c00', '#7b1fa2', '#d32f2f', '#0097a7']
 
@@ -105,18 +106,15 @@ export default function EquiposCurso() {
     return (
         <div className="flex-1 overflow-y-auto p-4 sm:p-6" style={{ fontFamily: "'Manrope', sans-serif" }}>
 
-            {/* Breadcrumb */}
-            <div className="mb-4 flex items-center gap-2 text-[13px] flex-wrap">
-                <Link to="/docente/cursos" className="text-[#9ba7ae] hover:text-[#4c616c] transition-colors">Mis cursos</Link>
-                <svg className="w-3 h-3 text-[#9ba7ae]" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 3l5 5-5 5" /></svg>
-                <Link to={`/docente/cursos/${cursoId}`} className="text-[#9ba7ae] hover:text-[#4c616c] transition-colors">Curso</Link>
-                <svg className="w-3 h-3 text-[#9ba7ae]" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 3l5 5-5 5" /></svg>
-                <span className="text-[#191c1d] font-medium truncate max-w-[200px]">Equipos</span>
-            </div>
+            <MigasDePan items={[
+                { label: 'Mis cursos', to: '/docente/cursos' },
+                { label: 'Curso', to: `/docente/cursos/${cursoId}` },
+                { label: 'Equipos' },
+            ]} />
 
             {/* Encabezado */}
             <div className="mb-6">
-                <h1 className="text-[24px] font-bold text-[#191c1d] mb-1">Equipos del curso</h1>
+                <h1 className="text-[22px] font-extrabold text-[#191c1d] mb-1 tracking-tight">Equipos del curso</h1>
                 <p className="text-[13px] text-[#9ba7ae]">{totalEquipos} equipo{totalEquipos !== 1 ? 's' : ''} en {proyectos.length} proyecto{proyectos.length !== 1 ? 's' : ''}</p>
             </div>
 

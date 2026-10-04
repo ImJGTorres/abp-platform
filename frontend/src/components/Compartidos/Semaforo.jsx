@@ -2,15 +2,14 @@
 // Mismos colores y textos en todas las vistas. El nivel lo decide quien llama
 // (idealmente el backend); este componente solo lo pinta.
 
-// eslint-disable-next-line react-refresh/only-export-components
 export const SEMAFORO_NIVELES = {
-    verde:    { color: '#2e7d32', bg: '#f1f8e9', texto: 'Óptimo' },
+    verde: { color: '#2e7d32', bg: '#f1f8e9', texto: 'Óptimo' },
     amarillo: { color: '#f9a825', bg: '#fffde7', texto: 'Alerta preventiva' },
-    rojo:     { color: '#c62828', bg: '#ffebee', texto: 'Riesgo crítico' },
+    rojo: { color: '#c62828', bg: '#ffebee', texto: 'Riesgo crítico' },
 }
 
 const TAMANOS = {
-    sm: { punto: 'w-2 h-2',     texto: 'text-[10px]', pill: 'gap-1 px-2 py-0.5 rounded-lg' },
+    sm: { punto: 'w-2 h-2', texto: 'text-[10px]', pill: 'gap-1 px-2 py-0.5 rounded-lg' },
     md: { punto: 'w-2.5 h-2.5', texto: 'text-[11px]', pill: 'gap-1.5 px-2.5 py-1 rounded-xl' },
 }
 

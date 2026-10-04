@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, Link } from 'react-router-dom'
 import { equiposApi, estudiantesApi, cursosApi } from '../../services/docenteApi'
+import MigasDePan from '../Compartidos/MigasDePan'
 
 const AVATAR_COLORS = ['#d32f2f', '#1976d2', '#388e3c', '#7b1fa2', '#f57c00', '#0097a7', '#5d4037', '#37474f']
 const TEAM_COLORS   = ['#1976d2', '#388e3c', '#f57c00', '#7b1fa2', '#d32f2f', '#0097a7']
@@ -112,7 +113,6 @@ function TeamColumn({ proyecto, equipo, colorIdx, isOver, onDragOver, onDragLeav
 
 export default function ReorganizarEquipos() {
     const { cursoId } = useParams()
-    const navigate = useNavigate()
 
     const [proyectos, setProyectos]       = useState([])
     const [sinAsignar, setSinAsignar]     = useState([])
@@ -291,17 +291,11 @@ export default function ReorganizarEquipos() {
     return (
         <div className="flex-1 overflow-y-auto p-6" style={{ fontFamily: "'Manrope', sans-serif" }}>
 
-            {/* Breadcrumb */}
-            <div className="mb-4 flex items-center gap-2 text-[13px]">
-                <button
-                    onClick={() => navigate(-1)}
-                    className="text-[#9ba7ae] hover:text-[#4c616c] transition-colors flex items-center gap-1.5">
-                    <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M10 3L5 8l5 5" /></svg>
-                    Proyectos
-                </button>
-                <svg className="w-3 h-3 text-[#9ba7ae]" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 3l5 5-5 5" /></svg>
-                <span className="font-semibold text-[#191c1d]">Reorganizar Proyectos</span>
-            </div>
+            <MigasDePan items={[
+                { label: 'Mis cursos', to: '/docente/cursos' },
+                { label: 'Curso', to: `/docente/cursos/${cursoId}` },
+                { label: 'Reorganizar equipos' },
+            ]} />
 
             {/* Banner informativo */}
             <div className="mb-5 flex items-start gap-3 px-4 py-3 bg-[#e3f2fd] border border-[#bbdefb] rounded-xl text-[13px] text-[#1565c0]">

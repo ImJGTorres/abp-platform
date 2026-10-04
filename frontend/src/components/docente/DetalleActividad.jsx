@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useParams, useLocation, useNavigate, Link } from 'react-router-dom'
 import { actividadesApi } from '../../services/docenteApi'
+import MigasDePan from '../Compartidos/MigasDePan'
+import { migasFase } from '../../utils/migasDocente'
 
 // ── Constantes ────────────────────────────────────────────────────────────────
 
@@ -91,7 +93,6 @@ export default function DetalleActividad() {
     const [error,     setError]     = useState('')
 
     const navState       = location.state ?? {}
-    const proyectoNombre = navState.nombre       ?? 'Proyecto'
     const faseNombre     = navState.faseNombre   ?? 'Fase'
     const cursoId        = navState.cursoId
 
@@ -160,29 +161,13 @@ export default function DetalleActividad() {
         <div className="flex-1 overflow-y-auto p-5 sm:p-6"
             style={{ fontFamily: "'Manrope', sans-serif" }}>
 
-            {/* Breadcrumb */}
-            <nav className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.7px] text-[#9ba7ae] mb-5 flex-wrap">
-                <Link
-                    to={`/docente/proyectos/${proyectoId}/fases`}
-                    state={navState}
-                    className="hover:text-[#4c616c] transition-colors"
-                >
-                    Proyectos
-                </Link>
-                <IconChevron />
-                <Link
-                    to={`/docente/proyectos/${proyectoId}/fases/${faseId}/actividades`}
-                    state={navState}
-                    className="hover:text-[#4c616c] transition-colors"
-                >
-                    {proyectoNombre}
-                </Link>
-                <IconChevron />
-                <span className="text-[#d32f2f]">Detalle de Actividad</span>
-            </nav>
+            <MigasDePan className="mb-5" items={[
+                ...migasFase(proyectoId, faseId, navState),
+                { label: actividad?.nombre ?? navState.actividadNombre ?? 'Actividad' },
+            ]} />
 
             {/* Título + badges */}
-            <h1 className="text-[24px] font-extrabold text-[#191c1d] tracking-tight mb-4 leading-tight">
+            <h1 className="text-[22px] font-extrabold text-[#191c1d] tracking-tight mb-4 leading-tight">
                 {actividad.nombre}
             </h1>
 
