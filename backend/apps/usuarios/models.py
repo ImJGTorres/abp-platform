@@ -77,6 +77,14 @@ class Usuario(AbstractBaseUser):
     def __str__(self):
         return f'{self.nombre} {self.apellido} ({self.correo})'
 
+    # El admin de Django (/django-admin/) llama a estos dos métodos; sin
+    # PermissionsMixin no existen. Solo el superusuario tiene acceso total.
+    def has_perm(self, perm, obj=None):
+        return self.is_superuser
+
+    def has_module_perms(self, app_label):
+        return self.is_superuser
+
 class UsuarioRol(models.Model):
     usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE, related_name='roles')
     rol     = models.ForeignKey(Rol, on_delete=models.CASCADE, related_name='usuarios')
