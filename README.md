@@ -279,13 +279,13 @@ venv\Scripts\activate
 python manage.py run_scheduler
 ```
 
-Ejecuta las tareas al iniciar y luego cada intervalo (alertas: 60 min, configurable con el parámetro `intervalo_alertas_minutos` en Configuración). Se detiene con `Ctrl+C`. En producción corre como el proceso `worker` del `Procfile`.
+Ejecuta las tareas al iniciar y luego cada intervalo (alertas: 15 min, configurable con el parámetro `intervalo_alertas_minutos` en Configuración). Se detiene con `Ctrl+C`. En producción corre como el proceso `worker` del `Procfile`.
 
 **Alternativa con cron** (ejecuta todo una vez y termina):
 
 ```bash
-# cada hora
-0 * * * * cd /ruta/abp-platform/backend && python manage.py run_scheduler --once
+# cada 15 minutos
+*/15 * * * * cd /ruta/abp-platform/backend && python manage.py run_scheduler --once
 ```
 
 ### Ejecutar pruebas (backend)
