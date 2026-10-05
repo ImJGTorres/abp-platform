@@ -1439,18 +1439,21 @@
 
 ### `GET /api/reportes/indicadores/`
 **Permiso:** Director o administrador
+**Query params:** `periodo_id` · `curso_id` (opcionales, enteros; otro valor → `400`)
 **Respuesta `200`:**
 ```json
 {
-  "total_proyectos": 12,
-  "proyectos_activos": 8,
-  "total_equipos": 24,
-  "total_entregables": 96,
-  "entregables_aprobados": 70,
-  "tasa_aprobacion": 72.9,
-  "promedio_progreso_proyectos": 58.3
+  "filtros_aplicados": { "periodo_id": 1, "curso_id": null },
+  "resumen_periodo": { "periodo_id": 1, "total_estudiantes": 45, "...": "..." },
+  "distribucion_notas": { "rango_0_2": 4, "rango_2_3": 8, "rango_3_4": 20, "rango_4_5": 13, "nota_promedio_global": 3.42 },
+  "proyectos": [],
+  "docentes_activos": [],
+  "estudiantes_riesgo_por_curso": [],
+  "distribucion_semaforo": { "verde": 30, "amarillo": 9, "rojo": 6 }
 }
 ```
+`distribucion_semaforo` (HU-033): conteo de estudiantes activos por nivel RF34 (`clasificar_semaforo`), con los mismos filtros. La suma es el total de estudiantes del filtro.
+Registra en bitácora `ACCESS / reportes`.
 
 ### `GET /api/reportes/indicadores/tendencia/`
 **Permiso:** Director o administrador
@@ -1477,22 +1480,36 @@
 ---
 
 ### `GET /api/reportes/bajo-rendimiento/`
-**Permiso:** Docente o administrador
-**Query params:** `curso_id` · `proyecto_id` · `umbral=60`
+**Permiso:** Director, docente o administrador (otro rol → `403`)
+**Query params:** `curso_id` · `proyecto_id` · `periodo_id` (enteros) · `solo_riesgo=true|false` (default `true`) · `nivel=verde|amarillo|rojo`
+- `nivel` (HU-029): devuelve solo los estudiantes de ese color e ignora `solo_riesgo`. Otro valor → `400 { "error": "El parámetro nivel debe ser verde, amarillo o rojo." }`
+
+**Ejemplo:** `GET /api/reportes/bajo-rendimiento/?periodo_id=1&nivel=amarillo`
 **Respuesta `200`:**
 ```json
-[
-  {
-    "estudiante_id": 10,
-    "nombre": "Carlos García",
-    "correo": "carlos@ufps.edu.co",
-    "proyecto_id": 1,
-    "promedio_progreso": 35.0,
-    "actividades_vencidas": 3,
-    "entregables_rechazados": 1
-  }
-]
+{
+  "total": 1,
+  "estudiantes": [
+    {
+      "id": 10,
+      "nombre": "Carlos",
+      "apellido": "García",
+      "correo": "carlos@ufps.edu.co",
+      "codigo": "1151234",
+      "nota_promedio": 3.2,
+      "porcentaje_actividades_incumplidas": 10.0,
+      "actividades_incumplidas": 1,
+      "total_actividades": 10,
+      "entregables_rechazados": 0,
+      "total_entregables": 3,
+      "en_riesgo": false,
+      "nivel_semaforo": "amarillo",
+      "alertas": []
+    }
+  ]
+}
 ```
+Registra en bitácora `ACCESS / reportes` con descripción `Consulta panel de rendimiento: filtros=...`.
 
 ### `GET /api/reportes/estudiantes/<estudiante_id>/rendimiento/`
 **Permiso:** Propio estudiante, docente o administrador

@@ -21,6 +21,7 @@ def calcular_rendimiento_estudiante(estudiante_id, proyecto_id=None, curso_id=No
     from apps.cursos.models import Actividad, AvanceActividad
     from apps.entregables.models import Entregable
     from apps.equipos.models import MiembroEquipo
+    from .semaforo import clasificar_semaforo
 
     umbral_nota = _get_parametro('umbral_nota_bajo_rendimiento', Decimal('3.0'))
     umbral_pct_incumplidas = _get_parametro('umbral_porcentaje_actividades_incumplidas', 50)
@@ -75,6 +76,9 @@ def calcular_rendimiento_estudiante(estudiante_id, proyecto_id=None, curso_id=No
         'entregables_rechazados': entregables_rechazados,
         'total_entregables': total_entregables,
         'en_riesgo': len(alertas) > 0,
+        'nivel_semaforo': clasificar_semaforo(
+            nota_promedio, pct_incumplidas, tiene_actividades=total_actividades > 0
+        ),
         'alertas': alertas,
     }
 
@@ -779,6 +783,13 @@ def indicadores_dashboard(periodo_id=None, curso_id=None):
         distribucion = _fetchall_as_dicts(cur)
         distribucion_notas = distribucion[0] if distribucion else {}
 
+    # ── 6. Distribución semafórica RF34 (HU-033) ──
+    distribucion_semaforo = {'verde': 0, 'amarillo': 0, 'rojo': 0}
+    for est in get_estudiantes_bajo_rendimiento(
+        periodo_id=periodo_id, curso_id=curso_id, solo_riesgo=False
+    ):
+        distribucion_semaforo[est['nivel_semaforo']] += 1
+
     return {
         'filtros_aplicados': {
             'periodo_id': periodo_id,
@@ -789,6 +800,7 @@ def indicadores_dashboard(periodo_id=None, curso_id=None):
         'proyectos': proyectos,
         'docentes_activos': docentes_activos,
         'estudiantes_riesgo_por_curso': riesgo_por_curso,
+        'distribucion_semaforo': distribucion_semaforo,
     }
 
 
