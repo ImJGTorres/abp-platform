@@ -1,6 +1,6 @@
-from decimal import Decimal
-
 from django.db.models import Avg, Q
+
+from .semaforo import ROJO, clasificar_semaforo, obtener_umbrales
 
 
 def _get_parametro(clave, default):
@@ -16,15 +16,16 @@ def calcular_rendimiento_estudiante(estudiante_id, proyecto_id=None, curso_id=No
     """
     Calcula indicadores de rendimiento de un estudiante.
     Retorna dict con nota_promedio, porcentaje_actividades_incumplidas,
-    entregables_rechazados, totales, en_riesgo y alertas.
+    entregables_rechazados, totales, nivel_semaforo, en_riesgo y alertas.
+    en_riesgo es True exactamente cuando nivel_semaforo es 'rojo'.
     """
     from apps.cursos.models import Actividad, AvanceActividad
     from apps.entregables.models import Entregable
     from apps.equipos.models import MiembroEquipo
-    from .semaforo import clasificar_semaforo
 
-    umbral_nota = _get_parametro('umbral_nota_bajo_rendimiento', Decimal('3.0'))
-    umbral_pct_incumplidas = _get_parametro('umbral_porcentaje_actividades_incumplidas', 50)
+    umbrales = obtener_umbrales()
+    umbral_nota = umbrales['nota_rojo']
+    umbral_pct_incumplidas = umbrales['pct_rojo']
 
     equipos_qs = MiembroEquipo.objects.filter(usuario_id=estudiante_id, estado='activo')
     if proyecto_id:
@@ -68,6 +69,11 @@ def calcular_rendimiento_estudiante(estudiante_id, proyecto_id=None, curso_id=No
             f"{pct_incumplidas}% de actividades incumplidas (umbral: {umbral_pct_incumplidas}%)"
         )
 
+    nivel_semaforo = clasificar_semaforo(
+        nota_promedio, pct_incumplidas,
+        tiene_actividades=total_actividades > 0, umbrales=umbrales,
+    )
+
     return {
         'nota_promedio': nota_promedio,
         'porcentaje_actividades_incumplidas': pct_incumplidas,
@@ -75,10 +81,8 @@ def calcular_rendimiento_estudiante(estudiante_id, proyecto_id=None, curso_id=No
         'total_actividades': total_actividades,
         'entregables_rechazados': entregables_rechazados,
         'total_entregables': total_entregables,
-        'en_riesgo': len(alertas) > 0,
-        'nivel_semaforo': clasificar_semaforo(
-            nota_promedio, pct_incumplidas, tiene_actividades=total_actividades > 0
-        ),
+        'nivel_semaforo': nivel_semaforo,
+        'en_riesgo': nivel_semaforo == ROJO,
         'alertas': alertas,
     }
 
