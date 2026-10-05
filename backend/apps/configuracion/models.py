@@ -180,3 +180,64 @@ class ParametroSistema(models.Model):
 
     def __str__(self):
         return f'[{self.categoria}] {self.clave} = {self.valor}'
+
+
+class IdentidadInstitucional(models.Model):
+    """
+    Registro único (pk=1) con la identidad institucional que usan PDF, Excel y correos.
+    Se separa de ParametroSistema porque el logotipo es un archivo.
+    Usar siempre IdentidadInstitucional.obtener() (o configuracion.identidad.obtener_identidad()).
+    """
+
+    NOMBRE_INSTITUCION_DEFECTO = 'UFPS — Plataforma ABP'
+    PROGRAMA_ACADEMICO_DEFECTO = 'Ingeniería de Sistemas'
+
+    nombre_institucion = models.CharField(max_length=200)
+    programa_academico = models.CharField(max_length=200)
+    logotipo = models.FileField(upload_to='identidad/', null=True, blank=True)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+    id_usuario_actualiza = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='identidades_actualizadas',
+        db_column='id_usuario_actualiza_id',
+    )
+
+    class Meta:
+        db_table = 'identidad_institucional'
+        verbose_name = 'Identidad institucional'
+        verbose_name_plural = 'Identidad institucional'
+
+    @classmethod
+    def obtener(cls):
+        """
+        Retorna el registro único, creándolo si no existe.
+        Valores iniciales: ParametroSistema (nombre_institucion, nombre_programa)
+        si existen y no están vacíos; si no, las constantes por defecto.
+        """
+        identidad, _ = cls.objects.get_or_create(
+            pk=1,
+            defaults={
+                'nombre_institucion': cls._valor_parametro(
+                    'nombre_institucion', cls.NOMBRE_INSTITUCION_DEFECTO
+                ),
+                'programa_academico': cls._valor_parametro(
+                    'nombre_programa', cls.PROGRAMA_ACADEMICO_DEFECTO
+                ),
+            },
+        )
+        return identidad
+
+    @staticmethod
+    def _valor_parametro(clave, defecto):
+        valor = (
+            ParametroSistema.objects.filter(clave=clave)
+            .values_list('valor', flat=True)
+            .first()
+        )
+        return valor.strip() if valor and valor.strip() else defecto
+
+    def __str__(self):
+        return f'{self.nombre_institucion} — {self.programa_academico}'
