@@ -1,1 +1,2 @@
 web: gunicorn config.wsgi -w 2 --timeout 60 --log-file -
+worker: python manage.py run_scheduler
