@@ -8,7 +8,6 @@ import CargaMasivaEstudiantes from '../components/CargaMasivaEstudiantes'
 import GestionUsuarios from '../components/GestionUsuarios'
 import GestionCursosAdmin from '../components/GestionCursosAdmin'
 import ConfiguracionParametros from '../components/ConfiguracionParametros'
-import IdentidadInstitucional from '../components/IdentidadInstitucional'
 import GestionPeriodos from '../components/GestionPeriodos'
 import GestionRoles from '../components/GestionRoles'
 import BitacorasAuditoria from '../components/BitacorasAuditoria'
@@ -111,7 +110,6 @@ export default function AppRouter() {
             <Route path="/admin/registro" element={<PaginaRegistro />} />
             <Route path="/admin/cursos" element={<Pagina><GestionCursosAdmin /></Pagina>} />
             <Route path="/admin/configuracion" element={<Pagina><ConfiguracionParametros /></Pagina>} />
-            <Route path="/admin/identidad" element={<Pagina><IdentidadInstitucional /></Pagina>} />
             <Route path="/admin/periodos" element={<Pagina><GestionPeriodos /></Pagina>} />
             <Route path="/admin/bitacoras" element={<Pagina><BitacorasAuditoria /></Pagina>} />
             <Route path="/admin/roles" element={<GestionRoles />} />

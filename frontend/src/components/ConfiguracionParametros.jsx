@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
 import { configuracionApi } from "../services/api";
+import IdentidadInstitucional from "./IdentidadInstitucional";
 
 // ─── Subcomponentes ──────────────────────────────────────────────────────────
 
@@ -324,11 +324,10 @@ export default function ConfiguracionParametros() {
           type="TEXTO"
           onChange={(v) => updateParam("institucional", "correo_soporte", v)}
         />
-        <p style={{ padding: "12px 20px", fontSize: 12, color: "#6b7280", margin: 0 }}>
-          El nombre de la institución, el programa y el logotipo se editan en{" "}
-          <Link to="/admin/identidad" style={{ color: "#c0392b", fontWeight: 600 }}>Identidad institucional</Link>.
-        </p>
       </SectionCard>
+
+      {/* Sección 2: Identidad institucional (nombre, programa y logotipo de los reportes) */}
+      <IdentidadInstitucional />
     </div>
   );
 }
