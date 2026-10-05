@@ -1494,6 +1494,22 @@
 ]
 ```
 
+> **HU-029 · Semáforo RF34 (modificado):** cada estudiante devuelto y el objeto de indicadores de
+> `GET /api/reportes/estudiantes/<estudiante_id>/rendimiento/` incluyen ahora
+> `"nivel_semaforo": "verde" | "amarillo" | "rojo"`, calculado por
+> `apps.reportes.semaforo.clasificar_semaforo()`:
+> - sin actividades asignadas → `verde`
+> - `nota_promedio < umbral_nota_bajo_rendimiento` (3.0) o `porcentaje_actividades_incumplidas >= umbral_porcentaje_actividades_incumplidas` (50) → `rojo`
+> - `nota_promedio < umbral_nota_alerta` (3.5) o `porcentaje_actividades_incumplidas >= umbral_porcentaje_alerta` (25) → `amarillo`
+> - en otro caso → `verde`
+>
+> Los umbrales son parámetros de `parametro_sistema` (editables con `PATCH /api/configuracion/<clave>/`).
+> `en_riesgo` se mantiene y es `true` exactamente cuando `nivel_semaforo == "rojo"`.
+>
+> ```json
+> { "nota_promedio": 3.2, "porcentaje_actividades_incumplidas": 10.0, "nivel_semaforo": "amarillo", "en_riesgo": false, "alertas": [] }
+> ```
+
 ### `GET /api/reportes/estudiantes/<estudiante_id>/rendimiento/`
 **Permiso:** Propio estudiante, docente o administrador
 **Respuesta `200`:** Perfil completo de rendimiento del estudiante (actividades, entregables, evaluaciones, avances)
