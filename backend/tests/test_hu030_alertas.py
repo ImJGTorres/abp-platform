@@ -133,6 +133,29 @@ class TestAlertaListView:
         assert response.status_code == 400
 
 
+    @patch('apps.alertas.services.generar_alertas_entregables_pendientes')
+    @patch('apps.alertas.services.generar_alertas_actividades_vencidas')
+    @patch('apps.alertas.views.AlertaSerializer')
+    @patch('apps.alertas.models.Alerta.objects')
+    def test_get_no_genera_alertas(self, mock_objects, mock_serializer_cls,
+                                   mock_gen_actividades, mock_gen_entregables):
+        """Las alertas solo las genera el job (run_scheduler / generar_alertas)."""
+        mock_qs = MagicMock()
+        mock_qs.filter.return_value = mock_qs
+        mock_qs.count.return_value = 0
+        mock_objects.filter.return_value = mock_qs
+        mock_serializer_cls.return_value.data = []
+
+        req = authenticated_request(self.factory, 'GET', '/api/alertas/',
+                                    make_payload(tipo_rol='estudiante', user_id=10))
+        with auth_ctx(req):
+            response = AlertaListView.as_view()(req)
+
+        assert response.status_code == 200
+        mock_gen_actividades.assert_not_called()
+        mock_gen_entregables.assert_not_called()
+
+
 class TestAlertaMarcarLeidaView:
 
     def setup_method(self):

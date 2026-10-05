@@ -1410,6 +1410,8 @@
 
 ### `GET /api/alertas/`
 **Permiso:** Autenticado (retorna solo las alertas del usuario en sesión)
+**Nota (modificado, HU-030):** solo lee alertas ya generadas; no las crea. Las genera el job
+`python manage.py run_scheduler` (o `generar_alertas` / `run_scheduler --once`). El formato de respuesta no cambia.
 **Query params:** `estado=no_leida | leida | descartada`
 **Respuesta `200`:**
 ```json
