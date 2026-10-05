@@ -269,6 +269,25 @@ pnpm dev
 
 El frontend queda disponible en **http://localhost:5173**
 
+### Proceso en segundo plano (scheduler de alertas)
+
+Las alertas automáticas (actividades vencidas, entregables pendientes) se generan con un proceso aparte, sin que nadie tenga sesión abierta. Se levanta en **otra terminal**, junto a `runserver`:
+
+```bash
+cd backend
+venv\Scripts\activate
+python manage.py run_scheduler
+```
+
+Ejecuta las tareas al iniciar y luego cada intervalo (alertas: 60 min, configurable con el parámetro `intervalo_alertas_minutos` en Configuración). Se detiene con `Ctrl+C`. En producción corre como el proceso `worker` del `Procfile`.
+
+**Alternativa con cron** (ejecuta todo una vez y termina):
+
+```bash
+# cada hora
+0 * * * * cd /ruta/abp-platform/backend && python manage.py run_scheduler --once
+```
+
 ### Ejecutar pruebas (backend)
 
 ```bash
