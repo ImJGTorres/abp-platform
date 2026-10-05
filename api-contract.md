@@ -1417,6 +1417,7 @@
   {
     "id": 1,
     "tipo": "actividad_vencida",
+    "gravedad": "alta",
     "mensaje": "La actividad 'Entrevistas con stakeholders' está vencida.",
     "estado": "no_leida",
     "id_proyecto": 1,
@@ -1427,6 +1428,13 @@
 ]
 ```
 **`tipo` válidos:** `actividad_vencida | entregable_pendiente | entregable_enviado | evaluacion_pendiente | bajo_rendimiento`
+**`gravedad` (modificado, solo lectura):** `baja | media | alta`, asignada por tipo al crear la alerta:
+`actividad_vencida`, `bajo_rendimiento` → `alta` · `entregable_pendiente` → `media` · resto → `baja`.
+También se incluye en la respuesta de `PATCH /api/alertas/<alerta_id>/leer/`.
+
+> **Cola de correos (`cola_correo`, sin endpoint):** cada alerta **nueva** deja una fila en estado
+> `pendiente` con `plantilla = "alerta"` y `contexto = {"mensaje": "...", "proyecto_id": 1}`.
+> Si la alerta ya existía no se encola nada. El envío real lo hace HU-043.
 
 ### `PATCH /api/alertas/<alerta_id>/leer/`
 **Permiso:** Dueño de la alerta

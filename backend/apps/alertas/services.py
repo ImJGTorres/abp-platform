@@ -12,16 +12,42 @@ def _get_modelo(ruta):
     return django_apps.get_model(app_label, model_name)
 
 
+GRAVEDAD_POR_TIPO = {
+    'actividad_vencida': 'alta',
+    'bajo_rendimiento': 'alta',
+    'entregable_pendiente': 'media',
+}
+
+
+def encolar_correo(usuario_id, asunto, plantilla, contexto):
+    """Deja un correo en cola_correo en estado pendiente. El envío real es de HU-043."""
+    from apps.alertas.models import ColaCorreo
+    return ColaCorreo.objects.create(
+        id_usuario_destino_id=usuario_id,
+        asunto=asunto,
+        plantilla=plantilla,
+        contexto=contexto,
+    )
+
+
 def _crear_alerta(tipo, usuario_id, mensaje, proyecto_id=None, referencia_id=None):
     from apps.alertas.models import Alerta
     try:
         with transaction.atomic():
-            Alerta.objects.create(
+            alerta = Alerta.objects.create(
                 tipo=tipo,
                 id_usuario_destino_id=usuario_id,
                 id_proyecto_id=proyecto_id,
                 mensaje=mensaje,
                 referencia_id=referencia_id,
+                gravedad=GRAVEDAD_POR_TIPO.get(tipo, 'baja'),
+            )
+            # Solo llega aquí si la alerta es nueva; una duplicada lanza IntegrityError
+            encolar_correo(
+                usuario_id,
+                f"Nueva alerta: {alerta.get_tipo_display()}",
+                'alerta',
+                {'mensaje': mensaje, 'proyecto_id': proyecto_id},
             )
         return True
     except IntegrityError:

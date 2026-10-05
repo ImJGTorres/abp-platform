@@ -2,6 +2,8 @@
 HU-030 — Alertas por retrasos.
 """
 from unittest.mock import patch, MagicMock
+
+import pytest
 from django.db import IntegrityError
 from django.test import RequestFactory
 
@@ -11,6 +13,11 @@ from tests.conftest_hu import make_payload, authenticated_request, auth_ctx
 
 class TestCrearAlerta:
     """Tests de lógica interna de _crear_alerta usando mocks de ORM."""
+
+    @pytest.fixture(autouse=True)
+    def _sin_cola_correo(self):
+        with patch('apps.alertas.services.encolar_correo'):
+            yield
 
     @patch('apps.alertas.services.transaction')
     @patch('apps.alertas.models.Alerta.objects.create')
