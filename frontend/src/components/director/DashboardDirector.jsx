@@ -6,7 +6,7 @@ import {
 } from 'recharts'
 import { reportesApi } from '../../services/docenteApi'
 import { periodosApi } from '../../services/api'
-import Semaforo, { nivelPorPorcentaje } from '../Compartidos/Semaforo'
+import Semaforo, { SEMAFORO_NIVELES, nivelPorPorcentaje } from '../Compartidos/Semaforo'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -59,6 +59,56 @@ function KpiCard({ label, value, sub, variacion, invertido = false }) {
                     <IconTrend positivo={esPositivo} />
                     {esPositivo ? '+' : ''}{Number(variacion).toFixed(1)} vs periodo anterior
                 </div>
+            )}
+        </div>
+    )
+}
+
+// ── Distribución semafórica (RF34) ────────────────────────────────────────────
+// Conteo de estudiantes por nivel calculado en el backend (nota y % de
+// actividades incumplidas), no por avance.
+
+function DistribucionSemaforo({ distribucion }) {
+    const niveles = ['verde', 'amarillo', 'rojo']
+    const total = niveles.reduce((acc, n) => acc + Number(distribucion?.[n] ?? 0), 0)
+
+    return (
+        <div className="bg-white rounded-2xl border border-[#e1e3e4] p-5">
+            <div className="flex items-baseline justify-between gap-3 flex-wrap mb-4">
+                <h2 className="text-[14px] font-bold text-[#191c1d]">Semáforo de estudiantes</h2>
+                <p className="text-[11px] text-[#9ba7ae]">
+                    {num(total)} estudiante{total !== 1 ? 's' : ''} · según nota promedio y actividades incumplidas
+                </p>
+            </div>
+
+            {total === 0 ? (
+                <p className="text-[13px] text-[#9ba7ae] text-center py-4">Sin estudiantes evaluados en el periodo seleccionado.</p>
+            ) : (
+                <>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        {niveles.map(n => {
+                            const cfg = SEMAFORO_NIVELES[n]
+                            const cantidad = Number(distribucion?.[n] ?? 0)
+                            return (
+                                <div key={n} className="rounded-xl p-4 flex items-center justify-between gap-3" style={{ backgroundColor: cfg.bg }}>
+                                    <div className="min-w-0">
+                                        <Semaforo nivel={n} size="sm" />
+                                        <p className="text-[11px] text-[#6b7b83] mt-2">{pct(cantidad / total * 100)} del total</p>
+                                    </div>
+                                    <p className="text-[28px] font-extrabold leading-none" style={{ color: cfg.color }}>{num(cantidad)}</p>
+                                </div>
+                            )
+                        })}
+                    </div>
+                    <div className="mt-4 h-2.5 rounded-full overflow-hidden flex bg-[#f0f2f3]">
+                        {niveles.map(n => {
+                            const cantidad = Number(distribucion?.[n] ?? 0)
+                            return cantidad > 0 && (
+                                <div key={n} className="h-full" style={{ width: `${cantidad / total * 100}%`, backgroundColor: SEMAFORO_NIVELES[n].color }} />
+                            )
+                        })}
+                    </div>
+                </>
             )}
         </div>
     )
@@ -224,6 +274,11 @@ export default function DashboardDirector() {
                         />
                     </div>
 
+                    {/* Distribución semafórica de estudiantes (dato del backend) */}
+                    {dashboard?.distribucion_semaforo && (
+                        <DistribucionSemaforo distribucion={dashboard.distribucion_semaforo} />
+                    )}
+
                     {/* Gráficas de tendencia + Radar */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
                         {/* Tendencia histórica */}
@@ -341,7 +396,7 @@ export default function DashboardDirector() {
                                                                 className="h-full rounded-full"
                                                                 style={{
                                                                     width: `${Math.min(Number(p.porcentaje_progreso ?? 0), 100)}%`,
-                                                                    backgroundColor: Number(p.porcentaje_progreso ?? 0) >= 60 ? '#4caf50' : Number(p.porcentaje_progreso ?? 0) >= 30 ? '#ffa726' : '#ef5350',
+                                                                    backgroundColor: SEMAFORO_NIVELES[nivelPorPorcentaje(p.porcentaje_progreso)].color,
                                                                 }}
                                                             />
                                                         </div>

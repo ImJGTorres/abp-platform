@@ -232,122 +232,139 @@ export default function IdentidadInstitucional() {
         }
     }
 
+    // Se muestra como una sección más de Configuración (mismo estilo que SectionCard)
+    const cabecera = (fechaTexto) => (
+        <div className="flex items-center justify-between gap-3 px-5 py-3 bg-[#fff5f5] border-b border-[#fecdd3] flex-wrap">
+            <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-md bg-[#c0392b] text-white text-[13px] font-bold flex items-center justify-center flex-shrink-0">M</div>
+                <span className="text-[14px] font-semibold text-[#1f2937]">Identidad institucional</span>
+            </div>
+            {fechaTexto && (
+                <p className="text-[12px] text-[#6b7280]">
+                    Última actualización: <span className="font-semibold text-[#374151]">{fechaTexto}</span>
+                </p>
+            )}
+        </div>
+    )
+
     if (cargando) {
-        return <p className="text-[13px] text-[#9ba7ae] py-10 text-center">Cargando identidad institucional...</p>
+        return (
+            <div className="border border-[#fecdd3] rounded-lg overflow-hidden bg-white mb-5">
+                {cabecera(null)}
+                <p className="text-[13px] text-[#9ba7ae] py-8 text-center">Cargando identidad institucional...</p>
+            </div>
+        )
     }
 
     const logoVista = previewUrl ?? logoActual
     const fecha = formatFecha(fechaActualizacion)
 
     return (
-        <div className="max-w-[1000px]" style={{ fontFamily: "'Manrope', sans-serif" }}>
-            {/* ── Cabecera ─────────────────────────────────────────────────── */}
-            <div className="flex items-start justify-between gap-4 mb-6 flex-wrap">
-                <div>
-                    <h1 className="text-[22px] font-extrabold text-[#191c1d] tracking-tight">Identidad institucional</h1>
-                    <p className="text-[13px] text-[#6b7b83] mt-0.5">
-                        Nombre, programa y logotipo que aparecen en el encabezado de los reportes exportados.
-                    </p>
-                </div>
-                {fecha && (
-                    <p className="text-[12px] text-[#9ba7ae] pt-1">
-                        Última actualización: <span className="font-semibold text-[#4c616c]">{fecha}</span>
-                    </p>
-                )}
-            </div>
+        <form onSubmit={guardar} noValidate className="border border-[#fecdd3] rounded-lg overflow-hidden bg-white mb-5">
+            {cabecera(fecha)}
 
-            {errorCarga && (
-                <div className="flex items-center justify-between gap-3 mb-4 px-4 py-3 bg-[#fff8e1] border border-[#ffe082] rounded-xl flex-wrap">
-                    <p className="text-[12px] text-[#8d6e00]">
-                        <span className="font-semibold">{errorCarga}</span> Puedes editar el formulario, pero lo que ves no refleja lo que está guardado actualmente.
-                    </p>
-                    <button
-                        type="button"
-                        onClick={() => window.location.reload()}
-                        className="text-[12px] font-semibold text-[#8d6e00] underline hover:no-underline"
-                    >
-                        Reintentar
-                    </button>
-                </div>
-            )}
+            <div className="px-5 py-4">
+                <p className="text-[13px] text-[#6b7280] mb-4">
+                    Nombre, programa y logotipo que aparecen en el encabezado de los reportes exportados.
+                </p>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-                {/* ── Formulario ───────────────────────────────────────────── */}
-                <form onSubmit={guardar} noValidate className="bg-white border border-[#e1e3e4] rounded-2xl p-5 flex flex-col gap-3">
-                    <CampoTexto
-                        id="nombre_institucion"
-                        label="Nombre de la institución"
-                        placeholder="Ej. Universidad Francisco de Paula Santander"
-                        value={form.nombre_institucion}
-                        onChange={v => cambiarCampo('nombre_institucion', v)}
-                        error={errores.nombre_institucion}
-                    />
-                    <CampoTexto
-                        id="programa_academico"
-                        label="Programa académico"
-                        placeholder="Ej. Ingeniería de Sistemas"
-                        value={form.programa_academico}
-                        onChange={v => cambiarCampo('programa_academico', v)}
-                        error={errores.programa_academico}
-                    />
-
-                    <div className="flex flex-col gap-1.5">
-                        <span className="text-[12px] font-semibold text-[#4c616c]">Logotipo</span>
-                        <div className="flex items-center gap-3 flex-wrap">
-                            <label
-                                htmlFor="logotipo"
-                                className="flex items-center gap-2 px-3.5 py-2 text-[13px] font-semibold text-[#4c616c] bg-[#f0f2f3] rounded-xl hover:bg-[#e1e3e4] transition-colors cursor-pointer"
-                            >
-                                <IconUpload />
-                                {logoVista ? 'Cambiar logotipo' : 'Subir logotipo'}
-                            </label>
-                            <input
-                                ref={inputLogo}
-                                id="logotipo"
-                                type="file"
-                                accept=".png,.jpg,.jpeg"
-                                onChange={seleccionarLogo}
-                                className="hidden"
-                            />
-                            {archivo && (
-                                <div className="flex items-center gap-2 min-w-0">
-                                    <span className="text-[12px] text-[#191c1d] truncate max-w-[180px]">{archivo.name}</span>
-                                    <button type="button" onClick={limpiarArchivo} className="text-[12px] font-semibold text-[#9ba7ae] hover:text-[#d32f2f]">
-                                        Quitar
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                        <p className="text-[11px] text-[#9ba7ae]">PNG o JPG, máximo 2 MB.</p>
-                        {errores.logotipo && <p className="text-[11px] text-[#d32f2f]">{errores.logotipo}</p>}
-                    </div>
-
-                    <div className="flex justify-end pt-2 border-t border-[#f0f2f3] mt-1">
+                {errorCarga && (
+                    <div className="flex items-center justify-between gap-3 mb-4 px-4 py-3 bg-[#fff8e1] border border-[#ffe082] rounded-xl flex-wrap">
+                        <p className="text-[12px] text-[#8d6e00]">
+                            <span className="font-semibold">{errorCarga}</span> Puedes editar el formulario, pero lo que ves no refleja lo que está guardado actualmente.
+                        </p>
                         <button
-                            type="submit"
-                            disabled={guardando}
-                            className="px-5 py-2 bg-[#d32f2f] text-white text-[13px] font-semibold rounded-xl hover:bg-[#b71c1c] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                            type="button"
+                            onClick={() => window.location.reload()}
+                            className="text-[12px] font-semibold text-[#8d6e00] underline hover:no-underline"
                         >
-                            {guardando ? 'Guardando...' : 'Guardar'}
+                            Reintentar
                         </button>
                     </div>
-                </form>
+                )}
 
-                {/* ── Vista previa ─────────────────────────────────────────── */}
-                <section>
-                    <h2 className="text-[11px] font-bold uppercase tracking-[0.7px] text-[#9ba7ae] mb-2">
-                        Vista previa del membrete
-                    </h2>
-                    <VistaPreviaMembrete
-                        logo={logoVista}
-                        nombre={form.nombre_institucion}
-                        programa={form.programa_academico}
-                    />
-                    {archivo && (
-                        <p className="text-[11px] text-[#9ba7ae] mt-2">El logotipo nuevo se aplicará al guardar.</p>
-                    )}
-                </section>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+                    {/* ── Campos ───────────────────────────────────────────────── */}
+                    <div className="flex flex-col gap-3">
+                        <CampoTexto
+                            id="nombre_institucion"
+                            label="Nombre de la institución"
+                            placeholder="Ej. Universidad Francisco de Paula Santander"
+                            value={form.nombre_institucion}
+                            onChange={v => cambiarCampo('nombre_institucion', v)}
+                            error={errores.nombre_institucion}
+                        />
+                        <CampoTexto
+                            id="programa_academico"
+                            label="Programa académico"
+                            placeholder="Ej. Ingeniería de Sistemas"
+                            value={form.programa_academico}
+                            onChange={v => cambiarCampo('programa_academico', v)}
+                            error={errores.programa_academico}
+                        />
+
+                        <div className="flex flex-col gap-1.5">
+                            <span className="text-[12px] font-semibold text-[#4c616c]">Logotipo</span>
+                            <div className="flex items-center gap-3 flex-wrap">
+                                <label
+                                    htmlFor="logotipo"
+                                    className="flex items-center gap-2 px-3.5 py-2 text-[13px] font-semibold text-[#4c616c] bg-[#f0f2f3] rounded-xl hover:bg-[#e1e3e4] transition-colors cursor-pointer"
+                                >
+                                    <IconUpload />
+                                    {logoVista ? 'Cambiar logotipo' : 'Subir logotipo'}
+                                </label>
+                                <input
+                                    ref={inputLogo}
+                                    id="logotipo"
+                                    type="file"
+                                    accept=".png,.jpg,.jpeg"
+                                    onChange={seleccionarLogo}
+                                    className="hidden"
+                                />
+                                {archivo && (
+                                    <div className="flex items-center gap-2 min-w-0">
+                                        <span className="text-[12px] text-[#191c1d] truncate max-w-[180px]">{archivo.name}</span>
+                                        <button type="button" onClick={limpiarArchivo} className="text-[12px] font-semibold text-[#9ba7ae] hover:text-[#d32f2f]">
+                                            Quitar
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                            <p className="text-[11px] text-[#9ba7ae]">PNG o JPG, máximo 2 MB.</p>
+                            {errores.logotipo && <p className="text-[11px] text-[#d32f2f]">{errores.logotipo}</p>}
+                        </div>
+                    </div>
+
+                    {/* ── Vista previa ─────────────────────────────────────────── */}
+                    <section>
+                        <h3 className="text-[11px] font-bold uppercase tracking-[0.7px] text-[#9ba7ae] mb-2">
+                            Vista previa del membrete
+                        </h3>
+                        <VistaPreviaMembrete
+                            logo={logoVista}
+                            nombre={form.nombre_institucion}
+                            programa={form.programa_academico}
+                        />
+                        {archivo && (
+                            <p className="text-[11px] text-[#9ba7ae] mt-2">El logotipo nuevo se aplicará al guardar.</p>
+                        )}
+                    </section>
+                </div>
             </div>
-        </div>
+
+            {/* ── Pie: mismo botón que las demás secciones de Configuración ── */}
+            <div className="flex justify-end px-5 py-3 bg-[#fff5f5] border-t border-[#fecdd3]">
+                <button
+                    type="submit"
+                    disabled={guardando}
+                    className="flex items-center gap-1.5 px-[18px] py-2 bg-[#c0392b] text-white text-[13px] font-semibold rounded-md hover:bg-[#991b1b] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                        <path d="M2 7.5L5.5 11L12 4" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    {guardando ? 'Guardando...' : 'Guardar sección'}
+                </button>
+            </div>
+        </form>
     )
 }

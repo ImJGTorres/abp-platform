@@ -14,7 +14,6 @@ export const MENU_POR_ROL = {
         { label: 'Cursos',        to: '/admin/cursos',        icon: 'cursos' },
         { label: 'Períodos',      to: '/admin/periodos',      icon: 'calendario' },
         { label: 'Configuración', to: '/admin/configuracion', icon: 'ajustes' },
-        { label: 'Identidad',     to: '/admin/identidad',     icon: 'institucion' },
         { label: 'Roles',         to: '/admin/roles',         icon: 'escudo' },
         { label: 'Bitácoras',     to: '/admin/bitacoras',     icon: 'bitacora' },
     ],
