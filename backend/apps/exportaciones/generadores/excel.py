@@ -1,10 +1,14 @@
+import logging
 import os
 from datetime import datetime
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment
+from openpyxl.drawing.image import Image as XLImage
 from openpyxl.utils import get_column_letter
 
-from . import _criterio_rojo
+from . import _criterio_rojo, _identidad
+
+logger = logging.getLogger(__name__)
 
 ROJO = 'FFD32F2F'
 ROJO_CLARO = 'FFFFCDD2'
@@ -35,14 +39,45 @@ def _autoajustar(ws):
         ws.column_dimensions[col_letter].width = min(max_len + 4, 40)
 
 
-def _hoja_info(wb, nombre_institucion="UFPS — Plataforma ABP"):
+def _logo(path):
+    """Image del logotipo con ~60 px de alto, o None si no existe o está dañado."""
+    if not path:
+        return None
+    try:
+        img = XLImage(path)
+        img.width, img.height = round(img.width * 60 / img.height), 60
+        return img
+    except Exception:
+        logger.warning("Logotipo institucional no disponible (%s); Excel sin logo", path, exc_info=True)
+        return None
+
+
+def _hoja_info(wb, identidad):
+    nombre, programa, logo_path = identidad
     ws = wb.active
     ws.title = "Info"
-    ws['A1'] = nombre_institucion
-    ws['A1'].font = Font(bold=True, size=14, color=ROJO)
-    ws['A2'] = f"Exportado: {datetime.now().strftime('%d/%m/%Y %H:%M')}"
-    ws['A2'].font = Font(size=9, italic=True)
+    logo = _logo(logo_path)
+    col = 'A'
+    if logo:
+        ws.add_image(logo, 'A1')
+        col = 'C'
+    ws[f'{col}1'] = nombre
+    ws[f'{col}1'].font = Font(bold=True, size=14, color=ROJO)
+    ws[f'{col}2'] = programa
+    ws[f'{col}2'].font = Font(size=11)
+    ws[f'{col}3'] = f"Exportado: {datetime.now().strftime('%d/%m/%Y %H:%M')}"
+    ws[f'{col}3'].font = Font(size=9, italic=True)
     return ws
+
+
+def _membrete(ws, identidad):
+    """Inserta 2 filas de membrete (nombre y programa) arriba de la hoja; la tabla baja 2 filas."""
+    nombre, programa, _ = identidad
+    ws.insert_rows(1, 2)
+    ws['A1'] = nombre
+    ws['A1'].font = Font(bold=True, size=11, color=ROJO)
+    ws['A2'] = programa
+    ws['A2'].font = Font(size=9, italic=True)
 
 
 def _escribir_tabla(ws, fila_inicio, encabezados, filas):
@@ -58,7 +93,8 @@ def _escribir_tabla(ws, fila_inicio, encabezados, filas):
 
 def generar_excel_proyecto(datos, ruta_destino):
     wb = Workbook()
-    _hoja_info(wb)
+    identidad = _identidad()
+    _hoja_info(wb, identidad)
 
     proy = datos.get('proyecto', {})
     ws_info = wb.active
@@ -82,6 +118,7 @@ def generar_excel_proyecto(datos, ruta_destino):
     ]
     _escribir_tabla(ws_fases, 3, encabezados, filas)
     _autoajustar(ws_fases)
+    _membrete(ws_fases, identidad)
 
     ws_ents = wb.create_sheet('Entregables')
     ws_ents['A1'] = f"Entregables — {proy.get('nombre','')}"
@@ -130,7 +167,8 @@ def generar_excel_proyecto(datos, ruta_destino):
 
 def generar_excel_estudiante(datos, ruta_destino):
     wb = Workbook()
-    _hoja_info(wb)
+    identidad = _identidad()
+    _hoja_info(wb, identidad)
 
     est = datos.get('estudiante', {})
     ws_info = wb.active
@@ -152,6 +190,7 @@ def generar_excel_estudiante(datos, ruta_destino):
     comp_filas.append(['NOTA FINAL', nota.get('nota_final', '-'), ''])
     _escribir_tabla(ws_nota, 3, ['Componente', 'Nota (0-5)', 'Peso'], comp_filas)
     _autoajustar(ws_nota)
+    _membrete(ws_nota, identidad)
 
     ws_desemp = wb.create_sheet('Desempeño')
     d = datos.get('desempeno', {})
@@ -186,7 +225,8 @@ def generar_excel_estudiante(datos, ruta_destino):
 
 def generar_excel_indicadores(datos, ruta_destino):
     wb = Workbook()
-    _hoja_info(wb)
+    identidad = _identidad()
+    _hoja_info(wb, identidad)
 
     resumen_raw = datos.get('resumen_periodo', {})
     periodos_list = resumen_raw if isinstance(resumen_raw, list) else [resumen_raw]
@@ -211,6 +251,7 @@ def generar_excel_indicadores(datos, ruta_destino):
                         for p in periodos_list
                     ])
     _autoajustar(ws_res)
+    _membrete(ws_res, identidad)
 
     ws_dist = wb.create_sheet('Distribución Notas')
     dist = datos.get('distribucion_notas', {})
