@@ -178,3 +178,11 @@ class TestEstadoExportacionView:
             response = EstadoExportacionView.as_view()(req, exportacion_id=99)
 
         assert response.status_code == 404
+
+
+def test_criterio_rojo_muestra_nota_y_porcentaje_del_semaforo():
+    from apps.exportaciones.generadores import _criterio_rojo
+    datos = {'umbrales_semaforo': {'nota_rojo': 3.0, 'pct_rojo': 50.0}}
+    assert _criterio_rojo(datos) == 'Riesgo crítico (rojo): nota < 3 o actividades incumplidas >= 50%'
+    # Datos sin umbrales_semaforo (formato anterior) siguen funcionando
+    assert 'nota < 2.5' in _criterio_rojo({'umbral_bajo_rendimiento': 2.5})

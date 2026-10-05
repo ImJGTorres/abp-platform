@@ -4,6 +4,8 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment
 from openpyxl.utils import get_column_letter
 
+from . import _criterio_rojo
+
 ROJO = 'FFD32F2F'
 ROJO_CLARO = 'FFFFCDD2'
 GRIS = 'FFF5F5F5'
@@ -101,17 +103,18 @@ def generar_excel_proyecto(datos, ruta_destino):
     ws_est['A1'] = 'Avance por Estudiante'
     ws_est['A1'].font = Font(bold=True, color=ROJO)
     avances = datos.get('avance_por_estudiante', [])
-    enc_est = ['ID', 'Nombre', 'Apellido', 'Código', 'Avance (%)', 'Nota (0-5)', 'Actividades con avance']
+    enc_est = ['ID', 'Nombre', 'Apellido', 'Código', 'Avance (%)', 'Nota (0-5)', 'Actividades con avance', 'Semáforo']
     filas_est = [
         [e.get('usuario_id'), e.get('nombre'), e.get('apellido'), e.get('codigo'),
-         e.get('promedio_avance_pct'), e.get('nota_promedio_5'), e.get('actividades_con_avance')]
+         e.get('promedio_avance_pct'), e.get('nota_promedio_5'), e.get('actividades_con_avance'),
+         e.get('nivel_semaforo')]
         for e in avances
     ]
     _escribir_tabla(ws_est, 3, enc_est, filas_est)
     _autoajustar(ws_est)
 
     ws_bajo = wb.create_sheet('Bajo rendimiento')
-    ws_bajo['A1'] = f"Umbral: {datos.get('umbral_bajo_rendimiento', 3.0)}"
+    ws_bajo['A1'] = _criterio_rojo(datos)
     ws_bajo['A1'].font = Font(bold=True, color=ROJO)
     bajo = datos.get('estudiantes_bajo_rendimiento', [])
     _escribir_tabla(ws_bajo, 3,
@@ -237,8 +240,9 @@ def generar_excel_indicadores(datos, ruta_destino):
     ws_riesgo = wb.create_sheet('Estudiantes en Riesgo')
     riesgo = datos.get('estudiantes_riesgo_por_curso', [])
     _escribir_tabla(ws_riesgo, 1,
-                    ['Curso', 'En riesgo', 'Total con avance'],
-                    [[r.get('curso_nombre'), r.get('estudiantes_en_riesgo'), r.get('total_estudiantes_con_avance')]
+                    ['Curso', 'Verde', 'Amarillo', 'Rojo (en riesgo)', 'Total estudiantes'],
+                    [[r.get('curso_nombre'), r.get('verde'), r.get('amarillo'),
+                      r.get('estudiantes_en_riesgo'), r.get('total_estudiantes_con_avance')]
                      for r in riesgo])
     _autoajustar(ws_riesgo)
 

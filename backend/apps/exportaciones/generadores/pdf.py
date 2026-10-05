@@ -10,6 +10,8 @@ from reportlab.platypus import (
 )
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 
+from . import _criterio_rojo
+
 ROJO = colors.HexColor('#d32f2f')
 ROJO_CLARO = colors.HexColor('#ffcdd2')
 GRIS_OSCURO = colors.HexColor('#424242')
@@ -140,7 +142,7 @@ def generar_pdf_proyecto(datos, ruta_destino):
 
     bajo = datos.get('estudiantes_bajo_rendimiento', [])
     story.append(Paragraph(
-        f'Estudiantes en Bajo Rendimiento (umbral: {datos.get("umbral_bajo_rendimiento", 3.0)})',
+        f'Estudiantes en Bajo Rendimiento — {_criterio_rojo(datos)}',
         s['Subtitulo']
     ))
     if bajo:

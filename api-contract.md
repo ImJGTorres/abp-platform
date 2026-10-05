@@ -1456,11 +1456,20 @@ También se incluye en la respuesta de `PATCH /api/alertas/<alerta_id>/leer/`.
   "distribucion_notas": { "rango_0_2": 4, "rango_2_3": 8, "rango_3_4": 20, "rango_4_5": 13, "nota_promedio_global": 3.42 },
   "proyectos": [],
   "docentes_activos": [],
-  "estudiantes_riesgo_por_curso": [],
+  "estudiantes_riesgo_por_curso": [
+    {
+      "curso_id": 3, "curso_nombre": "Ingeniería de Software I",
+      "verde": 20, "amarillo": 6, "rojo": 4,
+      "estudiantes_en_riesgo": 4,
+      "total_estudiantes_con_avance": 30
+    }
+  ],
   "distribucion_semaforo": { "verde": 30, "amarillo": 9, "rojo": 6 }
 }
 ```
 `distribucion_semaforo` (HU-033): conteo de estudiantes activos por nivel RF34 (`clasificar_semaforo`), con los mismos filtros. La suma es el total de estudiantes del filtro.
+
+`estudiantes_riesgo_por_curso` (HU-033, modificado): ya no usa un umbral de nota propio; reutiliza el mismo `nivel_semaforo` de `distribucion_semaforo`, agrupado por los cursos donde el estudiante está inscrito (activo). Cada curso trae `verde`, `amarillo` y `rojo`. Se conservan por compatibilidad: `estudiantes_en_riesgo` (= `rojo`) y `total_estudiantes_con_avance` (= total de estudiantes del curso, `verde + amarillo + rojo`). Ordenado por `estudiantes_en_riesgo` descendente.
 Registra en bitácora `ACCESS / reportes`.
 
 ### `GET /api/reportes/indicadores/tendencia/`
@@ -1472,6 +1481,13 @@ Registra en bitácora `ACCESS / reportes`.
 ### `GET /api/reportes/proyecto/<proyecto_id>/`
 **Permiso:** Docente del proyecto, director o administrador
 **Respuesta `200`:** Reporte completo del proyecto (fases, actividades, equipos, entregables, evaluaciones)
+
+> **HU-029 · Semáforo RF34 (modificado):** cada elemento de `avance_por_estudiante` incluye `nivel_semaforo`.
+> `estudiantes_bajo_rendimiento` son los estudiantes en `rojo` (nota **o** % de actividades incumplidas), ya no solo `nota < umbral`.
+> `umbral_bajo_rendimiento` (nota del rojo) se mantiene por compatibilidad y se agrega `umbrales_semaforo`:
+> ```json
+> { "umbral_bajo_rendimiento": 3.0, "umbrales_semaforo": { "nota_rojo": 3.0, "pct_rojo": 50.0, "nota_amarillo": 3.5, "pct_amarillo": 25.0 } }
+> ```
 
 ### `GET /api/reportes/curso/<curso_id>/`
 **Permiso:** Docente del curso, director o administrador
@@ -1529,7 +1545,8 @@ Registra en bitácora `ACCESS / reportes` con descripción `Consulta panel de re
 > - en otro caso → `verde`
 >
 > Los umbrales son parámetros de `parametro_sistema` (editables con `PATCH /api/configuracion/<clave>/`).
-> `en_riesgo` se mantiene y es `true` exactamente cuando `nivel_semaforo == "rojo"`.
+> **`nivel_semaforo` es el campo principal.** `en_riesgo` queda **obsoleto** (solo por compatibilidad) y es `true` exactamente cuando `nivel_semaforo == "rojo"`.
+> No hay registros históricos que migrar: `en_riesgo` no está guardado en ninguna tabla, se calcula en cada consulta.
 >
 > ```json
 > { "nota_promedio": 3.2, "porcentaje_actividades_incumplidas": 10.0, "nivel_semaforo": "amarillo", "en_riesgo": false, "alertas": [] }

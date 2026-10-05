@@ -1,6 +1,7 @@
 """
 HU-033 — Dashboard de indicadores institucionales.
 """
+import pytest
 from unittest.mock import patch, MagicMock
 from django.test import RequestFactory
 
@@ -131,3 +132,26 @@ class TestIndicadoresDashboardView:
         assert 'periodos' in response.data
         assert 'tendencias' in response.data
         assert len(response.data['periodos']) == 2
+
+
+@pytest.mark.django_db
+def test_riesgo_por_curso_usa_el_semaforo_de_distribucion():
+    from apps.cursos.models import CursoEstudiante
+    from apps.reportes.services import _indicadores_estudiantes_riesgo_por_curso
+    from tests.factories import CursoFactory, UsuarioFactory
+
+    curso = CursoFactory()
+    niveles = ['rojo', 'rojo', 'amarillo', 'verde']
+    estudiantes = []
+    for nivel in niveles:
+        est = UsuarioFactory()
+        CursoEstudiante.objects.create(curso=curso, estudiante=est)
+        estudiantes.append({'id': est.id, 'nivel_semaforo': nivel})
+
+    filas = _indicadores_estudiantes_riesgo_por_curso(estudiantes, curso_id=curso.id)
+
+    assert len(filas) == 1
+    fila = filas[0]
+    assert (fila['verde'], fila['amarillo'], fila['rojo']) == (1, 1, 2)
+    assert fila['estudiantes_en_riesgo'] == fila['rojo'] == 2
+    assert fila['total_estudiantes_con_avance'] == 4
