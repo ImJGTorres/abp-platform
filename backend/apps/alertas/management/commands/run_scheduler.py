@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 # (nombre, función, intervalo en minutos). Otras HU solo agregan una línea.
 TAREAS = [
-    ('alertas', ejecutar_generacion_completa, 60),
+    ('alertas', ejecutar_generacion_completa, 15),
 ]
 
 # Tareas cuyo intervalo se puede cambiar en ParametroSistema.

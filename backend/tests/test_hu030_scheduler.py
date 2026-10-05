@@ -47,3 +47,9 @@ def test_intervalo_de_alertas_se_lee_de_parametro_sistema(mock_param):
 @patch('apps.reportes.services._get_parametro', side_effect=ValueError)
 def test_intervalo_invalido_usa_valor_por_defecto(mock_param):
     assert run_scheduler._intervalo_minutos('alertas', 60) == 60
+
+
+def test_alertas_corre_cada_15_minutos_por_defecto():
+    """RNF27 / SCRUM-594: alertas en segundo plano cada 15 minutos."""
+    intervalos = {nombre: minutos for nombre, _, minutos in run_scheduler.TAREAS}
+    assert intervalos['alertas'] == 15
