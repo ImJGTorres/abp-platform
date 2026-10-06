@@ -58,6 +58,8 @@ urlpatterns = [
     # BE-07: Permisos agrupados por módulo (para formulario de asignación)
     path('api/permisos/', PermisosAgrupadosView.as_view(), name='permisos-agrupados'),
     path('api/bitacora/', include('apps.bitacora.urls')),  # Endpoint para consultar bitácora del sistema
+    # HU-039: muro de anuncios (antes de api/cursos/ y api/proyectos/)
+    path('api/', include('apps.anuncios.urls')),
     path('api/', include('apps.equipos.urls')),
     path('api/cursos/', include('apps.cursos.urls')),
     # Rutas anidadas de proyectos y sus objetivos:

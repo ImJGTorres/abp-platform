@@ -48,6 +48,7 @@
 | Alertas | `/api/alertas/` |
 | Reportes | `/api/reportes/` |
 | Dashboard (pendientes) | `/api/dashboard/pendientes/` |
+| Anuncios (muro) | `/api/cursos/<id>/anuncios/` · `/api/proyectos/<id>/anuncios/` |
 | Exportaciones | `/api/exportar/` |
 
 ---
@@ -1627,6 +1628,46 @@ Registra en bitácora `ACCESS / reportes` con descripción `Consulta panel de re
 | docente | Alerta no leída | `alerta` | 1 | `/docente/proyectos/{id}/monitoreo` |
 | director, administrador | Alerta no leída | `alerta` | 1 | `/director/reportes/proyecto/{id}` |
 | director, administrador | Resumen "N estudiante(s) en rojo (riesgo crítico)" del periodo activo (semáforo RF34), solo si N > 0 | `alerta` | 2 | `/director/riesgo` |
+
+---
+
+## Anuncios (muro)
+
+**HU-039.** Mismo comportamiento en las dos rutas; el curso o proyecto sale de la URL (si el body trae `id_curso`/`id_proyecto`, se ignora).
+El muro de un curso muestra solo los anuncios del curso; los de sus proyectos están en el muro de cada proyecto.
+
+### `GET /api/cursos/<curso_id>/anuncios/` · `GET /api/proyectos/<proyecto_id>/anuncios/`
+**Permiso:** docente del curso, estudiante inscrito (activo), miembro activo de un equipo del proyecto (o de un proyecto del curso), director o administrador. Otro usuario → `403 { "detail": "No tienes acceso a este muro." }`. Curso/proyecto inexistente → `404`.
+**Respuesta `200`:** lista ordenada del más reciente al más antiguo.
+```json
+[
+  {
+    "id": 12,
+    "id_curso": 3,
+    "id_proyecto": null,
+    "autor": { "id": 7, "nombre": "Ana", "apellido": "Pérez" },
+    "titulo": "Cambio de fecha",
+    "mensaje": "La entrega se mueve al viernes.",
+    "fecha_publicacion": "2026-09-30T14:00:00Z",
+    "fecha_creacion": "2026-09-30T14:00:00Z"
+  }
+]
+```
+
+### `POST /api/cursos/<curso_id>/anuncios/` · `POST /api/proyectos/<proyecto_id>/anuncios/`
+**Permiso (RN-001):**
+- `estudiante` o `lider_equipo` → `403 { "detail": "No tienes permiso para publicar en este muro" }` (antes de validar los datos).
+- `docente`: solo en sus cursos o en proyectos de sus cursos; otro docente → `403` con el mismo mensaje.
+- `director` y `administrador`: en cualquier curso o proyecto.
+
+**Body:**
+```json
+{ "titulo": "Cambio de fecha", "mensaje": "La entrega se mueve al viernes." }
+```
+`fecha_publicacion` es opcional (por defecto, ahora).
+**Respuesta `201`:** el anuncio creado (mismo formato que el GET).
+Encola un correo `anuncio` en `cola_correo` para cada integrante (miembros activos del proyecto, o estudiantes inscritos activos del curso; sin el autor) y registra en bitácora `CREATE / anuncios`.
+**Errores:** `404` curso/proyecto inexistente · `400` por campo (ej. `{ "mensaje": ["Este campo es requerido."] }`).
 
 ---
 
