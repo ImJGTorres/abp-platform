@@ -38,7 +38,7 @@ function IconChevronRight() {
 
 // ── Navegación ────────────────────────────────────────────────────────────
 
-function SidebarContent({ collapsed, onCollapse, loggingOut, handleLogout, onNavClick, cursoId, backTo, backLabel }) {
+function SidebarContent({ collapsed, onCollapse, loggingOut, handleLogout, onNavClick, cursoId, backTo, backLabel, user }) {
     // Ítems del curso abierto (dependen de cursoId)
     const itemsCurso = cursoId ? [
         { label: 'Proyectos', to: `/docente/cursos/${cursoId}`, icon: 'proyectos', exact: true },
@@ -103,10 +103,12 @@ function SidebarContent({ collapsed, onCollapse, loggingOut, handleLogout, onNav
                     </Link>
                 )}
                 {!collapsed && (
-                    <p className="text-[10px] font-semibold text-[#9ba7ae] tracking-[0.8px] uppercase px-3 pb-1.5 pt-1">{cursoId ? 'Curso' : 'Docente'}</p>
+                    <p className="text-[10px] font-semibold text-[#9ba7ae] tracking-[0.8px] uppercase px-3 pb-1.5 pt-1">
+                        {cursoId ? 'Curso' : (user?.tipo_rol === 'administrador' ? 'Administrador' : 'Docente')}
+                    </p>
                 )}
-                {/* Dentro de un curso, "Mis cursos" ya está en el enlace "volver" de arriba */}
-                <MenuLateral rol="docente" itemsContextuales={itemsCurso} mostrarFijos={!cursoId} collapsed={collapsed} onNavClick={onNavClick} />
+                {/* Dentro de un curso, "Mis cursos" o "Gestión de Cursos" ya está en el enlace "volver" de arriba */}
+                <MenuLateral rol={user?.tipo_rol === 'administrador' ? 'administrador' : 'docente'} itemsContextuales={itemsCurso} mostrarFijos={!cursoId} collapsed={collapsed} onNavClick={onNavClick} />
             </nav>
 
             {/* Perfil + Logout */}
@@ -141,7 +143,11 @@ export default function DocenteLayout() {
         const path = location.pathname
         if (path === '/docente/cursos') return { backTo: null, backLabel: null }
         // Dentro de un curso siempre vuelve a la lista; el curso se abre con "Proyectos"
-        if (cursoId) return { backTo: '/docente/cursos', backLabel: 'Mis cursos' }
+        if (cursoId) {
+            return user?.tipo_rol === 'administrador'
+                ? { backTo: '/admin/cursos', backLabel: 'Gestión de Cursos' }
+                : { backTo: '/docente/cursos', backLabel: 'Mis cursos' }
+        }
         return { backTo: null, backLabel: null }
     })()
 

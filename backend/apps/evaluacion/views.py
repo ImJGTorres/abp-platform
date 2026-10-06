@@ -108,9 +108,9 @@ class RubricaDetailView(generics.RetrieveUpdateDestroyAPIView):
         return qs
 
     def put(self, request, *args, **kwargs):
-        if getattr(request.user, 'tipo_rol', None) != 'docente':
+        if getattr(request.user, 'tipo_rol', None) not in ('docente', 'administrador'):
             return Response(
-                {'detail': 'Solo los docentes pueden editar rúbricas.'},
+                {'detail': 'Solo los docentes o administradores pueden editar rúbricas.'},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
@@ -172,10 +172,12 @@ class RubricaDesignarProyectoView(APIView):
     permission_classes = [EsDocente]
 
     def patch(self, request, pk):
+        lookup = {'pk': pk}
+        if getattr(request.user, 'tipo_rol', None) != 'administrador':
+            lookup['id_docente'] = request.user
         rubrica = get_object_or_404(
             Rubrica.objects.select_related('id_proyecto'),
-            pk=pk,
-            id_docente=request.user,
+            **lookup,
         )
         if not rubrica.id_proyecto_id:
             return Response(
@@ -222,9 +224,9 @@ class ProyectoRubricaListCreateView(APIView):
         return Response(RubricaSerializer(qs, many=True, context={'request': request}).data)
 
     def post(self, request, proyecto_id):
-        if getattr(request.user, 'tipo_rol', None) != 'docente':
+        if getattr(request.user, 'tipo_rol', None) not in ('docente', 'administrador'):
             return Response(
-                {'detail': 'Solo los docentes pueden crear rúbricas.'},
+                {'detail': 'Solo los docentes o administradores pueden crear rúbricas.'},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
@@ -285,7 +287,9 @@ def _get_entregable_con_acceso(pk, user):
     proyecto = entregable.id_actividad.id_fase.id_proyecto
     tipo_rol = getattr(user, 'tipo_rol', None)
 
-    if tipo_rol == 'docente':
+    if tipo_rol == 'administrador':
+        pass
+    elif tipo_rol == 'docente':
         if proyecto.id_curso.id_docente_id != user.pk:
             raise PermissionDenied('No eres el docente de este proyecto.')
     else:
@@ -390,8 +394,8 @@ class EvaluacionPublicarView(APIView):
             pk=pk,
         )
 
-        if evaluacion.id_docente_id != request.user.pk:
-            raise PermissionDenied('Solo el docente que creó la evaluación puede publicarla.')
+        if getattr(request.user, 'tipo_rol', None) != 'administrador' and evaluacion.id_docente_id != request.user.pk:
+            raise PermissionDenied('Solo el docente que creó la evaluación o un administrador puede publicarla.')
 
         if evaluacion.estado == Evaluacion.Estado.PUBLICADA:
             return Response(
@@ -415,9 +419,9 @@ class EvaluacionPublicarView(APIView):
 # ---------------------------------------------------------------------------
 
 def _get_proyecto_con_acceso_docente(pk, user):
-    """Devuelve el proyecto si el usuario es su docente, o lanza PermissionDenied."""
+    """Devuelve el proyecto si el usuario es su docente o administrador, o lanza PermissionDenied."""
     proyecto = get_object_or_404(Proyecto, pk=pk)
-    if proyecto.id_curso.id_docente_id != user.pk:
+    if getattr(user, 'tipo_rol', None) != 'administrador' and proyecto.id_curso.id_docente_id != user.pk:
         raise PermissionDenied("No eres el docente de este proyecto.")
     return proyecto
 
@@ -477,7 +481,9 @@ class RetroalimentacionEquipoView(APIView):
         proyecto = equipo.proyecto
 
         # Control de acceso
-        if tipo_rol == 'docente':
+        if tipo_rol == 'administrador':
+            pass
+        elif tipo_rol == 'docente':
             if proyecto.id_curso.id_docente_id != user.pk:
                 raise PermissionDenied("No eres el docente de este equipo.")
         elif tipo_rol not in ('administrador', 'director'):
@@ -563,7 +569,9 @@ class AutoevaluacionListCreateView(APIView):
             pk=id_proyecto,
         )
         tipo_rol = getattr(user, "tipo_rol", None)
-        if tipo_rol == "docente":
+        if tipo_rol == "administrador":
+            pass
+        elif tipo_rol == "docente":
             if proyecto.id_curso.id_docente_id != user.pk:
                 raise PermissionDenied("No eres el docente de este proyecto.")
         elif tipo_rol in ("administrador", "director"):
@@ -798,12 +806,12 @@ class AutoevaluacionMiaView(APIView):
 
         if tipo_rol in ('estudiante', 'lider_equipo'):
             estudiante_id = request.user.pk
-        elif tipo_rol == 'docente':
+        elif tipo_rol in ('docente', 'administrador'):
             raw = request.query_params.get('estudiante_id')
             if not raw:
                 return Response(
-                    {'detail': 'Los docentes deben especificar ?estudiante_id=<id>.'},
-                    status=status.HTTP_403_FORBIDDEN,
+                    {'detail': 'Los docentes y administradores deben especificar ?estudiante_id=<id>.'},
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
             try:
                 estudiante_id = int(raw)
@@ -814,7 +822,7 @@ class AutoevaluacionMiaView(APIView):
                 )
         else:
             return Response(
-                {'detail': 'Solo estudiantes, líderes y docentes pueden acceder a este endpoint.'},
+                {'detail': 'Solo estudiantes, líderes, docentes y administradores pueden acceder a este endpoint.'},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
@@ -864,7 +872,9 @@ class CoevaluacionListCreateView(APIView):
             pk=id_proyecto,
         )
         tipo_rol = getattr(user, "tipo_rol", None)
-        if tipo_rol == "docente":
+        if tipo_rol == "administrador":
+            pass
+        elif tipo_rol == "docente":
             if proyecto.id_curso.id_docente_id != user.pk:
                 raise PermissionDenied("No eres el docente de este proyecto.")
         elif tipo_rol in ("administrador", "director"):
@@ -1071,7 +1081,7 @@ class CoevaluacionPromedioView(APIView):
     def get(self, request, proyecto_id):
         tipo_rol = getattr(request.user, 'tipo_rol', None)
 
-        if tipo_rol not in ('docente', 'estudiante'):
+        if tipo_rol not in ('docente', 'estudiante', 'administrador'):
             return Response(
                 {'detail': 'Acceso no permitido.'},
                 status=status.HTTP_403_FORBIDDEN,
