@@ -364,6 +364,39 @@
 ```
 **Error `400`:** valor inválido para el tipo de dato del parámetro
 
+### `GET /api/configuracion/identidad/`
+**HU-035.** Identidad institucional que usan el membrete de PDF/Excel y los correos.
+**Permiso:** Cualquier usuario autenticado
+**Respuesta `200`:**
+```json
+{
+  "nombre_institucion": "Universidad Francisco de Paula Santander",
+  "programa_academico": "Ingeniería de Sistemas",
+  "logotipo": "/media/identidad/logo.png",
+  "fecha_actualizacion": "2026-09-25T10:30:00Z"
+}
+```
+- `logotipo` es la ruta de media (el frontend arma la URL con `buildMediaUrl()`), o `null` si no hay logo.
+- Si aún no se ha configurado, devuelve los valores por defecto (`UFPS — Plataforma ABP`, `Ingeniería de Sistemas`, sin logo).
+
+### `PUT /api/configuracion/identidad/`
+**Permiso:** Solo administrador (otro rol → `403 { "detail": "Se requiere rol de administrador." }`)
+**Body:** `multipart/form-data` (también acepta JSON sin logo)
+| Campo | Tipo | Requerido |
+|---|---|---|
+| `nombre_institucion` | texto (máx. 200) | sí |
+| `programa_academico` | texto (máx. 200) | sí |
+| `logotipo` | archivo PNG/JPG/JPEG (máx. 2 MB) | no; si no se envía se conserva el actual |
+
+**Respuesta `200`:** mismo formato que el GET, con los datos guardados.
+**Error `400`** (por campo):
+```json
+{ "logotipo": ["Solo se permiten archivos PNG o JPG."] }
+{ "logotipo": ["El logotipo no puede superar 2 MB."] }
+{ "nombre_institucion": ["Este campo es requerido."] }
+```
+Al reemplazar el logotipo se borra el archivo anterior del disco. Guarda `id_usuario_actualiza` y registra en bitácora `UPDATE / configuracion`: `Identidad institucional actualizada: <campos>`.
+
 ---
 
 ## Periodos académicos
