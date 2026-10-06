@@ -118,7 +118,7 @@ export default function AppRouter() {
         </Route>
 
         {/* DOCENTE */}
-        <Route element={<PrivateRoute allowedRoles={['docente']} />}>
+        <Route element={<PrivateRoute allowedRoles={['docente', 'administrador']} />}>
           <Route element={<DocenteLayout />}>
             <Route path="/docente" element={<Navigate to="/docente/cursos" replace />} />
             <Route path="/docente/cursos" element={<GestionCursos />} />

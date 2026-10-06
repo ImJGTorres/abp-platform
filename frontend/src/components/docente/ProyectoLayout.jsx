@@ -165,7 +165,7 @@ export default function ProyectoLayout() {
         }
         if (cursoId) {
             return {
-                backTo: `/docente/cursos/${cursoId}`,
+                backTo: user?.tipo_rol === 'administrador' ? `/admin/cursos/${cursoId}` : `/docente/cursos/${cursoId}`,
                 backLabel: cursoNombre || 'Curso',
             }
         }

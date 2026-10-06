@@ -214,7 +214,7 @@ class ProyectoListCreateView(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         curso = self._get_curso()
-        if curso.id_docente_id != self.request.user.pk:
+        if getattr(self.request.user, 'tipo_rol', None) != 'administrador' and curso.id_docente_id != self.request.user.pk:
             raise PermissionDenied('No eres el docente propietario de este curso.')
         proyecto = serializer.save(id_curso=curso)
         registrar_evento(
@@ -666,9 +666,9 @@ class ObjetivoListCreateView(generics.ListCreateAPIView):
         y verifica que el docente sea el propietario de este proyecto específico.
         """
         proyecto = self._get_proyecto()
-        # get_permissions() ya garantiza tipo_rol=='docente'; aquí verificamos
-        # que sea el propietario de ESTE proyecto, no de cualquiera.
-        if proyecto.id_curso.id_docente_id != self.request.user.pk:
+        # get_permissions() ya garantiza tipo_rol in ('docente', 'administrador'); aquí verificamos
+        # que sea el propietario de ESTE proyecto, o administrador.
+        if getattr(self.request.user, 'tipo_rol', None) != 'administrador' and proyecto.id_curso.id_docente_id != self.request.user.pk:
             raise PermissionDenied('No eres el docente propietario de este proyecto.')
         # id_proyecto se pasa a save(); bulk_create lo aplica a todos los items.
         serializer.save(id_proyecto=proyecto)
@@ -696,16 +696,10 @@ class ObjetivoDetailView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [EsDocente]
 
     def get_queryset(self):
-        """
-        Filtra por la cadena: objetivo.id_proyecto.id_curso.id_docente == usuario.
-        select_related carga proyecto e id_curso en la misma query para evitar
-        queries adicionales en destroy() y validate().
-        """
-        return (
-            ObjetivoProyecto.objects
-            .filter(id_proyecto__id_curso__id_docente=self.request.user)
-            .select_related('id_proyecto__id_curso')
-        )
+        qs = ObjetivoProyecto.objects.select_related('id_proyecto__id_curso')
+        if getattr(self.request.user, 'tipo_rol', None) == 'administrador':
+            return qs
+        return qs.filter(id_proyecto__id_curso__id_docente=self.request.user)
 
     def get_serializer_class(self):
         # Para escritura usa el serializer restringido; para lectura el completo.
@@ -798,7 +792,7 @@ class HitoListCreateView(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         proyecto = self._get_proyecto()
-        if proyecto.id_curso.id_docente_id != self.request.user.pk:
+        if getattr(self.request.user, 'tipo_rol', None) != 'administrador' and proyecto.id_curso.id_docente_id != self.request.user.pk:
             raise PermissionDenied('No eres el docente propietario de este proyecto.')
         hito = serializer.save(id_proyecto=proyecto)
         registrar_evento(
@@ -828,11 +822,10 @@ class HitoDetailView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [EsDocente]
 
     def get_queryset(self):
-        return (
-            HitoProyecto.objects
-            .filter(id_proyecto__id_curso__id_docente=self.request.user)
-            .select_related('id_proyecto__id_curso')
-        )
+        qs = HitoProyecto.objects.select_related('id_proyecto__id_curso')
+        if getattr(self.request.user, 'tipo_rol', None) == 'administrador':
+            return qs
+        return qs.filter(id_proyecto__id_curso__id_docente=self.request.user)
 
     def get_serializer_class(self):
         if self.request.method in ('PUT', 'PATCH'):
@@ -968,9 +961,9 @@ class RapListCreateView(APIView):
 
     def post(self, request, id_proyecto):
         proyecto = self._get_proyecto(id_proyecto)
-        if proyecto.id_curso.id_docente_id != request.user.id:
+        if getattr(request.user, 'tipo_rol', None) != 'administrador' and proyecto.id_curso.id_docente_id != request.user.id:
             return Response(
-                {'detail': 'Solo el docente propietario puede crear RAPs en este proyecto.'},
+                {'detail': 'Solo el docente propietario o administrador puede crear RAPs en este proyecto.'},
                 status=status.HTTP_403_FORBIDDEN,
             )
         serializer = RapCreateSerializer(data=request.data)
@@ -993,6 +986,8 @@ class RapDetailView(APIView):
         )
 
     def _es_docente_propietario(self, rap, user):
+        if getattr(user, 'tipo_rol', None) == 'administrador':
+            return True
         return rap.proyecto.id_curso.id_docente_id == user.id
 
     def put(self, request, id):
@@ -1078,7 +1073,7 @@ class FaseListCreateView(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         proyecto = self._get_proyecto()
-        if proyecto.id_curso.id_docente_id != self.request.user.pk:
+        if getattr(self.request.user, 'tipo_rol', None) != 'administrador' and proyecto.id_curso.id_docente_id != self.request.user.pk:
             raise PermissionDenied('No eres el docente propietario de este proyecto.')
         fase = serializer.save(id_proyecto=proyecto)
         registrar_evento(
@@ -1102,11 +1097,10 @@ class FaseDetailView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [EsDocente]
 
     def get_queryset(self):
-        return (
-            FaseProyecto.objects
-            .filter(id_proyecto__id_curso__id_docente=self.request.user)
-            .select_related('id_proyecto__id_curso')
-        )
+        qs = FaseProyecto.objects.select_related('id_proyecto__id_curso')
+        if getattr(self.request.user, 'tipo_rol', None) == 'administrador':
+            return qs
+        return qs.filter(id_proyecto__id_curso__id_docente=self.request.user)
 
     def get_serializer_class(self):
         if self.request.method in ('PUT', 'PATCH'):
@@ -1190,7 +1184,7 @@ class ActividadListCreateView(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         fase = self._get_fase()
-        if fase.id_proyecto.id_curso.id_docente_id != self.request.user.pk:
+        if getattr(self.request.user, 'tipo_rol', None) != 'administrador' and fase.id_proyecto.id_curso.id_docente_id != self.request.user.pk:
             raise PermissionDenied('No eres el docente propietario de este proyecto.')
         actividad = serializer.save(id_fase=fase)
         registrar_evento(
@@ -1215,11 +1209,10 @@ class ActividadDetailView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [EsDocente]
 
     def get_queryset(self):
-        return (
-            Actividad.objects
-            .filter(id_fase__id_proyecto__id_curso__id_docente=self.request.user)
-            .select_related('id_fase__id_proyecto__id_curso')
-        )
+        qs = Actividad.objects.select_related('id_fase__id_proyecto__id_curso')
+        if getattr(self.request.user, 'tipo_rol', None) == 'administrador':
+            return qs
+        return qs.filter(id_fase__id_proyecto__id_curso__id_docente=self.request.user)
 
     def get_serializer_class(self):
         if self.request.method in ('PUT', 'PATCH'):
@@ -1696,7 +1689,7 @@ class ProyectoDashboardView(APIView):
             Proyecto.objects.select_related('id_curso'),
             pk=proyecto_id,
         )
-        if proyecto.id_curso.id_docente_id != request.user.pk:
+        if getattr(request.user, 'tipo_rol', None) != 'administrador' and proyecto.id_curso.id_docente_id != request.user.pk:
             raise PermissionDenied('No eres el docente propietario de este proyecto.')
 
         # 1. progreso_general desde vista_progreso_proyecto
@@ -1821,7 +1814,7 @@ class ProyectoEquiposResumenView(APIView):
             Proyecto.objects.select_related('id_curso'),
             pk=proyecto_id,
         )
-        if proyecto.id_curso.id_docente_id != request.user.pk:
+        if getattr(request.user, 'tipo_rol', None) != 'administrador' and proyecto.id_curso.id_docente_id != request.user.pk:
             raise PermissionDenied('No eres el docente propietario de este proyecto.')
 
         hoy = timezone.now().date()
