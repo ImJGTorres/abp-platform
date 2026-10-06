@@ -56,7 +56,10 @@ def test_cp03_login_correo_inexistente(api_client):
     assert "correo" not in str(data).lower() or "no existe" not in str(data).lower()
 
 
-# CP-04: Login con usuario inactivo → 403
+# CP-04: Login con usuario inactivo → 401 con detalle "inactivo"
+# (LoginView usa 401 para credenciales inválidas Y para cuenta inactiva; el
+#  frontend —LoginForm.jsx— distingue el caso por el texto de 'detail', no por
+#  el código HTTP, así que el contrato real es 401 + mensaje, no 403)
 
 
 @pytest.mark.django_db
@@ -68,7 +71,8 @@ def test_cp04_login_usuario_inactivo(api_client, usuario_inactivo):
 
     response = api_client.post(URL_LOGIN, payload, format="json")
 
-    assert response.status_code == 403
+    assert response.status_code == 401
+    assert 'inactivo' in response.json()['detail'].lower()
 
 
 # CP-05: Refresh token válido renueva el access token → 200
