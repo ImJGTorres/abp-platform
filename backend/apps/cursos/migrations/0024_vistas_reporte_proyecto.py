@@ -55,6 +55,8 @@ DROP VIEW IF EXISTS vista_entregables_proyecto;
 class Migration(migrations.Migration):
     dependencies = [
         ('cursos', '0023_fix_usuario_fk_set_null'),
+        ('entregables', '0007_fix_usuario_fk_set_null'),
+        ('equipos', '0002_miembroequipo'),
     ]
     operations = [
         migrations.RunSQL(sql=CREAR_VISTAS, reverse_sql=ELIMINAR_VISTAS),
