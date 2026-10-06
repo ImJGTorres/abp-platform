@@ -392,3 +392,14 @@ def _calcular_promedio_grupo(curso_id=None, proyecto_id=None):
         'nota_promedio': round(sum(notas) / len(notas), 2),
         'pct_actividades_incumplidas': round(sum(pcts) / len(pcts), 2),
     }
+
+
+# ── HU-038: Pendientes priorizados de la pantalla de inicio ─────────────────
+
+class PendientesDashboardView(APIView):
+    """GET /api/dashboard/pendientes/ — pendientes del usuario autenticado según su rol."""
+    authentication_classes = [UsuarioJWTAuthentication]
+
+    def get(self, request):
+        from .pendientes import pendientes_usuario
+        return Response(pendientes_usuario(request.user), status=status.HTTP_200_OK)

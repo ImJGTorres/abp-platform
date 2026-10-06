@@ -47,6 +47,7 @@
 | Coevaluación | `/api/proyectos/<id>/coevaluaciones/` |
 | Alertas | `/api/alertas/` |
 | Reportes | `/api/reportes/` |
+| Dashboard (pendientes) | `/api/dashboard/pendientes/` |
 | Exportaciones | `/api/exportar/` |
 
 ---
@@ -1590,6 +1591,42 @@ Registra en bitácora `ACCESS / reportes` con descripción `Consulta panel de re
 ### `GET /api/reportes/estudiantes/<estudiante_id>/rendimiento/`
 **Permiso:** Propio estudiante, docente o administrador
 **Respuesta `200`:** Perfil completo de rendimiento del estudiante (actividades, entregables, evaluaciones, avances)
+
+---
+
+## Dashboard
+
+### `GET /api/dashboard/pendientes/`
+**HU-038.** Pendientes del usuario autenticado para la pantalla de inicio, según su rol.
+**Permiso:** Cualquier usuario autenticado (sin token → `401`). Un rol sin reglas devuelve la lista vacía.
+**Respuesta `200`:**
+```json
+{
+  "al_dia": false,
+  "pendientes": [
+    { "tipo": "vencido", "titulo": "Actividad vencida: Diagrama ER", "fecha": "2026-10-03", "urgencia": 3,
+      "enlace": "/estudiante/proyectos/1/actividades" },
+    { "tipo": "proximo", "titulo": "Actividad por vencer: Informe final", "fecha": "2026-10-06", "urgencia": 2,
+      "enlace": "/estudiante/proyectos/1/actividades" }
+  ],
+  "resumen": { "total": 2, "vencido": 1, "proximo": 1, "sin_calificar": 0, "alerta": 0 }
+}
+```
+- `tipo`: `vencido` · `proximo` · `sin_calificar` · `alerta`. `urgencia`: 3 (más urgente) a 1. `fecha`: `YYYY-MM-DD`.
+- `enlace`: ruta del frontend a la que lleva el pendiente (puede ser `null` en alertas sin proyecto).
+- Orden: `urgencia` descendente y luego `fecha` ascendente. `al_dia` es `true` cuando la lista está vacía.
+
+| Rol | Pendiente | tipo | urgencia | enlace |
+|---|---|---|---|---|
+| estudiante, lider_equipo | Actividad asignada (responsable, responsables o equipo activo) no completada con `fecha_limite` < hoy | `vencido` | 3 | `/estudiante/proyectos/{id}/actividades` |
+| estudiante, lider_equipo | Actividad asignada con `fecha_limite` entre hoy y hoy + 3 días | `proximo` | 2 | `/estudiante/proyectos/{id}/actividades` |
+| estudiante, lider_equipo | Entregable del equipo en `borrador` o `rechazado` | `proximo` | 2 | `/estudiante/proyectos/{id}/actividades/{act}/entregables` |
+| estudiante, lider_equipo | Alerta no leída | `alerta` | 1 | `/estudiante/proyectos/{id}` |
+| docente | Entregable `enviado` de sus cursos sin evaluación publicada | `sin_calificar` | 3 | `/docente/proyectos/{id}/fases/{f}/actividades/{act}/entregables` |
+| docente | Actividad no completada y vencida de sus proyectos | `vencido` | 2 | `/docente/proyectos/{id}/fases/{f}/actividades/{act}` |
+| docente | Alerta no leída | `alerta` | 1 | `/docente/proyectos/{id}/monitoreo` |
+| director, administrador | Alerta no leída | `alerta` | 1 | `/director/reportes/proyecto/{id}` |
+| director, administrador | Resumen "N estudiante(s) en rojo (riesgo crítico)" del periodo activo (semáforo RF34), solo si N > 0 | `alerta` | 2 | `/director/riesgo` |
 
 ---
 

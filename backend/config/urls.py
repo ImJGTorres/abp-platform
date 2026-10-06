@@ -25,6 +25,7 @@ from django.views.generic import TemplateView
 
 from apps.usuarios.views import CambiarContrasenaView, LoginView, OlvidarContrasenaView, RecuperarContrasenaView
 from apps.roles.views import PermisosAgrupadosView
+from apps.reportes.views import PendientesDashboardView
 from apps.cursos.urls import hitos_urlpatterns, proyectos_urlpatterns, raps_urlpatterns
 
 urlpatterns = [
@@ -73,6 +74,7 @@ urlpatterns = [
     path('api/', include('apps.entregables.urls')),
     path('api/', include('apps.evaluacion.urls')),
     path('api/reportes/', include('apps.reportes.urls')),
+    path('api/dashboard/pendientes/', PendientesDashboardView.as_view(), name='dashboard_pendientes'),  # HU-038
     path('api/alertas/', include('apps.alertas.urls')),
     path('api/exportar/', include('apps.exportaciones.urls')),
 
