@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { request } from '../../services/api'
+import PendientesDashboard from '../Compartidos/PendientesDashboard'
 
 // ── Iconos ────────────────────────────────────────────────────────────────────
 
@@ -70,6 +71,8 @@ export default function DashboardEstudiante({ basePath = '/estudiante' }) {
                 <h1 className="text-[22px] font-extrabold text-[#191c1d] mb-1">Mis proyectos</h1>
                 <p className="text-[13px] text-[#9ba7ae]">Selecciona un proyecto para ver sus actividades, evaluaciones e historial.</p>
             </div>
+
+            <PendientesDashboard className="mb-6" />
 
             {error && (
                 <div className="mb-4 px-3 py-2.5 bg-[#fff1f0] border border-[#ffc9c5] rounded-xl text-[13px] text-[#ba1a1a] font-medium">

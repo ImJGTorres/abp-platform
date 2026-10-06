@@ -313,3 +313,80 @@ def test_excel_se_genera_con_logo_borrado_o_danado(generador, hoja, fila_tabla, 
         info = _xlsx(generador, tmp_path, _identidad(logo))['Info']
         assert info._images == []
         assert info['A1'].value == 'Universidad de Prueba'
+
+
+# ── SCRUM-604: aceptación — cambiar identidad real (endpoint HU-035) y exportar ──
+# A diferencia de los tests de arriba (que mockean obtener_identidad), este usa el
+# pipeline real de punta a punta: PUT /api/configuracion/identidad/ → generar_exportacion()
+# → archivo en disco, sin mocks de identidad.
+
+import io
+from django.core.files.uploadedfile import SimpleUploadedFile
+from rest_framework.test import APIClient
+
+from apps.exportaciones.models import Exportacion
+from apps.exportaciones.services import generar_exportacion
+from tests.factories import AdminFactory, ProyectoFactory
+
+
+def _png_logo(nombre='logo.png', tamano=(60, 60)):
+    from PIL import Image as PILImage
+    buf = io.BytesIO()
+    PILImage.new('RGB', tamano, 'red').save(buf, 'PNG')
+    return SimpleUploadedFile(nombre, buf.getvalue(), content_type='image/png')
+
+
+@pytest.fixture
+def media_temporal(settings, tmp_path):
+    settings.MEDIA_ROOT = tmp_path
+
+
+@pytest.mark.django_db
+class TestAceptacionCambiarIdentidadYExportar:
+    """
+    Escenario de aceptación SCRUM-604: un administrador cambia la identidad
+    institucional vía el endpoint real de HU-035 (PUT /api/configuracion/identidad/,
+    SCRUM-607) y, al exportar un reporte en PDF y en Excel con el pipeline real
+    (generar_exportacion, SCRUM-519... es decir el de exportaciones), ambos
+    archivos muestran el nombre y el logotipo recién configurados.
+    """
+
+    def test_pdf_y_excel_reales_usan_la_identidad_recien_configurada(self, media_temporal):
+        admin = AdminFactory()
+        cliente = APIClient()
+        cliente.force_authenticate(user=admin)
+
+        r = cliente.put('/api/configuracion/identidad/', {
+            'nombre_institucion': 'Universidad de Aceptacion',
+            'programa_academico': 'Programa de Aceptacion',
+            'logotipo': _png_logo(),
+        }, format='multipart')
+        assert r.status_code == 200
+
+        proyecto = ProyectoFactory()
+        exp_pdf = Exportacion.objects.create(
+            id_usuario=admin, tipo_reporte='proyecto', formato='pdf',
+            parametros={'proyecto_id': proyecto.id},
+        )
+        exp_excel = Exportacion.objects.create(
+            id_usuario=admin, tipo_reporte='proyecto', formato='excel',
+            parametros={'proyecto_id': proyecto.id},
+        )
+
+        with patch('reportlab.rl_config.pageCompression', 0):
+            generar_exportacion(exp_pdf.id)
+        generar_exportacion(exp_excel.id)
+
+        exp_pdf.refresh_from_db()
+        exp_excel.refresh_from_db()
+        assert exp_pdf.estado == 'listo', exp_pdf.mensaje_error
+        assert exp_excel.estado == 'listo', exp_excel.mensaje_error
+
+        pdf_bytes = open(exp_pdf.ruta_archivo, 'rb').read()
+        assert b'Universidad de Aceptacion' in pdf_bytes
+        assert b'/Subtype /Image' in pdf_bytes
+
+        wb = load_workbook(exp_excel.ruta_archivo)
+        info = wb['Info']
+        assert info['C1'].value == 'Universidad de Aceptacion'
+        assert len(info._images) == 1

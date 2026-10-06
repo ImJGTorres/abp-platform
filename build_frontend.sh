@@ -5,8 +5,8 @@ FRONTEND=frontend
 BACKEND=backend
 
 cd $FRONTEND
-npm install
-npm run build
+pnpm install --frozen-lockfile
+pnpm build
 
 cd ..
 

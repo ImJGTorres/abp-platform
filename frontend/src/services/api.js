@@ -761,6 +761,18 @@ export const exportacionesApi = {
   },
 }
 
+// Dashboard de pendientes (HU-038)
+//   GET /api/dashboard/pendientes/ — pendientes priorizados del usuario según su rol
+
+export const dashboardApi = {
+  async pendientes() {
+    const response = await request('/api/dashboard/pendientes/')
+    const data = await parseJSON(response)
+    if (!response.ok) throw { status: response.status, data }
+    return data
+  },
+}
+
 export function rutaPorRol(tipo_rol) {
   const rutas = {
     administrador: '/admin',
