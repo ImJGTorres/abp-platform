@@ -29,12 +29,19 @@ function Toast({ message, onClose }) {
   );
 }
 
-function ParamRow({ label, paramKey, value, type, onChange, min = null }) {
+function ParamRow({ label, paramKey, value, type, onChange, min = null, max = null }) {
   const handleChange = (val) => {
     if (min !== null && type === "ENTERO") {
       const num = parseInt(val) || 0;
       if (num < min) val = min;
+      else if (max !== null && num > max) val = max;
       else val = num;
+    } else if (type === "DECIMAL") {
+      let num = parseFloat(val);
+      if (isNaN(num)) num = 0;
+      if (min !== null && num < min) num = min;
+      if (max !== null && num > max) num = max;
+      val = num;
     }
     onChange(val);
   };
@@ -42,7 +49,7 @@ function ParamRow({ label, paramKey, value, type, onChange, min = null }) {
   return (
     <div style={{
       display: "grid",
-      gridTemplateColumns: "200px 1fr",
+      gridTemplateColumns: "260px 1fr",
       alignItems: "center",
       gap: 16,
       padding: "12px 20px",
@@ -85,10 +92,13 @@ function ParamRow({ label, paramKey, value, type, onChange, min = null }) {
               {value ? "Habilitado" : "Deshabilitado"}
             </span>
           </div>
-        ) : type === "ENTERO" ? (
+        ) : type === "ENTERO" || type === "DECIMAL" ? (
           <input
             type="number"
-            value={value}
+            step={type === "DECIMAL" ? "0.1" : "1"}
+            min={min ?? undefined}
+            max={max ?? undefined}
+            value={value ?? ""}
             onChange={(e) => handleChange(e.target.value)}
             style={{
               width: 100,
@@ -107,7 +117,7 @@ function ParamRow({ label, paramKey, value, type, onChange, min = null }) {
         ) : (
           <input
             type="text"
-            value={value}
+            value={value ?? ""}
             onChange={(e) => onChange(e.target.value)}
             style={{
               width: "100%",
@@ -211,6 +221,12 @@ export default function ConfiguracionParametros() {
     institucional: {
       correo_soporte: "",
     },
+    semaforo: {
+      umbral_nota_bajo_rendimiento: 3.0,
+      umbral_porcentaje_actividades_incumplidas: 50,
+      umbral_nota_alerta: 3.5,
+      umbral_porcentaje_alerta: 25,
+    },
   });
   const [toast, setToast] = useState("");
   const [loading, setLoading] = useState(true);
@@ -227,14 +243,26 @@ export default function ConfiguracionParametros() {
       const data = await configuracionApi.getParametros();
 
       const mapped = {
-        institucional: {},
+        institucional: { correo_soporte: "" },
+        semaforo: {
+          umbral_nota_bajo_rendimiento: 3.0,
+          umbral_porcentaje_actividades_incumplidas: 50,
+          umbral_nota_alerta: 3.5,
+          umbral_porcentaje_alerta: 25,
+        },
       };
 
-      if (data.institucional) {
-        data.institucional.forEach((p) => {
-          if (p.clave === "correo_soporte") mapped.institucional.correo_soporte = p.valor_casteado;
-        });
-      }
+      Object.values(data).forEach((lista) => {
+        if (Array.isArray(lista)) {
+          lista.forEach((p) => {
+            if (p.clave === "correo_soporte") mapped.institucional.correo_soporte = p.valor_casteado;
+            if (p.clave === "umbral_nota_bajo_rendimiento") mapped.semaforo.umbral_nota_bajo_rendimiento = Number(p.valor_casteado);
+            if (p.clave === "umbral_porcentaje_actividades_incumplidas") mapped.semaforo.umbral_porcentaje_actividades_incumplidas = Number(p.valor_casteado);
+            if (p.clave === "umbral_nota_alerta") mapped.semaforo.umbral_nota_alerta = Number(p.valor_casteado);
+            if (p.clave === "umbral_porcentaje_alerta") mapped.semaforo.umbral_porcentaje_alerta = Number(p.valor_casteado);
+          });
+        }
+      });
 
       setParams(mapped);
     } catch (err) {
@@ -255,6 +283,12 @@ export default function ConfiguracionParametros() {
     const sectionMap = {
       institucional: {
         correo_soporte: "correo_soporte",
+      },
+      semaforo: {
+        umbral_nota_bajo_rendimiento: "umbral_nota_bajo_rendimiento",
+        umbral_porcentaje_actividades_incumplidas: "umbral_porcentaje_actividades_incumplidas",
+        umbral_nota_alerta: "umbral_nota_alerta",
+        umbral_porcentaje_alerta: "umbral_porcentaje_alerta",
       },
     };
 
@@ -326,7 +360,52 @@ export default function ConfiguracionParametros() {
         />
       </SectionCard>
 
-      {/* Sección 2: Identidad institucional (nombre, programa y logotipo de los reportes) */}
+      {/* Sección 2: Umbrales del Semáforo Académico */}
+      <SectionCard
+        icon="S"
+        iconBg="#d32f2f"
+        title="Umbrales del Semáforo Académico (RF34)"
+        onSave={() => handleSave("semaforo")}
+      >
+        <ParamRow
+          label="Nota crítica (Riesgo Rojo - Escala 0 a 5)"
+          paramKey="umbral_nota_bajo_rendimiento"
+          value={params.semaforo.umbral_nota_bajo_rendimiento}
+          type="DECIMAL"
+          min={0}
+          max={5}
+          onChange={(v) => updateParam("semaforo", "umbral_nota_bajo_rendimiento", v)}
+        />
+        <ParamRow
+          label="% Actividades incumplidas para Rojo (0 a 100%)"
+          paramKey="umbral_porcentaje_actividades_incumplidas"
+          value={params.semaforo.umbral_porcentaje_actividades_incumplidas}
+          type="ENTERO"
+          min={0}
+          max={100}
+          onChange={(v) => updateParam("semaforo", "umbral_porcentaje_actividades_incumplidas", v)}
+        />
+        <ParamRow
+          label="Nota preventiva (Alerta Amarillo - Escala 0 a 5)"
+          paramKey="umbral_nota_alerta"
+          value={params.semaforo.umbral_nota_alerta}
+          type="DECIMAL"
+          min={0}
+          max={5}
+          onChange={(v) => updateParam("semaforo", "umbral_nota_alerta", v)}
+        />
+        <ParamRow
+          label="% Actividades incumplidas para Amarillo (0 a 100%)"
+          paramKey="umbral_porcentaje_alerta"
+          value={params.semaforo.umbral_porcentaje_alerta}
+          type="ENTERO"
+          min={0}
+          max={100}
+          onChange={(v) => updateParam("semaforo", "umbral_porcentaje_alerta", v)}
+        />
+      </SectionCard>
+
+      {/* Sección 3: Identidad institucional */}
       <IdentidadInstitucional />
     </div>
   );

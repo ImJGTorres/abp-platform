@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { reportesApi, cursosApi } from '../../services/docenteApi'
 import MigasDePan from '../Compartidos/MigasDePan'
+import Semaforo from '../Compartidos/Semaforo'
 
 const UMBRAL_NOTA = 3.0
 const UMBRAL_PCT_INCUMPLIDAS = 50
@@ -114,8 +115,10 @@ export default function EstudiantesRiesgo() {
                         <h1 className="text-[22px] font-extrabold text-[#191c1d] tracking-tight">Estudiantes en Riesgo</h1>
                         <p className="text-[13px] text-[#9ba7ae]">
                             {cargando ? 'Cargando...' : (() => {
-                                const enRiesgo = estudiantes.filter(e => e.en_riesgo).length
-                                return `${estudiantes.length} estudiante${estudiantes.length !== 1 ? 's' : ''} · ${enRiesgo} en riesgo · ordenados de mayor a menor`
+                                const verdes = estudiantes.filter(e => e.nivel_semaforo === 'verde').length
+                                const amarillos = estudiantes.filter(e => e.nivel_semaforo === 'amarillo').length
+                                const rojos = estudiantes.filter(e => e.nivel_semaforo === 'rojo').length
+                                return `${estudiantes.length} estudiante${estudiantes.length !== 1 ? 's' : ''} · ${verdes} óptimos · ${amarillos} alertas · ${rojos} en riesgo`
                             })()}
                         </p>
                     </div>
@@ -164,7 +167,7 @@ export default function EstudiantesRiesgo() {
                                     <th className="px-4 py-3 text-left text-[11px] font-bold text-[#9ba7ae] uppercase tracking-wide">Código</th>
                                     <th className="px-4 py-3 text-left text-[11px] font-bold text-[#9ba7ae] uppercase tracking-wide">Nota Prom.</th>
                                     <th className="px-4 py-3 text-left text-[11px] font-bold text-[#9ba7ae] uppercase tracking-wide">% Incumplidas</th>
-                                    <th className="px-4 py-3 text-left text-[11px] font-bold text-[#9ba7ae] uppercase tracking-wide">Estado</th>
+                                    <th className="px-4 py-3 text-left text-[11px] font-bold text-[#9ba7ae] uppercase tracking-wide">Semáforo</th>
                                     <th className="px-4 py-3" />
                                 </tr>
                             </thead>
@@ -173,7 +176,7 @@ export default function EstudiantesRiesgo() {
                                     <tr key={est.id} className="hover:bg-[#fafafa] transition-colors">
                                         <td className="px-4 py-3">
                                             <div className="flex items-center gap-2.5">
-                                                <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${est.en_riesgo ? 'bg-red-50 text-[#d32f2f]' : 'bg-green-50 text-green-600'}`}>
+                                                <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${est.nivel_semaforo === 'rojo' ? 'bg-red-50 text-[#d32f2f]' : est.nivel_semaforo === 'amarillo' ? 'bg-amber-50 text-[#f9a825]' : 'bg-green-50 text-green-600'}`}>
                                                     <IconUser />
                                                 </div>
                                                 <div>
@@ -195,15 +198,7 @@ export default function EstudiantesRiesgo() {
                                             </span>
                                         </CeldaCritica>
                                         <td className="px-4 py-3">
-                                            {est.en_riesgo ? (
-                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-50 border border-red-200 text-[#d32f2f] text-[11px] font-bold">
-                                                    <span className="w-1.5 h-1.5 rounded-full bg-[#d32f2f]" />En riesgo
-                                                </span>
-                                            ) : (
-                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-50 border border-green-200 text-green-700 text-[11px] font-bold">
-                                                    <span className="w-1.5 h-1.5 rounded-full bg-green-500" />Normal
-                                                </span>
-                                            )}
+                                            <Semaforo nivel={est.nivel_semaforo} size="sm" />
                                         </td>
                                         <td className="px-4 py-3">
                                             <Link
