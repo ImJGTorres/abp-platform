@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { cursosApi } from '../../services/docenteApi'
+import PendientesDashboard from '../Compartidos/PendientesDashboard'
 
 const ESTADO_CONFIG = {
     activo:   { label: 'Activo',   bg: 'bg-[#e8f5e9]', text: 'text-[#2e7d32]' },
@@ -116,6 +117,8 @@ export default function GestionCursos() {
                 <h1 className="text-[22px] sm:text-[24px] font-bold text-[#191c1d] leading-tight">Mis cursos</h1>
                 <p className="text-[13px] text-[#9ba7ae] mt-0.5">Selecciona un curso para ver sus proyectos y equipos</p>
             </div>
+
+            <PendientesDashboard className="mb-6" />
 
             {/* Filtros */}
             <div className="mb-5 flex flex-col sm:flex-row gap-3">

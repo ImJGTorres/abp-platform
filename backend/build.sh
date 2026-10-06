@@ -10,8 +10,18 @@ pip install -r requirements.txt
 # Build frontend
 echo "Building frontend..."
 cd ../frontend
-npm install
-npm run build
+# pnpm (versión fijada en package.json → packageManager); si no está instalado,
+# se activa con corepack (incluido en Node) o, en último caso, vía npx.
+if ! command -v pnpm >/dev/null 2>&1; then
+    corepack enable pnpm 2>/dev/null || true
+fi
+if command -v pnpm >/dev/null 2>&1; then
+    PNPM="pnpm"
+else
+    PNPM="npx --yes pnpm@12.6.0"
+fi
+$PNPM install --frozen-lockfile
+$PNPM build
 
 # Copy frontend files to backend
 echo "Copying frontend build to backend..."

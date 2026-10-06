@@ -4,8 +4,8 @@ set BACKEND=backend
 
 echo ==> Building React app...
 cd %FRONTEND%
-call npm install
-call npm run build
+call pnpm install --frozen-lockfile
+call pnpm build
 cd ..
 
 echo ==> Copying assets...

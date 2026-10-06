@@ -6,6 +6,7 @@ import {
 } from 'recharts'
 import { reportesApi } from '../../services/docenteApi'
 import { periodosApi } from '../../services/api'
+import PendientesDashboard from '../Compartidos/PendientesDashboard'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -174,6 +175,8 @@ export default function DashboardDirector() {
                     Actualizar
                 </button>
             </div>
+
+            <PendientesDashboard />
 
             {/* Selector de periodo */}
             <div className="bg-white rounded-2xl border border-[#e1e3e4] p-4">
