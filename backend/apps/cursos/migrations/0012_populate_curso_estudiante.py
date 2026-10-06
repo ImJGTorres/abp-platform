@@ -28,6 +28,7 @@ class Migration(migrations.Migration):
     dependencies = [
         ('cursos', '0011_add_curso_estudiante'),
         ('equipos', '0001_initial'),
+        ('equipos', '0002_miembroequipo'),
     ]
 
     operations = [

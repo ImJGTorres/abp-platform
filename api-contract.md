@@ -920,7 +920,22 @@ Al reemplazar el logotipo se borra el archivo anterior del disco. Guarda `id_usu
   "cupo_maximo": 6
 }
 ```
-**Respuesta `201`:** Objeto equipo creado
+**Respuesta `201`:** Objeto equipo creado (`proyecto` es el id del proyecto, solo lectura)
+```json
+{
+  "id": 1,
+  "proyecto": 1,
+  "nombre": "Equipo Alpha",
+  "descripcion": "Equipo de desarrollo backend",
+  "estado": "activo",
+  "cupo_maximo": 6,
+  "miembros": [],
+  "cantidad_miembros": 0,
+  "cupo_disponible": 6,
+  "lider": null,
+  "cantidad_entregables": 0
+}
+```
 **Error `400`:** `cupo_maximo` supera `max_estudiantes_por_equipo` del sistema
 
 ---
@@ -961,12 +976,26 @@ Al reemplazar el logotipo se borra el archivo anterior del disco. Guarda `id_usu
 ---
 
 ### `POST /api/equipos/<equipo_id>/asignar/`
-**Permiso:** Docente del proyecto o administrador
-**Body:** `{ "estudiantes": [10, 11, 12] }`
-**Respuesta `200`:** `{ "asignados": 3, "omitidos": 0 }`
+**Permiso:** Requiere autenticación. La vista solo aplica `IsAuthenticated`: todavía no valida que el usuario sea docente del proyecto o administrador, así que cualquier usuario autenticado puede asignar miembros.
+**Body:** `{ "usuarios": [10, 11, 12] }`
+**Respuesta `200`:** Asignación por usuario; los que no se pudieron asignar vuelven en `errores`:
+```json
+{
+  "asignados": 1,
+  "errores": [
+    { "usuario_id": 11, "error": "El equipo ha alcanzado su cupo máximo." }
+  ]
+}
+```
+**Mensajes posibles en `errores[].error`:**
+- `Estudiante no encontrado.`
+- `Ya pertenece a otro equipo de este proyecto.`
+- `El equipo ha alcanzado su cupo máximo.`
+
+Un estudiante ya activo en el mismo equipo se omite sin generar error. Un estudiante retirado en el mismo equipo se reactiva (`update_or_create`).
 **Errores:**
-- `400` — estudiante ya en otro equipo del mismo proyecto
-- `409` — equipo lleno
+- `400` — `{ "detail": "No se proporcionaron usuarios." }`
+- `404` — `{ "detail": "Equipo no encontrado." }`
 
 ---
 

@@ -7,7 +7,7 @@
 # ─────────────────────────────────────────────────────────────────
 # Modelo esperado:   apps.configuracion.models.PeriodoAcademico
 # Campos requeridos: nombre, fecha_inicio, fecha_fin, estado, usuario_creo
-# URL base:          /api/periodos/
+# URL base:          /api/configuracion/periodos/ (reverse('periodos-list'))
 # ViewSet:           Router con lookup_field='pk'
 # Permisos:          Solo administrador puede crear/editar/eliminar
 # Regla de negocio:  Solo un periodo puede estar "activo" a la vez
@@ -21,6 +21,7 @@
 # ─────────────────────────────────────────────────────────────────
 
 import pytest
+from django.urls import reverse
 from rest_framework import status
 from apps.configuracion.models import PeriodoAcademico
 from tests.factories import AdminFactory
@@ -66,7 +67,7 @@ def test_crear_periodo_exitoso(admin_client):
         "fecha_fin": "2026-12-15",
         "estado": "activo",
     }
-    respuesta = admin_client.post("/api/periodos/", datos, format="json")
+    respuesta = admin_client.post(reverse("periodos-list"), datos, format="json")
     assert respuesta.status_code == status.HTTP_201_CREATED
     assert respuesta.data["nombre"] == "2026-2"
 
@@ -80,7 +81,7 @@ def test_crear_periodo_fechas_incoherentes(admin_client):
         "fecha_fin": "2026-01-01",
         "estado": "activo",
     }
-    respuesta = admin_client.post("/api/periodos/", datos, format="json")
+    respuesta = admin_client.post(reverse("periodos-list"), datos, format="json")
     assert respuesta.status_code == status.HTTP_400_BAD_REQUEST
 
 
@@ -94,7 +95,7 @@ def test_actualizar_periodo(admin_client, periodo_base):
         "fecha_fin": "2026-07-15",
         "estado": "activo",
     }
-    respuesta = admin_client.put(f"/api/periodos/{periodo.id}/", datos, format="json")
+    respuesta = admin_client.put(reverse("periodos-detail", kwargs={"pk": periodo.id}), datos, format="json")
     assert respuesta.status_code == status.HTTP_200_OK
     assert respuesta.data["fecha_fin"] == "2026-07-15"
 
@@ -103,7 +104,7 @@ def test_actualizar_periodo(admin_client, periodo_base):
 def test_eliminar_periodo_sin_cursos(admin_client, periodo_base):
     """Un administrador puede eliminar un período que no tiene cursos asociados."""
     periodo = PeriodoAcademico.objects.get(nombre="2025-2")
-    respuesta = admin_client.delete(f"/api/periodos/{periodo.id}/")
+    respuesta = admin_client.delete(reverse("periodos-detail", kwargs={"pk": periodo.id}))
     assert respuesta.status_code == status.HTTP_204_NO_CONTENT
     assert not PeriodoAcademico.objects.filter(nombre="2025-2").exists()
 
@@ -117,7 +118,7 @@ def test_solo_un_periodo_activo(admin_client, periodo_base):
         "fecha_fin": "2026-12-15",
         "estado": "activo",
     }
-    admin_client.post("/api/periodos/", datos, format="json")
+    admin_client.post(reverse("periodos-list"), datos, format="json")
     activos = PeriodoAcademico.objects.filter(estado="activo")
     assert activos.count() == 1
     assert activos.first().nombre == "2026-2"
@@ -126,7 +127,7 @@ def test_solo_un_periodo_activo(admin_client, periodo_base):
 @pytest.mark.django_db
 def test_listar_periodos_sin_autenticacion(api_client):
     """Un cliente sin autenticar recibe 401 al intentar listar períodos."""
-    respuesta = api_client.get("/api/periodos/")
+    respuesta = api_client.get(reverse("periodos-list"))
     assert respuesta.status_code == status.HTTP_401_UNAUTHORIZED
 
 

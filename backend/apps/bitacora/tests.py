@@ -19,7 +19,7 @@ class BitacoraReadOnlyTests(APITestCase):
             nombre='Admin',
             apellido='Test',
             correo='admin@test.com',
-            contrasena_hash='testpassword123',
+            password='testpassword123',
             tipo_rol=Usuario.TipoRol.ADMINISTRADOR,
             estado=Usuario.Estado.ACTIVO,
             is_staff=True,
