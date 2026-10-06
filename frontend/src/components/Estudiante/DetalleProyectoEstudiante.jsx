@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, useOutletContext } from 'react-router-dom'
 import { fasesApi, actividadesApi } from '../../services/docenteApi'
+import MuroAnuncios from '../Compartidos/MuroAnuncios'
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -199,6 +200,11 @@ export default function DetalleProyectoEstudiante() {
                         </div>
                     </div>
                 ))}
+            </div>
+
+            {/* Muro de Anuncios del Proyecto */}
+            <div className="mt-8">
+                <MuroAnuncios proyectoId={proyectoId} />
             </div>
         </div>
     )

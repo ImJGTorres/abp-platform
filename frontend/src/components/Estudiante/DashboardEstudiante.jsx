@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { request } from '../../services/api'
+import { request, session } from '../../services/api'
+import { reportesApi } from '../../services/docenteApi'
 import PendientesDashboard from '../Compartidos/PendientesDashboard'
+import Semaforo from '../Compartidos/Semaforo'
 
 // ── Iconos ────────────────────────────────────────────────────────────────────
 
@@ -32,6 +34,7 @@ async function getMisEquipos() {
 export default function DashboardEstudiante({ basePath = '/estudiante' }) {
     const navigate = useNavigate()
     const [equipos, setEquipos] = useState([])
+    const [rendimiento, setRendimiento] = useState(null)
     const [loading, setLoading] = useState(true)
     const [error,   setError]   = useState('')
 
@@ -43,6 +46,16 @@ export default function DashboardEstudiante({ basePath = '/estudiante' }) {
         try {
             const data = await getMisEquipos()
             setEquipos(data)
+
+            const user = session.getUser()
+            if (user?.id) {
+                try {
+                    const rep = await reportesApi.rendimientoEstudiante(user.id)
+                    setRendimiento(rep?.indicadores || null)
+                } catch {
+                    // Rendimiento no disponible aún
+                }
+            }
         } catch (err) {
             setError(err.detail || 'Error cargando tu información.')
         } finally {
@@ -73,6 +86,66 @@ export default function DashboardEstudiante({ basePath = '/estudiante' }) {
             </div>
 
             <PendientesDashboard className="mb-6" />
+
+            {rendimiento && (
+                <div className="bg-white border border-[#e1e3e4] rounded-2xl p-5 mb-6">
+                    <div className="flex items-center justify-between gap-4 flex-wrap mb-4">
+                        <div>
+                            <p className="text-[11px] font-semibold text-[#9ba7ae] uppercase tracking-wide">Tu Rendimiento Académico</p>
+                            <h2 className="text-[16px] font-bold text-[#191c1d]">Semáforo de Desempeño</h2>
+                        </div>
+                        <Semaforo nivel={rendimiento.nivel_semaforo} size="md" />
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        <div className="bg-[#f8f9fa] rounded-xl p-3 border border-[#e1e3e4]">
+                            <p className="text-[11px] text-[#9ba7ae] font-semibold uppercase">Nota promedio</p>
+                            <p className="text-[20px] font-extrabold text-[#191c1d]">{rendimiento.nota_promedio != null ? Number(rendimiento.nota_promedio).toFixed(2) : '—'} <span className="text-[12px] font-normal text-[#9ba7ae]">/ 5.0</span></p>
+                        </div>
+                        <div className="bg-[#f8f9fa] rounded-xl p-3 border border-[#e1e3e4]">
+                            <p className="text-[11px] text-[#9ba7ae] font-semibold uppercase">Actividades incumplidas</p>
+                            <p className="text-[20px] font-extrabold text-[#191c1d]">{rendimiento.porcentaje_actividades_incumplidas != null ? Number(rendimiento.porcentaje_actividades_incumplidas).toFixed(1) : 0}% <span className="text-[12px] font-normal text-[#9ba7ae]">({rendimiento.actividades_incumplidas ?? 0}/{rendimiento.total_actividades ?? 0})</span></p>
+                        </div>
+                        <div className="col-span-2 sm:col-span-1 bg-[#f8f9fa] rounded-xl p-3 border border-[#e1e3e4]">
+                            <p className="text-[11px] text-[#9ba7ae] font-semibold uppercase">Entregables rechazados</p>
+                            <p className="text-[20px] font-extrabold text-[#191c1d]">{rendimiento.entregables_rechazados ?? 0} <span className="text-[12px] font-normal text-[#9ba7ae]">de {rendimiento.total_entregables ?? 0}</span></p>
+                        </div>
+                    </div>
+
+                    {rendimiento.nivel_semaforo !== 'verde' && (
+                        <div className={`mt-4 p-4 rounded-xl border flex items-start gap-3 ${
+                            rendimiento.nivel_semaforo === 'rojo'
+                                ? 'bg-red-50 border-red-200 text-[#c62828]'
+                                : 'bg-amber-50 border-amber-200 text-[#b45309]'
+                        }`}>
+                            <div className="w-5 h-5 flex-shrink-0 mt-0.5">
+                                <svg viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                </svg>
+                            </div>
+                            <div>
+                                <p className="text-[13px] font-bold mb-1">
+                                    {rendimiento.nivel_semaforo === 'rojo'
+                                        ? 'Recomendación urgente: Riesgo académico detectado'
+                                        : 'Recomendación preventiva: Atención a tu progreso'}
+                                </p>
+                                <p className="text-[12px] leading-relaxed text-[#4c616c]">
+                                    {rendimiento.nivel_semaforo === 'rojo'
+                                        ? 'Tu rendimiento se encuentra en nivel crítico. Te sugerimos ponerte en contacto con tu docente, revisar las actividades pendientes y coordinar con tu equipo las entregas prioritarias.'
+                                        : 'Tienes indicadores cercanos a umbrales de alerta. Procura entregar a tiempo tus actividades y entregables pendientes para mantener tu semáforo en nivel óptimo (verde).'}
+                                </p>
+                                {rendimiento.alertas?.length > 0 && (
+                                    <ul className="mt-2 list-disc list-inside text-[11px] font-medium text-[#4c616c]">
+                                        {rendimiento.alertas.map((a, i) => (
+                                            <li key={i}>{a}</li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
 
             {error && (
                 <div className="mb-4 px-3 py-2.5 bg-[#fff1f0] border border-[#ffc9c5] rounded-xl text-[13px] text-[#ba1a1a] font-medium">

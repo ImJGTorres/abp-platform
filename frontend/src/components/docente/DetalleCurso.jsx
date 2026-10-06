@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom'
 import { cursosApi } from '../../services/docenteApi'
 import ModalDetalleEquipo from './ModalDetalleEquipo'
 import MigasDePan from '../Compartidos/MigasDePan'
+import MuroAnuncios from '../Compartidos/MuroAnuncios'
 
 const AVATAR_COLORS = ['#d32f2f', '#1976d2', '#388e3c', '#7b1fa2', '#f57c00', '#0097a7', '#5d4037', '#37474f']
 const TEAM_COLORS = ['#1976d2', '#388e3c', '#f57c00', '#7b1fa2', '#d32f2f', '#0097a7']
@@ -169,6 +170,8 @@ function formatFecha(fecha) {
 export default function DetalleCurso() {
     const { id } = useParams()
     const navigate = useNavigate()
+    const location = useLocation()
+    const esAdmin = location.pathname.startsWith('/admin')
     const [curso, setCurso] = useState(null)
     const [proyectos, setProyectos] = useState([])
     const [loading, setLoading] = useState(true)
@@ -184,9 +187,14 @@ export default function DetalleCurso() {
         setLoading(true)
         try {
             // Cargar curso
-            const cursosData = await cursosApi.listar()
-            const cursosBackend = cursosData.results ?? cursosData
-            const cursoData = cursosBackend.find(c => c.id === parseInt(id))
+            let cursoData = null
+            try {
+                cursoData = await cursosApi.obtener(id)
+            } catch {
+                const cursosData = await cursosApi.listar()
+                const cursosBackend = cursosData.results ?? cursosData
+                cursoData = cursosBackend.find(c => c.id === parseInt(id))
+            }
 
             if (!cursoData) {
                 setCurso(null)
@@ -271,7 +279,7 @@ export default function DetalleCurso() {
         navigate(`/docente/cursos/${id}/estudiantes`)
     }
 
-    function formatearFecha(fecha) {
+    function formatFecha(fecha) {
         if (!fecha) return ''
         const d = new Date(fecha + 'T00:00:00')
         return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })
@@ -308,7 +316,9 @@ export default function DetalleCurso() {
                     </svg>
                 </div>
                 <h2 className="text-[17px] font-bold text-[#191c1d]">Curso no encontrado</h2>
-                <Link to="/docente/cursos" className="text-[13px] text-[#d32f2f] hover:underline">Volver a mis cursos</Link>
+                <Link to={esAdmin ? "/admin/cursos" : "/docente/cursos"} className="text-[13px] text-[#d32f2f] hover:underline">
+                    {esAdmin ? 'Volver a gestión de cursos' : 'Volver a mis cursos'}
+                </Link>
             </div>
         )
     }
@@ -321,7 +331,7 @@ export default function DetalleCurso() {
         <div className="flex-1 overflow-y-auto p-4 sm:p-6" style={{ fontFamily: "'Manrope', sans-serif" }}>
 
             <MigasDePan items={[
-                { label: 'Mis cursos', to: '/docente/cursos' },
+                { label: esAdmin ? 'Gestión de cursos' : 'Mis cursos', to: esAdmin ? '/admin/cursos' : '/docente/cursos' },
                 { label: curso.nombre },
             ]} />
 
@@ -486,6 +496,11 @@ export default function DetalleCurso() {
                     })}
                 </div>
             )}
+
+            {/* Muro de Anuncios del Curso */}
+            <div className="mt-8">
+                <MuroAnuncios cursoId={id} />
+            </div>
 
             {/* Modales */}
             {modalNuevoProyecto && (
