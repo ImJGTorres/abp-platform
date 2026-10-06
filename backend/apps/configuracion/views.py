@@ -4,17 +4,20 @@ from django.core.exceptions import ValidationError
 from django.db import transaction, models
 
 from rest_framework import status, viewsets
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.permissions import IsAdminUser
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
 
 from apps.bitacora.models import BitacoraSistema
 from apps.bitacora.utils import registrar_evento
 
 from .cache import get_parametros_cacheados, set_parametros_cacheados, invalidar_cache_parametros
-from .models import ParametroSistema, PeriodoAcademico
+from .models import IdentidadInstitucional, ParametroSistema, PeriodoAcademico
 from .permissions import EsAdministrador, IsAdminOrDocente
-from .serializers import ParametroSistemaSerializer, PeriodoAcademicoSerializer
+from .serializers import (
+    IdentidadInstitucionalSerializer, ParametroSistemaSerializer, PeriodoAcademicoSerializer,
+)
 from apps.cursos.models import Curso
 
 
@@ -141,6 +144,57 @@ class ConfiguracionView(APIView):
 
         serializer = ParametroSistemaSerializer(parametro)
         return Response(serializer.data)
+
+
+class IdentidadInstitucionalView(APIView):
+    """Identidad institucional usada en el membrete de PDF, Excel y correos (HU-035).
+
+    Endpoints:
+        GET /api/configuracion/identidad/ — Cualquier usuario autenticado.
+        PUT /api/configuracion/identidad/ — Solo administrador. multipart con
+            nombre_institucion, programa_academico y logotipo (opcional, PNG/JPG, máx. 2 MB).
+
+    Ver también: api-contract.md § Configuración.
+    """
+
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    def get_permissions(self):
+        if self.request.method == 'PUT':
+            return [EsAdministrador()]
+        return [IsAuthenticated()]
+
+    def get(self, request):
+        identidad = IdentidadInstitucional.obtener()
+        return Response(IdentidadInstitucionalSerializer(identidad).data)
+
+    def put(self, request):
+        identidad = IdentidadInstitucional.obtener()
+        antes = {
+            'nombre_institucion': identidad.nombre_institucion,
+            'programa_academico': identidad.programa_academico,
+        }
+        logo_anterior = identidad.logotipo.name if identidad.logotipo else None
+
+        serializer = IdentidadInstitucionalSerializer(identidad, data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        identidad = serializer.save(id_usuario_actualiza=request.user)
+
+        campos = [c for c, v in antes.items() if getattr(identidad, c) != v]
+        if 'logotipo' in serializer.validated_data:
+            campos.append('logotipo')
+            # Al reemplazar el logotipo se borra el archivo anterior del disco
+            if logo_anterior and logo_anterior != identidad.logotipo.name:
+                identidad.logotipo.storage.delete(logo_anterior)
+
+        registrar_evento(
+            request,
+            accion=BitacoraSistema.Accion.UPDATE,
+            modulo='configuracion',
+            descripcion=f"Identidad institucional actualizada: {', '.join(campos) or 'sin cambios'}",
+        )
+        return Response(IdentidadInstitucionalSerializer(identidad).data)
 
 
 class PeriodoAcademicoViewSet(viewsets.ModelViewSet):

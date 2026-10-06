@@ -5,7 +5,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 # DefaultRouter: Router de DRF que genera automáticamente rutas para ViewSets
 
-from .views import ConfiguracionView, PeriodoAcademicoViewSet
+from .views import ConfiguracionView, IdentidadInstitucionalView, PeriodoAcademicoViewSet
 # ConfiguracionView: Vista que maneja las solicitudes GET y PATCH de configuración
 # PeriodoAcademicoViewSet: ViewSet para períodos académicos
 
@@ -30,6 +30,10 @@ urlpatterns = [
     # Retorna todos los parámetros agrupados por categoría
     # Requiere rol de administrador
     path('', ConfiguracionView.as_view(), name='configuracion'),
+
+    # GET/PUT /api/configuracion/identidad/ (HU-035)
+    # Debe ir antes de <str:clave>/; si no, "identidad" se toma como clave de parámetro
+    path('identidad/', IdentidadInstitucionalView.as_view(), name='configuracion_identidad'),
 
     # Ruta con parámetro: PATCH /api/configuracion/<clave>/
     # Permite actualizar un parámetro específico por su clave

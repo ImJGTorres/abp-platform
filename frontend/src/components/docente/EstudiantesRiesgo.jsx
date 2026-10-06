@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { reportesApi, cursosApi } from '../../services/docenteApi'
+import MigasDePan from '../Compartidos/MigasDePan'
 
 const UMBRAL_NOTA = 3.0
 const UMBRAL_PCT_INCUMPLIDAS = 50
@@ -9,16 +10,6 @@ function riesgoScore(est) {
     const notaRisk = Math.max(0, (UMBRAL_NOTA - (est.nota_promedio ?? UMBRAL_NOTA)) / UMBRAL_NOTA) * 100
     const pctRisk = est.porcentaje_actividades_incumplidas ?? 0
     return (notaRisk + pctRisk) / 2
-}
-
-function IconAlert() {
-    return (
-        <svg viewBox="0 0 20 20" fill="none" className="w-5 h-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M10 2L1.5 17h17L10 2z" />
-            <path d="M10 8v4" />
-            <circle cx="10" cy="14" r="0.6" fill="currentColor" />
-        </svg>
-    )
 }
 
 function IconUser() {
@@ -110,14 +101,17 @@ export default function EstudiantesRiesgo() {
 
     return (
         <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+            <MigasDePan items={[
+                { label: 'Mis cursos', to: '/docente/cursos' },
+                { label: 'Curso', to: `/docente/cursos/${cursoId}` },
+                { label: 'Desempeño' },
+            ]} />
+
             {/* Encabezado */}
             <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-6">
                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center text-[#d32f2f]">
-                        <IconAlert />
-                    </div>
                     <div>
-                        <h1 className="text-[18px] font-bold text-[#191c1d]">Estudiantes en Riesgo</h1>
+                        <h1 className="text-[22px] font-extrabold text-[#191c1d] tracking-tight">Estudiantes en Riesgo</h1>
                         <p className="text-[13px] text-[#9ba7ae]">
                             {cargando ? 'Cargando...' : (() => {
                                 const enRiesgo = estudiantes.filter(e => e.en_riesgo).length

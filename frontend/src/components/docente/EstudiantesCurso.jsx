@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { estudiantesApi, cursosApi, equiposApi } from '../../services/docenteApi'
+import MigasDePan from '../Compartidos/MigasDePan'
 
 const AVATAR_COLORS = ['#d32f2f', '#1976d2', '#388e3c', '#7b1fa2', '#f57c00', '#0097a7', '#5d4037', '#37474f']
 
@@ -321,14 +322,11 @@ export default function EstudiantesCurso() {
     return (
         <div className="flex-1 overflow-y-auto p-6" style={{ fontFamily: "'Manrope', sans-serif" }}>
 
-            {/* Breadcrumb */}
-            <div className="mb-4 flex items-center gap-2 text-[13px]">
-                <Link to="/docente/cursos" className="text-[#9ba7ae] hover:text-[#4c616c] transition-colors">Mis cursos</Link>
-                <svg className="w-3 h-3 text-[#9ba7ae]" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 3l5 5-5 5" /></svg>
-                <Link to={`/docente/cursos/${cursoId}`} className="text-[#9ba7ae] hover:text-[#4c616c] transition-colors">Curso</Link>
-                <svg className="w-3 h-3 text-[#9ba7ae]" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 3l5 5-5 5" /></svg>
-                <span className="text-[#191c1d] font-medium">Estudiantes</span>
-            </div>
+            <MigasDePan items={[
+                { label: 'Mis cursos', to: '/docente/cursos' },
+                { label: 'Curso', to: `/docente/cursos/${cursoId}` },
+                { label: 'Estudiantes' },
+            ]} />
 
             {/* Toast */}
             {toast && (

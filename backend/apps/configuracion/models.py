@@ -2,6 +2,7 @@
 #   python manage.py loaddata parametros_iniciales
 # Este comando carga los datos iniciales desde un archivo fixture JSON/YAML
 
+import math
 import re
 from datetime import date
 
@@ -70,12 +71,14 @@ class ParametroSistema(models.Model):
         ARCHIVOS      = 'archivos',      'Archivos'
         SESIONES      = 'sesiones',      'Sesiones'
         GENERAL       = 'general',       'General'
+        RENDIMIENTO   = 'rendimiento',   'Rendimiento'  # usada por la migración 0004
 
     class TipoDato(models.TextChoices):
         STRING  = 'string',  'Texto'
         INTEGER = 'integer', 'Entero'
         BOOLEAN = 'boolean', 'Booleano'
         DATE    = 'date',    'Fecha'
+        FLOAT   = 'float',   'Decimal'  # umbrales de nota (migraciones 0004 y 0007)
 
     _BOOLEAN_TRUE  = {'true', '1', 'yes'}
     _BOOLEAN_FALSE = {'false', '0', 'no'}
@@ -105,6 +108,7 @@ class ParametroSistema(models.Model):
 
         Reglas de validación por tipo:
             - INTEGER: debe ser un número entero no negativo (>= 0).
+            - FLOAT:   debe ser un número decimal no negativo (>= 0), p. ej. 3.5.
             - BOOLEAN: debe ser uno de true/false/1/0/yes/no (insensible a mayúsculas).
             - DATE:    debe respetar el formato YYYY-MM-DD.
             - STRING:  se acepta cualquier valor de texto sin restricciones.
@@ -113,7 +117,7 @@ class ParametroSistema(models.Model):
             v: Valor en formato string (ya sin espacios).
 
         Returns:
-            int | bool | date | str: Valor convertido al tipo Python correspondiente.
+            int | float | bool | date | str: Valor convertido al tipo Python correspondiente.
 
         Raises:
             ValueError: Si la conversión falla o el valor no cumple las restricciones
@@ -129,6 +133,18 @@ class ParametroSistema(models.Model):
             if resultado < 0:
                 raise ValueError(
                     f'El valor entero debe ser mayor o igual a 0, se recibió: {resultado}'
+                )
+            return resultado
+        if self.tipo_dato == self.TipoDato.FLOAT:
+            try:
+                resultado = float(v)
+            except (ValueError, TypeError):
+                raise ValueError(
+                    f'Se esperaba un número decimal (ej. 3.5), se recibió: "{v}"'
+                )
+            if not math.isfinite(resultado) or resultado < 0:
+                raise ValueError(
+                    f'El valor decimal debe ser un número mayor o igual a 0, se recibió: "{v}"'
                 )
             return resultado
         if self.tipo_dato == self.TipoDato.BOOLEAN:
@@ -180,3 +196,64 @@ class ParametroSistema(models.Model):
 
     def __str__(self):
         return f'[{self.categoria}] {self.clave} = {self.valor}'
+
+
+class IdentidadInstitucional(models.Model):
+    """
+    Registro único (pk=1) con la identidad institucional que usan PDF, Excel y correos.
+    Se separa de ParametroSistema porque el logotipo es un archivo.
+    Usar siempre IdentidadInstitucional.obtener() (o configuracion.identidad.obtener_identidad()).
+    """
+
+    NOMBRE_INSTITUCION_DEFECTO = 'UFPS — Plataforma ABP'
+    PROGRAMA_ACADEMICO_DEFECTO = 'Ingeniería de Sistemas'
+
+    nombre_institucion = models.CharField(max_length=200)
+    programa_academico = models.CharField(max_length=200)
+    logotipo = models.FileField(upload_to='identidad/', null=True, blank=True)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+    id_usuario_actualiza = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='identidades_actualizadas',
+        db_column='id_usuario_actualiza_id',
+    )
+
+    class Meta:
+        db_table = 'identidad_institucional'
+        verbose_name = 'Identidad institucional'
+        verbose_name_plural = 'Identidad institucional'
+
+    @classmethod
+    def obtener(cls):
+        """
+        Retorna el registro único, creándolo si no existe.
+        Valores iniciales: ParametroSistema (nombre_institucion, nombre_programa)
+        si existen y no están vacíos; si no, las constantes por defecto.
+        """
+        identidad, _ = cls.objects.get_or_create(
+            pk=1,
+            defaults={
+                'nombre_institucion': cls._valor_parametro(
+                    'nombre_institucion', cls.NOMBRE_INSTITUCION_DEFECTO
+                ),
+                'programa_academico': cls._valor_parametro(
+                    'nombre_programa', cls.PROGRAMA_ACADEMICO_DEFECTO
+                ),
+            },
+        )
+        return identidad
+
+    @staticmethod
+    def _valor_parametro(clave, defecto):
+        valor = (
+            ParametroSistema.objects.filter(clave=clave)
+            .values_list('valor', flat=True)
+            .first()
+        )
+        return valor.strip() if valor and valor.strip() else defecto
+
+    def __str__(self):
+        return f'{self.nombre_institucion} — {self.programa_academico}'

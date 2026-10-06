@@ -3,7 +3,7 @@ import re
 from rest_framework import serializers
 # serializers: Módulo de Django REST Framework para convertir modelos a JSON y viceversa
 
-from .models import ParametroSistema, PeriodoAcademico
+from .models import IdentidadInstitucional, ParametroSistema, PeriodoAcademico
 # ParametroSistema: Modelo de parámetros de configuración del sistema
 # PeriodoAcademico: Modelo de períodos académicos
 
@@ -140,3 +140,33 @@ class ParametroSistemaSerializer(serializers.ModelSerializer):
         instancia_temporal.clean()
         
         return attrs
+
+
+class IdentidadInstitucionalSerializer(serializers.ModelSerializer):
+    """
+    Identidad institucional (HU-035) para GET/PUT /api/configuracion/identidad/.
+
+    'logotipo' se devuelve como ruta de media (/media/identidad/...), porque
+    IdentidadInstitucional.jsx arma la URL completa con buildMediaUrl().
+    """
+
+    EXTENSIONES_LOGO = ('png', 'jpg', 'jpeg')
+    TAMANO_MAX_LOGO = 2 * 1024 * 1024  # 2 MB
+
+    class Meta:
+        model = IdentidadInstitucional
+        fields = ['nombre_institucion', 'programa_academico', 'logotipo', 'fecha_actualizacion']
+        read_only_fields = ['fecha_actualizacion']
+
+    def validate_logotipo(self, archivo):
+        ext = archivo.name.rsplit('.', 1)[-1].lower() if '.' in archivo.name else ''
+        if ext not in self.EXTENSIONES_LOGO:
+            raise serializers.ValidationError('Solo se permiten archivos PNG o JPG.')
+        if archivo.size > self.TAMANO_MAX_LOGO:
+            raise serializers.ValidationError('El logotipo no puede superar 2 MB.')
+        return archivo
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data['logotipo'] = instance.logotipo.url if instance.logotipo else None
+        return data

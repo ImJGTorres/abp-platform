@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { equiposApi } from '../../services/docenteApi'
+import MigasDePan from '../Compartidos/MigasDePan'
 
 const AVATAR_COLORS = ['#d32f2f', '#1976d2', '#388e3c', '#7b1fa2', '#f57c00', '#0097a7', '#5d4037', '#37474f']
 const TEAM_COLORS   = ['#1976d2', '#388e3c', '#f57c00', '#7b1fa2', '#d32f2f', '#0097a7']
@@ -330,16 +331,25 @@ export default function GestionEquipos() {
     const equipos = datos?.equipos ?? []
     const cantEq  = datos?.cantidad_equipos    ?? equipos.length
     const cantEst = datos?.cantidad_estudiantes ?? 0
+    // Contexto para las migas de pan de la pantalla de asignación
+    const contextoMigas = {
+        proyectoId, proyectoNombre: datos?.proyecto?.nombre,
+        cursoId: curso.id, cursoNombre: curso.nombre,
+    }
 
     return (
         <div className="flex-1 overflow-y-auto p-6" style={{ fontFamily: "'Manrope', sans-serif" }}>
 
-            {/* Breadcrumb */}
-            <div className="mb-4 flex items-center gap-2 text-[13px]">
-                <Link to="/docente/cursos" className="text-[#9ba7ae] hover:text-[#4c616c] transition-colors">Mis cursos</Link>
-                <svg className="w-3 h-3 text-[#9ba7ae]" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 3l5 5-5 5"/></svg>
-                <span className="text-[#191c1d] font-medium">Gestión de Equipos</span>
-            </div>
+            <MigasDePan items={[
+                { label: 'Mis cursos', to: '/docente/cursos' },
+                curso.id && { label: curso.nombre ?? 'Curso', to: `/docente/cursos/${curso.id}` },
+                datos?.proyecto && {
+                    label: datos.proyecto.nombre,
+                    to: `/docente/proyectos/${proyectoId}/monitoreo`,
+                    state: { nombre: datos.proyecto.nombre, cursoId: curso.id, cursoNombre: curso.nombre },
+                },
+                { label: 'Gestión de equipos' },
+            ]} />
 
             {/* Encabezado */}
             <div className="flex items-start justify-between gap-4 mb-6 flex-wrap">
@@ -349,7 +359,7 @@ export default function GestionEquipos() {
                             {curso.nombre}{curso.nombre && curso.codigo ? ' · ' : ''}{curso.codigo}
                         </p>
                     )}
-                    <h1 className="text-[26px] font-bold text-[#191c1d] leading-tight">Gestión de Equipos</h1>
+                    <h1 className="text-[22px] font-extrabold text-[#191c1d] leading-tight tracking-tight">Gestión de Equipos</h1>
                     <p className="text-[13px] text-[#9ba7ae] mt-1">
                         {cantEq} equipo{cantEq !== 1 ? 's' : ''} · {cantEst} estudiante{cantEst !== 1 ? 's' : ''} asignado{cantEst !== 1 ? 's' : ''}
                     </p>
@@ -384,7 +394,7 @@ export default function GestionEquipos() {
                             equipo={eq}
                             teamIndex={i}
                             onVer={(eq, idx) => setEquipoDetalle({ equipo: eq, teamIndex: idx })}
-                            onAgregar={id => navigate(`/docente/equipos/${id}/asignar`)}
+                            onAgregar={id => navigate(`/docente/equipos/${id}/asignar`, { state: contextoMigas })}
                         />
                     ))}
                 </div>
@@ -454,7 +464,7 @@ export default function GestionEquipos() {
                     equipo={equipoDetalle.equipo}
                     teamIndex={equipoDetalle.teamIndex}
                     onClose={() => setEquipoDetalle(null)}
-                    onAsignar={id => { setEquipoDetalle(null); navigate(`/docente/equipos/${id}/asignar`) }}
+                    onAsignar={id => { setEquipoDetalle(null); navigate(`/docente/equipos/${id}/asignar`, { state: contextoMigas }) }}
                 />
             )}
         </div>

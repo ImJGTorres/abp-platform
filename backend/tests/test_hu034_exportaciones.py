@@ -178,3 +178,138 @@ class TestEstadoExportacionView:
             response = EstadoExportacionView.as_view()(req, exportacion_id=99)
 
         assert response.status_code == 404
+
+
+def test_criterio_rojo_muestra_nota_y_porcentaje_del_semaforo():
+    from apps.exportaciones.generadores import _criterio_rojo
+    datos = {'umbrales_semaforo': {'nota_rojo': 3.0, 'pct_rojo': 50.0}}
+    assert _criterio_rojo(datos) == 'Riesgo crítico (rojo): nota < 3 o actividades incumplidas >= 50%'
+    # Datos sin umbrales_semaforo (formato anterior) siguen funcionando
+    assert 'nota < 2.5' in _criterio_rojo({'umbral_bajo_rendimiento': 2.5})
+
+
+# ── SCRUM-602: membrete institucional en los PDF ─────────────────────────────
+
+import pytest
+from apps.exportaciones.generadores.pdf import (
+    generar_pdf_estudiante, generar_pdf_indicadores, generar_pdf_proyecto,
+)
+
+GENERADORES_PDF = [generar_pdf_proyecto, generar_pdf_estudiante, generar_pdf_indicadores]
+
+
+def _identidad(logo=None):
+    return {'nombre_institucion': 'Universidad de Prueba', 'programa_academico': 'Programa de Prueba',
+            'logotipo_path': logo, 'logotipo_url': None}
+
+
+def _pdf(generador, tmp_path, identidad):
+    """Genera el PDF sin compresión para poder buscar texto e imágenes en los bytes."""
+    ruta = str(tmp_path / f'{generador.__name__}.pdf')
+    with patch('apps.configuracion.identidad.obtener_identidad', return_value=identidad), \
+         patch('reportlab.rl_config.pageCompression', 0):
+        generador({}, ruta)
+    return open(ruta, 'rb').read()
+
+
+@pytest.fixture
+def logo_png(tmp_path):
+    from PIL import Image
+    ruta = tmp_path / 'logo.png'
+    Image.new('RGB', (200, 100), 'red').save(ruta)
+    return str(ruta)
+
+
+@pytest.mark.parametrize('generador', GENERADORES_PDF)
+def test_pdf_muestra_membrete_y_logo_configurados(generador, tmp_path, logo_png):
+    pdf = _pdf(generador, tmp_path, _identidad(logo_png))
+    assert b'Universidad de Prueba' in pdf
+    assert b'Programa de Prueba' in pdf
+    assert b'/Subtype /Image' in pdf
+
+
+@pytest.mark.parametrize('generador', GENERADORES_PDF)
+def test_pdf_sin_logo_muestra_solo_texto(generador, tmp_path):
+    pdf = _pdf(generador, tmp_path, _identidad(None))
+    assert b'Universidad de Prueba' in pdf
+    assert b'/Subtype /Image' not in pdf
+
+
+@pytest.mark.parametrize('generador', GENERADORES_PDF)
+def test_pdf_se_genera_con_logo_borrado_del_disco(generador, tmp_path):
+    pdf = _pdf(generador, tmp_path, _identidad(str(tmp_path / 'no_existe.png')))
+    assert b'Universidad de Prueba' in pdf
+    assert b'/Subtype /Image' not in pdf
+
+
+@pytest.mark.parametrize('generador', GENERADORES_PDF)
+def test_pdf_se_genera_con_logo_danado(generador, tmp_path):
+    danado = tmp_path / 'danado.png'
+    danado.write_bytes(b'esto no es una imagen')
+    pdf = _pdf(generador, tmp_path, _identidad(str(danado)))
+    assert b'Universidad de Prueba' in pdf
+    assert b'/Subtype /Image' not in pdf
+
+
+def test_pdf_usa_valores_por_defecto_si_falla_la_identidad(tmp_path):
+    ruta = str(tmp_path / 'p.pdf')
+    with patch('apps.configuracion.identidad.obtener_identidad', side_effect=RuntimeError('bd caída')), \
+         patch('reportlab.rl_config.pageCompression', 0):
+        generar_pdf_proyecto({}, ruta)
+    assert b'Ingenier' in open(ruta, 'rb').read()  # PROGRAMA por defecto
+
+
+# ── SCRUM-603: membrete institucional en los Excel ───────────────────────────
+
+from openpyxl import load_workbook
+from apps.exportaciones.generadores.excel import (
+    generar_excel_estudiante, generar_excel_indicadores, generar_excel_proyecto,
+)
+
+# (generador, primera hoja de datos, fila donde queda el encabezado de su tabla, primer encabezado)
+GENERADORES_EXCEL = [
+    (generar_excel_proyecto, 'Fases', 5, 'Fase'),
+    (generar_excel_estudiante, 'Nota Final', 5, 'Componente'),
+    (generar_excel_indicadores, 'Resumen', 3, 'Periodo'),
+]
+
+
+def _xlsx(generador, tmp_path, identidad):
+    ruta = str(tmp_path / f'{generador.__name__}.xlsx')
+    with patch('apps.configuracion.identidad.obtener_identidad', return_value=identidad):
+        generador({}, ruta)
+    return load_workbook(ruta)
+
+
+@pytest.mark.parametrize('generador,hoja,fila_tabla,encabezado', GENERADORES_EXCEL)
+def test_excel_muestra_membrete_y_logo_configurados(generador, hoja, fila_tabla, encabezado, tmp_path, logo_png):
+    wb = _xlsx(generador, tmp_path, _identidad(logo_png))
+    info = wb['Info']
+    assert len(info._images) == 1
+    ancla = info._images[0].anchor  # tamaño mostrado, en EMU (9525 por px)
+    assert (ancla._from.col, ancla._from.row) == (0, 0)  # A1
+    assert ancla.ext.height / 9525 == 60
+    assert info['C1'].value == 'Universidad de Prueba'
+    assert info['C2'].value == 'Programa de Prueba'
+    assert info['C3'].value.startswith('Exportado:')
+    datos = wb[hoja]
+    assert (datos['A1'].value, datos['A2'].value) == ('Universidad de Prueba', 'Programa de Prueba')
+    assert datos.cell(fila_tabla, 1).value == encabezado  # la tabla bajó 2 filas intacta
+
+
+@pytest.mark.parametrize('generador,hoja,fila_tabla,encabezado', GENERADORES_EXCEL)
+def test_excel_sin_logo_escribe_membrete_en_columna_a(generador, hoja, fila_tabla, encabezado, tmp_path):
+    info = _xlsx(generador, tmp_path, _identidad(None))['Info']
+    assert info._images == []
+    assert (info['A1'].value, info['A2'].value) == ('Universidad de Prueba', 'Programa de Prueba')
+    assert info['A3'].value.startswith('Exportado:')
+
+
+@pytest.mark.parametrize('generador,hoja,fila_tabla,encabezado', GENERADORES_EXCEL)
+def test_excel_se_genera_con_logo_borrado_o_danado(generador, hoja, fila_tabla, encabezado, tmp_path):
+    danado = tmp_path / 'danado.png'
+    danado.write_bytes(b'esto no es una imagen')
+    for logo in (str(tmp_path / 'no_existe.png'), str(danado)):
+        info = _xlsx(generador, tmp_path, _identidad(logo))['Info']
+        assert info._images == []
+        assert info['A1'].value == 'Universidad de Prueba'

@@ -6,6 +6,7 @@ import {
 } from 'recharts'
 import { reportesApi } from '../../services/docenteApi'
 import ExportarReporte from '../Compartidos/ExportarReporte'
+import Semaforo, { nivelPorPorcentaje } from '../Compartidos/Semaforo'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -131,14 +132,6 @@ function EstadoBadge({ estado }) {
             {cfg.label}
         </span>
     )
-}
-
-// ── Semáforo ──────────────────────────────────────────────────────────────────
-
-function Semaforo({ value }) {
-    if (value >= 60) return <span className="inline-block w-3 h-3 rounded-full bg-green-500" title="Buen avance" />
-    if (value >= 30) return <span className="inline-block w-3 h-3 rounded-full bg-yellow-400" title="Avance medio" />
-    return <span className="inline-block w-3 h-3 rounded-full bg-[#d32f2f]" title="Avance bajo" />
 }
 
 // ── Colores para gráficas ─────────────────────────────────────────────────────
@@ -453,7 +446,7 @@ export default function ReporteProyecto() {
                                             </td>
                                             <td className="px-3 py-3">
                                                 <div className="flex items-center gap-1.5">
-                                                    <Semaforo value={Number(est.promedio_avance_pct ?? 0)} />
+                                                    <Semaforo nivel={nivelPorPorcentaje(est.promedio_avance_pct)} size="sm" />
                                                     {esRiesgo && (
                                                         <span className="text-[10px] font-bold text-[#d32f2f] bg-red-50 px-1.5 py-0.5 rounded">Riesgo</span>
                                                     )}

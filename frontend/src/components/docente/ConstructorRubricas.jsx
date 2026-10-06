@@ -1,6 +1,8 @@
 import { useState, useEffect, Fragment } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useLocation } from 'react-router-dom'
 import { rubricasApi } from '../../services/docenteApi'
+import MigasDePan from '../Compartidos/MigasDePan'
+import { migasFase } from '../../utils/migasDocente'
 
 function IconStar({ filled }) {
     return (
@@ -157,7 +159,8 @@ function parsearError(data) {
 // ── Componente principal ──────────────────────────────────────────────────────
 
 export default function ConstructorRubricas() {
-    const { proyectoId } = useParams()
+    const { proyectoId, faseId, actividadId } = useParams()
+    const location = useLocation()
 
     const [rubricas,     setRubricas]     = useState([])
     const [loadingLista, setLoadingLista] = useState(true)
@@ -357,6 +360,11 @@ export default function ConstructorRubricas() {
     if (vista === 'lista') {
         return (
             <div className="flex-1 overflow-y-auto p-4 sm:p-6" style={{ fontFamily: "'Manrope', sans-serif" }}>
+                <MigasDePan items={[
+                    ...migasFase(proyectoId, faseId, location.state),
+                    { label: location.state?.actividadNombre ?? 'Actividad', to: `/docente/proyectos/${proyectoId}/fases/${faseId}/actividades/${actividadId}/actividad`, state: location.state },
+                    { label: 'Rúbricas' },
+                ]} />
                 <div className="flex items-center justify-between mb-6">
                     <div>
                         <h1 className="text-[22px] font-extrabold text-[#191c1d] tracking-tight">Rúbricas</h1>

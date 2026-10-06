@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { configuracionApi } from "../services/api";
+import IdentidadInstitucional from "./IdentidadInstitucional";
 
 // ─── Subcomponentes ──────────────────────────────────────────────────────────
 
@@ -208,9 +209,7 @@ function SectionCard({ icon, iconBg, title, children, onSave }) {
 export default function ConfiguracionParametros() {
   const [params, setParams] = useState({
     institucional: {
-      nombre_institucion: "",
       correo_soporte: "",
-      logo_url: "",
     },
   });
   const [toast, setToast] = useState("");
@@ -233,9 +232,7 @@ export default function ConfiguracionParametros() {
 
       if (data.institucional) {
         data.institucional.forEach((p) => {
-          if (p.clave === "nombre_institucion") mapped.institucional.nombre_institucion = p.valor_casteado;
           if (p.clave === "correo_soporte") mapped.institucional.correo_soporte = p.valor_casteado;
-          if (p.clave === "logo_url") mapped.institucional.logo_url = p.valor_casteado;
         });
       }
 
@@ -257,9 +254,7 @@ export default function ConfiguracionParametros() {
   function handleSave(section) {
     const sectionMap = {
       institucional: {
-        nombre_institucion: "nombre_institucion",
         correo_soporte: "correo_soporte",
-        logo_url: "logo_url",
       },
     };
 
@@ -323,27 +318,16 @@ export default function ConfiguracionParametros() {
         onSave={() => handleSave("institucional")}
       >
         <ParamRow
-          label="Nombre de la institución"
-          paramKey="nombre_institucion"
-          value={params.institucional.nombre_institucion}
-          type="TEXTO"
-          onChange={(v) => updateParam("institucional", "nombre_institucion", v)}
-        />
-        <ParamRow
           label="Correo de Soporte"
           paramKey="correo_soporte"
           value={params.institucional.correo_soporte}
           type="TEXTO"
           onChange={(v) => updateParam("institucional", "correo_soporte", v)}
         />
-        <ParamRow
-          label="Logo URL"
-          paramKey="logo_url"
-          value={params.institucional.logo_url}
-          type="TEXTO"
-          onChange={(v) => updateParam("institucional", "logo_url", v)}
-        />
       </SectionCard>
+
+      {/* Sección 2: Identidad institucional (nombre, programa y logotipo de los reportes) */}
+      <IdentidadInstitucional />
     </div>
   );
 }

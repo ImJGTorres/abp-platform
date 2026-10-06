@@ -6,7 +6,6 @@ from django.utils import timezone
 from apps.usuarios.authentication import UsuarioJWTAuthentication
 from .models import Alerta
 from .serializers import AlertaSerializer
-from .services import generar_alertas_actividades_vencidas, generar_alertas_entregables_pendientes
 
 
 class AlertaListView(APIView):
@@ -14,14 +13,6 @@ class AlertaListView(APIView):
 
     def get(self, request):
         usuario_id = request.user.id
-
-        # Genera alertas de retraso al momento de consultar, de forma silenciosa.
-        # El unique constraint (tipo, usuario, referencia_id) garantiza idempotencia.
-        try:
-            generar_alertas_actividades_vencidas()
-            generar_alertas_entregables_pendientes()
-        except Exception:
-            pass
 
         estado = request.query_params.get('estado', 'no_leida')
         estados_validos = ['no_leida', 'leida', 'descartada', 'todas']

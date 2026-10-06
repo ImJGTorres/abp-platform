@@ -1,6 +1,6 @@
-from decimal import Decimal
-
 from django.db.models import Avg, Q
+
+from .semaforo import ROJO, clasificar_semaforo, obtener_umbrales
 
 
 def _get_parametro(clave, default):
@@ -12,18 +12,21 @@ def _get_parametro(clave, default):
         return default
 
 
-def calcular_rendimiento_estudiante(estudiante_id, proyecto_id=None, curso_id=None):
+def calcular_rendimiento_estudiante(estudiante_id, proyecto_id=None, curso_id=None, umbrales=None):
     """
     Calcula indicadores de rendimiento de un estudiante.
     Retorna dict con nota_promedio, porcentaje_actividades_incumplidas,
-    entregables_rechazados, totales, en_riesgo y alertas.
+    entregables_rechazados, totales, nivel_semaforo, en_riesgo y alertas.
+    en_riesgo es True exactamente cuando nivel_semaforo es 'rojo'.
+    umbrales: dict de obtener_umbrales(); pásalo al calcular muchos estudiantes.
     """
     from apps.cursos.models import Actividad, AvanceActividad
     from apps.entregables.models import Entregable
     from apps.equipos.models import MiembroEquipo
 
-    umbral_nota = _get_parametro('umbral_nota_bajo_rendimiento', Decimal('3.0'))
-    umbral_pct_incumplidas = _get_parametro('umbral_porcentaje_actividades_incumplidas', 50)
+    umbrales = umbrales or obtener_umbrales()
+    umbral_nota = umbrales['nota_rojo']
+    umbral_pct_incumplidas = umbrales['pct_rojo']
 
     equipos_qs = MiembroEquipo.objects.filter(usuario_id=estudiante_id, estado='activo')
     if proyecto_id:
@@ -67,6 +70,11 @@ def calcular_rendimiento_estudiante(estudiante_id, proyecto_id=None, curso_id=No
             f"{pct_incumplidas}% de actividades incumplidas (umbral: {umbral_pct_incumplidas}%)"
         )
 
+    nivel_semaforo = clasificar_semaforo(
+        nota_promedio, pct_incumplidas,
+        tiene_actividades=total_actividades > 0, umbrales=umbrales,
+    )
+
     return {
         'nota_promedio': nota_promedio,
         'porcentaje_actividades_incumplidas': pct_incumplidas,
@@ -74,7 +82,8 @@ def calcular_rendimiento_estudiante(estudiante_id, proyecto_id=None, curso_id=No
         'total_actividades': total_actividades,
         'entregables_rechazados': entregables_rechazados,
         'total_entregables': total_entregables,
-        'en_riesgo': len(alertas) > 0,
+        'nivel_semaforo': nivel_semaforo,
+        'en_riesgo': nivel_semaforo == ROJO,
         'alertas': alertas,
     }
 
@@ -105,10 +114,11 @@ def get_estudiantes_bajo_rendimiento(curso_id=None, proyecto_id=None, periodo_id
         ).values_list('usuario_id', flat=True)
         estudiantes_qs = estudiantes_qs.filter(id__in=member_ids)
 
+    umbrales = obtener_umbrales()
     resultado = []
     for est in estudiantes_qs:
         indicadores = calcular_rendimiento_estudiante(
-            est.id, proyecto_id=proyecto_id, curso_id=curso_id
+            est.id, proyecto_id=proyecto_id, curso_id=curso_id, umbrales=umbrales
         )
         if solo_riesgo and not indicadores['en_riesgo']:
             continue
@@ -239,12 +249,13 @@ def reporte_proyecto(proyecto_id):
         )
         avance_estudiantes = _fetchall_as_dicts(cur)
 
-    umbral = _get_parametro('umbral_nota_bajo_rendimiento', 3.0)
-
-    bajo_rendimiento = [
-        e for e in avance_estudiantes
-        if e.get('nota_promedio_5') is not None and float(e['nota_promedio_5']) < float(umbral)
-    ]
+    # Semáforo RF34: bajo rendimiento = estudiantes en rojo
+    umbrales = obtener_umbrales()
+    for e in avance_estudiantes:
+        e['nivel_semaforo'] = calcular_rendimiento_estudiante(
+            e['usuario_id'], proyecto_id=proyecto_id, umbrales=umbrales
+        )['nivel_semaforo']
+    bajo_rendimiento = [e for e in avance_estudiantes if e['nivel_semaforo'] == ROJO]
 
     hitos = list(
         HitoProyecto.objects.filter(id_proyecto_id=proyecto_id)
@@ -262,7 +273,8 @@ def reporte_proyecto(proyecto_id):
         'equipos': equipos,
         'avance_por_estudiante': avance_estudiantes,
         'estudiantes_bajo_rendimiento': bajo_rendimiento,
-        'umbral_bajo_rendimiento': float(umbral),
+        'umbral_bajo_rendimiento': float(umbrales['nota_rojo']),
+        'umbrales_semaforo': {k: float(v) for k, v in umbrales.items()},
     }
 
 
@@ -608,49 +620,40 @@ def reporte_equipo_estudiantes(equipo_id):
 
 # ── HU-033 ─────────────────────────────────────────────────────────────────
 
-def _indicadores_estudiantes_riesgo_por_curso(periodo_id=None, curso_id=None):
+def _indicadores_estudiantes_riesgo_por_curso(estudiantes, periodo_id=None, curso_id=None):
     """
-    Retorna conteo de estudiantes en riesgo agrupado por curso.
-    Usa umbral desde parametro_sistema.
+    Conteo semafórico (RF34) de estudiantes agrupado por curso.
+    Reutiliza el nivel_semaforo ya calculado para distribucion_semaforo (no
+    recalcula por curso). estudiantes_en_riesgo = estudiantes en rojo; se
+    mantiene por compatibilidad con DashboardDirector.jsx y las exportaciones.
     """
-    try:
-        from apps.configuracion.models import ParametroSistema
-        umbral = float(ParametroSistema.objects.get(clave='umbral_nota_bajo_rendimiento').valor)
-    except Exception:
-        umbral = 3.0
+    from apps.cursos.models import CursoEstudiante
 
-    with connection.cursor() as cur:
-        filtros = []
-        params = [umbral]
+    nivel_por_estudiante = {e['id']: e['nivel_semaforo'] for e in estudiantes}
+    inscripciones = CursoEstudiante.objects.filter(
+        estudiante_id__in=nivel_por_estudiante, estado='activo'
+    )
+    if periodo_id:
+        inscripciones = inscripciones.filter(curso__id_periodo_academico_id=periodo_id)
+    if curso_id:
+        inscripciones = inscripciones.filter(curso_id=curso_id)
 
-        if periodo_id:
-            filtros.append("AND c.id_periodo_academico_id = %s")
-            params.append(periodo_id)
-        if curso_id:
-            filtros.append("AND c.id = %s")
-            params.append(curso_id)
+    por_curso = {}
+    for curso_id_, curso_nombre, estudiante_id in inscripciones.values_list(
+        'curso_id', 'curso__nombre', 'estudiante_id'
+    ):
+        fila = por_curso.setdefault(curso_id_, {
+            'curso_id': curso_id_, 'curso_nombre': curso_nombre,
+            'verde': 0, 'amarillo': 0, 'rojo': 0,
+        })
+        fila[nivel_por_estudiante[estudiante_id]] += 1
 
-        filtro_sql = " ".join(filtros)
-
-        cur.execute(
-            f"""
-            SELECT
-                c.id                          AS curso_id,
-                c.nombre                      AS curso_nombre,
-                COUNT(DISTINCT vae.usuario_id) FILTER (
-                    WHERE vae.nota_promedio_5 < %s
-                )                             AS estudiantes_en_riesgo,
-                COUNT(DISTINCT vae.usuario_id) AS total_estudiantes_con_avance
-            FROM vista_avance_estudiante_proyecto vae
-            JOIN proyecto p  ON p.id = vae.proyecto_id
-            JOIN curso c     ON c.id = p.id_curso_id
-            WHERE 1=1 {filtro_sql}
-            GROUP BY c.id, c.nombre
-            ORDER BY estudiantes_en_riesgo DESC
-            """,
-            params,
-        )
-        return _fetchall_as_dicts(cur)
+    resultado = []
+    for fila in por_curso.values():
+        fila['estudiantes_en_riesgo'] = fila['rojo']
+        fila['total_estudiantes_con_avance'] = fila['verde'] + fila['amarillo'] + fila['rojo']
+        resultado.append(fila)
+    return sorted(resultado, key=lambda f: f['estudiantes_en_riesgo'], reverse=True)
 
 
 def indicadores_dashboard(periodo_id=None, curso_id=None):
@@ -744,9 +747,12 @@ def indicadores_dashboard(periodo_id=None, curso_id=None):
         )
         proyectos = _fetchall_as_dicts(cur)
 
-    # ── 4. Estudiantes en riesgo por curso ──
+    # ── 4. Semáforo RF34 por estudiante (una sola vez para 4 y 6) ──
+    estudiantes = get_estudiantes_bajo_rendimiento(
+        periodo_id=periodo_id, curso_id=curso_id, solo_riesgo=False
+    )
     riesgo_por_curso = _indicadores_estudiantes_riesgo_por_curso(
-        periodo_id=periodo_id, curso_id=curso_id
+        estudiantes, periodo_id=periodo_id, curso_id=curso_id
     )
 
     # ── 5. Distribución de avance (rangos) ──
@@ -779,6 +785,11 @@ def indicadores_dashboard(periodo_id=None, curso_id=None):
         distribucion = _fetchall_as_dicts(cur)
         distribucion_notas = distribucion[0] if distribucion else {}
 
+    # ── 6. Distribución semafórica RF34 (HU-033) ──
+    distribucion_semaforo = {'verde': 0, 'amarillo': 0, 'rojo': 0}
+    for est in estudiantes:
+        distribucion_semaforo[est['nivel_semaforo']] += 1
+
     return {
         'filtros_aplicados': {
             'periodo_id': periodo_id,
@@ -789,6 +800,7 @@ def indicadores_dashboard(periodo_id=None, curso_id=None):
         'proyectos': proyectos,
         'docentes_activos': docentes_activos,
         'estudiantes_riesgo_por_curso': riesgo_por_curso,
+        'distribucion_semaforo': distribucion_semaforo,
     }
 
 

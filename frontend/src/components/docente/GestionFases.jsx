@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link, useLocation, useNavigate } from 'react-router-dom'
 import { fasesApi } from '../../services/docenteApi'
+import MigasDePan from '../Compartidos/MigasDePan'
+import { migasProyecto } from '../../utils/migasDocente'
 
 function IconPlus() {
     return (
@@ -112,9 +114,6 @@ function Modal({ open, title, children }) {
 export default function GestionFases() {
     const { proyectoId } = useParams()
     const location = useLocation()
-    const cursoId = location.state?.cursoId
-    const cursoNombre = location.state?.cursoNombre
-    const proyectoNombre = location.state?.nombre
 
     const navigate = useNavigate()
 
@@ -216,31 +215,15 @@ export default function GestionFases() {
     return (
         <div className="flex-1 overflow-y-auto p-4 sm:p-6" style={{ fontFamily: "'Manrope', sans-serif" }}>
 
-            {/* Breadcrumb */}
-            <div className="mb-5 flex items-center gap-2 text-[13px] flex-wrap">
-                <Link to="/docente/cursos" className="text-[#9ba7ae] hover:text-[#4c616c] transition-colors">Mis cursos</Link>
-                {cursoId && (
-                    <>
-                        <IconChevron />
-                        <Link to={`/docente/cursos/${cursoId}`} state={location.state} className="text-[#9ba7ae] hover:text-[#4c616c] transition-colors">
-                            {cursoNombre ?? 'Curso'}
-                        </Link>
-                    </>
-                )}
-                {proyectoNombre && (
-                    <>
-                        <IconChevron />
-                        <span className="text-[#4c616c] font-medium">{proyectoNombre}</span>
-                    </>
-                )}
-                <IconChevron />
-                <span className="text-[#191c1d] font-semibold">Fases</span>
-            </div>
+            <MigasDePan className="mb-5" items={[
+                ...migasProyecto(proyectoId, location.state),
+                { label: 'Fases' },
+            ]} />
 
             {/* Header */}
             <div className="flex items-start justify-between mb-6 gap-4">
                 <div>
-                    <h1 className="text-[22px] font-extrabold text-[#191c1d] mb-1">Fases del proyecto</h1>
+                    <h1 className="text-[22px] font-extrabold text-[#191c1d] mb-1 tracking-tight">Fases del proyecto</h1>
                     <p className="text-[13px] text-[#9ba7ae] leading-relaxed">
                         Define y organiza las fases del ciclo de vida del proyecto.
                     </p>

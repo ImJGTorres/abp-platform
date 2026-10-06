@@ -4,6 +4,8 @@ import { actividadesApi, fasesApi } from '../../services/docenteApi'
 import { buildMediaUrl, session } from '../../services/api'
 import RegistroAvance from '../Estudiante/RegistroAvances'
 import LineaTiempoAvances from '../Estudiante/LineaTiempoAvances'
+import MigasDePan from './MigasDePan'
+import { migasProyecto } from '../../utils/migasDocente'
 
 const COLUMNAS = [
     { id: 'pendiente',   titulo: 'Pendiente',   color: 'bg-gray-100'  },
@@ -32,8 +34,19 @@ function Modal({ open, onClose, title, children, size = 'md' }) {
     return (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
             <div className={`bg-white rounded-2xl shadow-2xl w-full ${widthClass} max-h-[90vh] overflow-y-auto`} onClick={e => e.stopPropagation()}>
-                <div className="px-6 py-4 border-b border-[#e1e3e4] sticky top-0 bg-white z-10">
-                    <h3 className="text-[17px] font-bold text-[#191c1d]">{title}</h3>
+                <div className="px-6 py-4 border-b border-[#e1e3e4] sticky top-0 bg-white z-10 flex items-center justify-between gap-4">
+                    <h3 className="text-[17px] font-bold text-[#191c1d] min-w-0 truncate">{title}</h3>
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        aria-label="Cerrar"
+                        title="Cerrar"
+                        className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-[#6b7b83] hover:bg-[#f0f2f3] hover:text-[#191c1d] transition-colors"
+                    >
+                        <svg viewBox="0 0 20 20" fill="none" className="w-5 h-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                            <path d="M5 5l10 10M15 5L5 15" />
+                        </svg>
+                    </button>
                 </div>
                 {children}
             </div>
@@ -95,8 +108,6 @@ export default function TableroKanban() {
     const esEstudiante = user?.tipo_rol === 'estudiante' || user?.tipo_rol === 'lider_equipo'
 
     const cursoId = location.state?.cursoId
-    const cursoNombre = location.state?.cursoNombre
-    const proyectoNombre = location.state?.nombre
 
     const [fases, setFases] = useState([])
     const [actividades, setActividades] = useState([])
@@ -144,25 +155,14 @@ export default function TableroKanban() {
         <div className="flex-1 overflow-hidden flex flex-col p-6">
             <div className="max-w-full mx-auto flex-1 overflow-hidden flex flex-col">
 
-                {/* Breadcrumb — solo visible cuando hay estado de navegación (docente) */}
-                {cursoId && (
-                    <div className="mb-4 flex items-center gap-2 text-[13px] flex-wrap">
-                        <Link to="/docente/cursos" className="text-[#9ba7ae] hover:text-[#4c616c] transition-colors">Mis cursos</Link>
-                        <svg className="w-3 h-3 text-[#9ba7ae]" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 3l5 5-5 5" /></svg>
-                        <Link to={`/docente/cursos/${cursoId}`} state={location.state} className="text-[#9ba7ae] hover:text-[#4c616c] transition-colors">
-                            {cursoNombre ?? 'Curso'}
-                        </Link>
-                        {proyectoNombre && (
-                            <>
-                                <svg className="w-3 h-3 text-[#9ba7ae]" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 3l5 5-5 5" /></svg>
-                                <span className="text-[#191c1d] font-medium">{proyectoNombre}</span>
-                            </>
-                        )}
-                    </div>
-                )}
+                {/* Migas de pan — solo con estado de navegación del docente */}
+                {cursoId && <MigasDePan items={[
+                    ...migasProyecto(proyectoId, location.state),
+                    { label: 'Tablero Kanban' },
+                ]} />}
 
                 <div className="mb-6">
-                    <h1 className="text-[24px] font-bold text-[#191c1d] leading-tight mb-1">Tablero Kanban</h1>
+                    <h1 className="text-[22px] font-extrabold text-[#191c1d] leading-tight mb-1 tracking-tight">Tablero Kanban</h1>
                     <p className="text-[13px] text-[#9ba7ae]">Vista de tablero con columnas por estado donde se pueden ver y filtrar todas las actividades del proyecto.</p>
                 </div>
 
@@ -296,12 +296,6 @@ export default function TableroKanban() {
                             </div>
                             <LineaTiempoAvances actividadId={actividadSeleccionada.id} />
                         </div>
-                    </div>
-                    <div className="px-6 py-4 border-t border-[#e1e3e4]">
-                        <button onClick={() => { setActividadSeleccionada(null); setModalAvanceOpen(false) }}
-                            className="px-4 py-2.5 border border-[#e1e3e4] text-[#4c616c] rounded-xl hover:bg-[#f0f2f3] transition-colors text-[13px] font-semibold">
-                            Cerrar
-                        </button>
                     </div>
                 </Modal>
             )}

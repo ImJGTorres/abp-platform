@@ -25,6 +25,7 @@ from django.views.generic import TemplateView
 
 from apps.usuarios.views import CambiarContrasenaView, LoginView, OlvidarContrasenaView, RecuperarContrasenaView
 from apps.roles.views import PermisosAgrupadosView
+from apps.reportes.views import PendientesDashboardView
 from apps.cursos.urls import hitos_urlpatterns, proyectos_urlpatterns, raps_urlpatterns
 
 urlpatterns = [
@@ -57,6 +58,8 @@ urlpatterns = [
     # BE-07: Permisos agrupados por módulo (para formulario de asignación)
     path('api/permisos/', PermisosAgrupadosView.as_view(), name='permisos-agrupados'),
     path('api/bitacora/', include('apps.bitacora.urls')),  # Endpoint para consultar bitácora del sistema
+    # HU-039: muro de anuncios (antes de api/cursos/ y api/proyectos/)
+    path('api/', include('apps.anuncios.urls')),
     path('api/', include('apps.equipos.urls')),
     path('api/cursos/', include('apps.cursos.urls')),
     # Rutas anidadas de proyectos y sus objetivos:
@@ -73,6 +76,7 @@ urlpatterns = [
     path('api/', include('apps.entregables.urls')),
     path('api/', include('apps.evaluacion.urls')),
     path('api/reportes/', include('apps.reportes.urls')),
+    path('api/dashboard/pendientes/', PendientesDashboardView.as_view(), name='dashboard_pendientes'),  # HU-038
     path('api/alertas/', include('apps.alertas.urls')),
     path('api/exportar/', include('apps.exportaciones.urls')),
 

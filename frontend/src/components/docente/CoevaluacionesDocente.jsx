@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useLocation } from 'react-router-dom'
 import { evaluacionesEstudiantesApi } from '../../services/docenteApi'
+import MigasDePan from '../Compartidos/MigasDePan'
+import { migasProyecto } from '../../utils/migasDocente'
 
 const NIVEL_STYLES = {
     insuficiente:  { bg: 'bg-[#ffebee]', border: 'border-[#ef9a9a]', text: 'text-[#c62828]' },
@@ -21,17 +23,6 @@ function formatFecha(fecha) {
     return new Date(fecha).toLocaleDateString('es-CO', {
         day: '2-digit', month: 'short', year: 'numeric',
     })
-}
-
-function IconPeers() {
-    return (
-        <svg viewBox="0 0 24 24" fill="none" className="w-6 h-6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="9" cy="7" r="3" />
-            <path d="M3 20a6 6 0 0112 0" />
-            <circle cx="17" cy="8" r="2.5" />
-            <path d="M17 14c2.5 0 4 1.5 4 4" />
-        </svg>
-    )
 }
 
 function IconEmpty() {
@@ -142,6 +133,7 @@ function TarjetaCoevaluacion({ item }) {
 
 export default function CoevaluacionesDocente() {
     const { proyectoId } = useParams()
+    const location = useLocation()
     const [coevaluaciones, setCoevaluaciones] = useState([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
@@ -172,14 +164,16 @@ export default function CoevaluacionesDocente() {
 
     return (
         <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-            <div className="max-w-3xl mx-auto">
+            <div>
+                <MigasDePan items={[
+                    ...migasProyecto(proyectoId, location.state),
+                    { label: 'Coevaluaciones' },
+                ]} />
+
                 <div className="flex items-center gap-3 mb-6">
-                    <div className="w-10 h-10 bg-[#ffdad6] rounded-xl flex items-center justify-center text-[#d32f2f]">
-                        <IconPeers />
-                    </div>
                     <div>
-                        <h1 className="text-[20px] font-extrabold text-[#191c1d]">Coevaluaciones</h1>
-                        <p className="text-[13px] text-[#9ba7ae]">Evaluaciones entre compañeros registradas en este proyecto</p>
+                        <h1 className="text-[22px] font-extrabold text-[#191c1d] tracking-tight leading-tight">Coevaluaciones</h1>
+                        <p className="text-[13px] text-[#9ba7ae] mt-0.5">Evaluaciones entre compañeros registradas en este proyecto</p>
                     </div>
                 </div>
 

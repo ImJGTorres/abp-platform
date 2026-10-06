@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { cursosApi } from '../../services/docenteApi'
 import ModalDetalleEquipo from './ModalDetalleEquipo'
+import MigasDePan from '../Compartidos/MigasDePan'
 
 const AVATAR_COLORS = ['#d32f2f', '#1976d2', '#388e3c', '#7b1fa2', '#f57c00', '#0097a7', '#5d4037', '#37474f']
 const TEAM_COLORS = ['#1976d2', '#388e3c', '#f57c00', '#7b1fa2', '#d32f2f', '#0097a7']
@@ -319,19 +320,17 @@ export default function DetalleCurso() {
     return (
         <div className="flex-1 overflow-y-auto p-4 sm:p-6" style={{ fontFamily: "'Manrope', sans-serif" }}>
 
-            {/* Breadcrumb */}
-            <div className="mb-4 flex items-center gap-2 text-[13px] flex-wrap">
-                <Link to="/docente/cursos" className="text-[#9ba7ae] hover:text-[#4c616c] transition-colors">Mis cursos</Link>
-                <svg className="w-3 h-3 text-[#9ba7ae]" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 3l5 5-5 5" /></svg>
-                <span className="text-[#191c1d] font-medium truncate max-w-[200px]">{curso.nombre}</span>
-            </div>
+            <MigasDePan items={[
+                { label: 'Mis cursos', to: '/docente/cursos' },
+                { label: curso.nombre },
+            ]} />
 
             {/* Card info curso */}
             <div className="bg-white rounded-2xl border border-[#e1e3e4] p-5 sm:p-6 mb-6">
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                     <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-2 mb-2">
-                            <h1 className="text-[20px] sm:text-[24px] font-bold text-[#191c1d] leading-tight">{curso.nombre}</h1>
+                            <h1 className="text-[22px] font-extrabold text-[#191c1d] leading-tight tracking-tight">{curso.nombre}</h1>
                             <span className={`inline-block px-3 py-1 rounded-full text-[11px] font-semibold ${estadoCurso.bg} ${estadoCurso.text}`}>
                                 {estadoCurso.label}
                             </span>
@@ -392,7 +391,7 @@ export default function DetalleCurso() {
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <Link
-                                            to={`/docente/proyectos/${p.id}/objetivos`}
+                                            to={`/docente/proyectos/${p.id}/monitoreo`}
                                             state={{ nombre: p.nombre, periodo: curso.periodo_nombre, cursoId: id, cursoNombre: curso.nombre }}
                                             className="text-[15px] font-bold text-[#191c1d] leading-tight truncate group-hover:text-[#d32f2f] transition-colors block hover:text-[#d32f2f]">
                                             {p.nombre}
@@ -514,18 +513,6 @@ export default function DetalleCurso() {
                     equipo={proyectoViendo.proyecto.equipo}
                     onClose={() => setProyectoViendo(null)}
                     onAgregar={() => { setProyectoViendo(null); handleAgregar() }}
-                    onPerfilesYRoles={() => {
-                        setProyectoViendo(null)
-                        navigate(`/docente/cursos/${id}/proyectos/${proyectoViendo.proyecto.id}/equipo`)
-                    }}
-                    onReorganizar={() => {
-                        setProyectoViendo(null)
-                        navigate(`/docente/cursos/${id}/proyectos/${proyectoViendo.proyecto.id}/reorganizar`)
-                    }}
-                    onCronograma={() => {
-                        setProyectoViendo(null)
-                        navigate(`/docente/cursos/${id}/proyectos/${proyectoViendo.proyecto.id}/cronograma`)
-                    }}
                 />
             )}
         </div>

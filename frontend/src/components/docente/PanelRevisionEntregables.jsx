@@ -3,6 +3,8 @@ import { useParams, useLocation } from 'react-router-dom'
 import { entregablesApi } from '../../services/entregablesApi'
 import { rubricasApi } from '../../services/docenteApi'
 import ModalEvaluacionRubrica from './ModalEvaluacionRubrica'
+import MigasDePan from '../Compartidos/MigasDePan'
+import { migasFase } from '../../utils/migasDocente'
 
 // ── Iconos ────────────────────────────────────────────────────────────────────
 
@@ -131,7 +133,7 @@ function ListaArchivos({ archivos }) {
 // ── Vista principal ───────────────────────────────────────────────────────────
 
 export default function PanelRevisionEntregables() {
-    const { actividadId, proyectoId } = useParams()
+    const { actividadId, proyectoId, faseId } = useParams()
     const location = useLocation()
     const actividadNombre = location.state?.actividadNombre ?? ''
 
@@ -229,9 +231,15 @@ export default function PanelRevisionEntregables() {
     return (
         <div className="flex-1 overflow-y-auto p-4 sm:p-6" style={{ fontFamily: "'Manrope', sans-serif" }}>
 
+            <MigasDePan items={[
+                ...migasFase(proyectoId, faseId, location.state),
+                { label: location.state?.actividadNombre ?? 'Actividad', to: `/docente/proyectos/${proyectoId}/fases/${faseId}/actividades/${actividadId}/actividad`, state: location.state },
+                { label: 'Entregables' },
+            ]} />
+
             {/* Header */}
             <div className="mb-6">
-                <h1 className="text-[22px] font-extrabold text-[#191c1d] mb-1">Entregables</h1>
+                <h1 className="text-[22px] font-extrabold text-[#191c1d] mb-1 tracking-tight">Entregables</h1>
                 {actividadNombre && (
                     <p className="text-[13px] text-[#9ba7ae]">
                         Actividad: <span className="font-semibold text-[#4c616c]">{actividadNombre}</span>

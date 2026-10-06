@@ -100,3 +100,40 @@ class TestBajoRendimientoView:
             response = BajoRendimientoView.as_view()(req)
 
         assert response.status_code == 400
+
+    def test_nivel_invalido_retorna_400(self):
+        req = authenticated_request(self.factory, 'GET', '/api/reportes/bajo-rendimiento/',
+                                    make_payload(tipo_rol='director'),
+                                    query_params={'nivel': 'azul'})
+        with auth_ctx(req):
+            response = BajoRendimientoView.as_view()(req)
+
+        assert response.status_code == 400
+
+    @patch('apps.reportes.views.get_estudiantes_bajo_rendimiento')
+    def test_filtro_nivel_devuelve_solo_ese_color(self, mock_srv):
+        mock_srv.return_value = [
+            {'id': 1, 'nivel_semaforo': 'amarillo'},
+            {'id': 2, 'nivel_semaforo': 'rojo'},
+            {'id': 3, 'nivel_semaforo': 'verde'},
+        ]
+        req = authenticated_request(self.factory, 'GET', '/api/reportes/bajo-rendimiento/',
+                                    make_payload(tipo_rol='director'),
+                                    query_params={'nivel': 'amarillo'})
+        with auth_ctx(req):
+            response = BajoRendimientoView.as_view()(req)
+
+        assert response.status_code == 200
+        assert [e['id'] for e in response.data['estudiantes']] == [1]
+        assert mock_srv.call_args.kwargs['solo_riesgo'] is False
+
+
+def test_clasificar_semaforo_regla_rf34():
+    from apps.reportes.semaforo import clasificar_semaforo
+    u = {'nota_rojo': 3.0, 'pct_rojo': 50, 'nota_amarillo': 3.5, 'pct_amarillo': 25}
+    assert clasificar_semaforo(2.8, 10, umbrales=u) == 'rojo'
+    assert clasificar_semaforo(3.2, 10, umbrales=u) == 'amarillo'
+    assert clasificar_semaforo(4.0, 10, umbrales=u) == 'verde'
+    assert clasificar_semaforo(4.0, 60, umbrales=u) == 'rojo'
+    assert clasificar_semaforo(4.0, 30, umbrales=u) == 'amarillo'
+    assert clasificar_semaforo(0, 0, tiene_actividades=False, umbrales=u) == 'verde'

@@ -8,6 +8,7 @@ from apps.bitacora.models import BitacoraSistema
 from apps.bitacora.utils import registrar_evento
 from apps.usuarios.authentication import UsuarioJWTAuthentication
 
+from .semaforo import NIVELES_SEMAFORO
 from .services import calcular_rendimiento_estudiante, get_estudiantes_bajo_rendimiento
 
 logger = logging.getLogger(__name__)
@@ -28,6 +29,13 @@ class BajoRendimientoView(APIView):
         proyecto_id = request.query_params.get('proyecto_id')
         periodo_id = request.query_params.get('periodo_id')
         solo_riesgo = request.query_params.get('solo_riesgo', 'true').lower() != 'false'
+        nivel = request.query_params.get('nivel')
+
+        if nivel and nivel not in NIVELES_SEMAFORO:
+            return Response(
+                {'error': 'El parámetro nivel debe ser verde, amarillo o rojo.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         try:
             curso_id = int(curso_id) if curso_id else None
@@ -44,8 +52,10 @@ class BajoRendimientoView(APIView):
                 curso_id=curso_id,
                 proyecto_id=proyecto_id,
                 periodo_id=periodo_id,
-                solo_riesgo=solo_riesgo,
+                solo_riesgo=solo_riesgo and not nivel,
             )
+            if nivel:
+                estudiantes = [e for e in estudiantes if e['nivel_semaforo'] == nivel]
 
             try:
                 registrar_evento(
@@ -53,8 +63,8 @@ class BajoRendimientoView(APIView):
                     accion=BitacoraSistema.Accion.ACCESS,
                     modulo='reportes',
                     descripcion=(
-                        f"Consulta reporte bajo rendimiento. "
-                        f"Filtros: curso={curso_id}, proyecto={proyecto_id}, periodo={periodo_id}"
+                        f"Consulta panel de rendimiento: filtros=curso={curso_id}, "
+                        f"proyecto={proyecto_id}, periodo={periodo_id}, nivel={nivel}"
                     ),
                 )
             except Exception:
@@ -382,3 +392,14 @@ def _calcular_promedio_grupo(curso_id=None, proyecto_id=None):
         'nota_promedio': round(sum(notas) / len(notas), 2),
         'pct_actividades_incumplidas': round(sum(pcts) / len(pcts), 2),
     }
+
+
+# ── HU-038: Pendientes priorizados de la pantalla de inicio ─────────────────
+
+class PendientesDashboardView(APIView):
+    """GET /api/dashboard/pendientes/ — pendientes del usuario autenticado según su rol."""
+    authentication_classes = [UsuarioJWTAuthentication]
+
+    def get(self, request):
+        from .pendientes import pendientes_usuario
+        return Response(pendientes_usuario(request.user), status=status.HTTP_200_OK)

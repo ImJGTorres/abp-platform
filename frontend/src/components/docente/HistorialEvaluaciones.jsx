@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useLocation } from 'react-router-dom'
 import { fasesApi, actividadesApi, evaluacionesApi } from '../../services/docenteApi'
 import { entregablesApi } from '../../services/entregablesApi'
+import MigasDePan from '../Compartidos/MigasDePan'
+import { migasProyecto } from '../../utils/migasDocente'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -14,16 +16,6 @@ function formatFecha(fecha) {
 }
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
-
-function IconHistory() {
-    return (
-        <svg viewBox="0 0 20 20" fill="none" className="w-5 h-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="10" cy="10" r="8" />
-            <path d="M10 6v4l3 2" />
-            <path d="M3 10H1M10 3V1" />
-        </svg>
-    )
-}
 
 function IconCheck() {
     return (
@@ -153,6 +145,7 @@ function TarjetaHistorial({ item }) {
 
 export default function HistorialEvaluaciones() {
     const { proyectoId } = useParams()
+    const location = useLocation()
 
     const [items,   setItems]   = useState([])
     const [loading, setLoading] = useState(true)
@@ -283,11 +276,13 @@ export default function HistorialEvaluaciones() {
         <div className="flex-1 overflow-y-auto p-5 sm:p-6"
             style={{ fontFamily: "'Manrope', sans-serif" }}>
 
+            <MigasDePan items={[
+                ...migasProyecto(proyectoId, location.state),
+                { label: 'Historial de calificaciones' },
+            ]} />
+
             {/* Encabezado */}
             <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 rounded-xl bg-[#e8f4fd] flex items-center justify-center text-[#1565c0] flex-shrink-0">
-                    <IconHistory />
-                </div>
                 <div>
                     <h1 className="text-[22px] font-extrabold text-[#191c1d] tracking-tight leading-tight">
                         Historial de Evaluaciones

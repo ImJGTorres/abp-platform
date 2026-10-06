@@ -47,6 +47,8 @@
 | Coevaluación | `/api/proyectos/<id>/coevaluaciones/` |
 | Alertas | `/api/alertas/` |
 | Reportes | `/api/reportes/` |
+| Dashboard (pendientes) | `/api/dashboard/pendientes/` |
+| Anuncios (muro) | `/api/cursos/<id>/anuncios/` · `/api/proyectos/<id>/anuncios/` |
 | Exportaciones | `/api/exportar/` |
 
 ---
@@ -363,6 +365,39 @@
 }
 ```
 **Error `400`:** valor inválido para el tipo de dato del parámetro
+
+### `GET /api/configuracion/identidad/`
+**HU-035.** Identidad institucional que usan el membrete de PDF/Excel y los correos.
+**Permiso:** Cualquier usuario autenticado
+**Respuesta `200`:**
+```json
+{
+  "nombre_institucion": "Universidad Francisco de Paula Santander",
+  "programa_academico": "Ingeniería de Sistemas",
+  "logotipo": "/media/identidad/logo.png",
+  "fecha_actualizacion": "2026-09-25T10:30:00Z"
+}
+```
+- `logotipo` es la ruta de media (el frontend arma la URL con `buildMediaUrl()`), o `null` si no hay logo.
+- Si aún no se ha configurado, devuelve los valores por defecto (`UFPS — Plataforma ABP`, `Ingeniería de Sistemas`, sin logo).
+
+### `PUT /api/configuracion/identidad/`
+**Permiso:** Solo administrador (otro rol → `403 { "detail": "Se requiere rol de administrador." }`)
+**Body:** `multipart/form-data` (también acepta JSON sin logo)
+| Campo | Tipo | Requerido |
+|---|---|---|
+| `nombre_institucion` | texto (máx. 200) | sí |
+| `programa_academico` | texto (máx. 200) | sí |
+| `logotipo` | archivo PNG/JPG/JPEG (máx. 2 MB) | no; si no se envía se conserva el actual |
+
+**Respuesta `200`:** mismo formato que el GET, con los datos guardados.
+**Error `400`** (por campo):
+```json
+{ "logotipo": ["Solo se permiten archivos PNG o JPG."] }
+{ "logotipo": ["El logotipo no puede superar 2 MB."] }
+{ "nombre_institucion": ["Este campo es requerido."] }
+```
+Al reemplazar el logotipo se borra el archivo anterior del disco. Guarda `id_usuario_actualiza` y registra en bitácora `UPDATE / configuracion`: `Identidad institucional actualizada: <campos>`.
 
 ---
 
@@ -1410,6 +1445,8 @@
 
 ### `GET /api/alertas/`
 **Permiso:** Autenticado (retorna solo las alertas del usuario en sesión)
+**Nota (modificado, HU-030):** solo lee alertas ya generadas; no las crea. Las genera el job
+`python manage.py run_scheduler` (o `generar_alertas` / `run_scheduler --once`). El formato de respuesta no cambia.
 **Query params:** `estado=no_leida | leida | descartada`
 **Respuesta `200`:**
 ```json
@@ -1417,6 +1454,7 @@
   {
     "id": 1,
     "tipo": "actividad_vencida",
+    "gravedad": "alta",
     "mensaje": "La actividad 'Entrevistas con stakeholders' está vencida.",
     "estado": "no_leida",
     "id_proyecto": 1,
@@ -1427,6 +1465,13 @@
 ]
 ```
 **`tipo` válidos:** `actividad_vencida | entregable_pendiente | entregable_enviado | evaluacion_pendiente | bajo_rendimiento`
+**`gravedad` (modificado, solo lectura):** `baja | media | alta`, asignada por tipo al crear la alerta:
+`actividad_vencida`, `bajo_rendimiento` → `alta` · `entregable_pendiente` → `media` · resto → `baja`.
+También se incluye en la respuesta de `PATCH /api/alertas/<alerta_id>/leer/`.
+
+> **Cola de correos (`cola_correo`, sin endpoint):** cada alerta **nueva** deja una fila en estado
+> `pendiente` con `plantilla = "alerta"` y `contexto = {"mensaje": "...", "proyecto_id": 1}`.
+> Si la alerta ya existía no se encola nada. El envío real lo hace HU-043.
 
 ### `PATCH /api/alertas/<alerta_id>/leer/`
 **Permiso:** Dueño de la alerta
@@ -1439,18 +1484,30 @@
 
 ### `GET /api/reportes/indicadores/`
 **Permiso:** Director o administrador
+**Query params:** `periodo_id` · `curso_id` (opcionales, enteros; otro valor → `400`)
 **Respuesta `200`:**
 ```json
 {
-  "total_proyectos": 12,
-  "proyectos_activos": 8,
-  "total_equipos": 24,
-  "total_entregables": 96,
-  "entregables_aprobados": 70,
-  "tasa_aprobacion": 72.9,
-  "promedio_progreso_proyectos": 58.3
+  "filtros_aplicados": { "periodo_id": 1, "curso_id": null },
+  "resumen_periodo": { "periodo_id": 1, "total_estudiantes": 45, "...": "..." },
+  "distribucion_notas": { "rango_0_2": 4, "rango_2_3": 8, "rango_3_4": 20, "rango_4_5": 13, "nota_promedio_global": 3.42 },
+  "proyectos": [],
+  "docentes_activos": [],
+  "estudiantes_riesgo_por_curso": [
+    {
+      "curso_id": 3, "curso_nombre": "Ingeniería de Software I",
+      "verde": 20, "amarillo": 6, "rojo": 4,
+      "estudiantes_en_riesgo": 4,
+      "total_estudiantes_con_avance": 30
+    }
+  ],
+  "distribucion_semaforo": { "verde": 30, "amarillo": 9, "rojo": 6 }
 }
 ```
+`distribucion_semaforo` (HU-033): conteo de estudiantes activos por nivel RF34 (`clasificar_semaforo`), con los mismos filtros. La suma es el total de estudiantes del filtro.
+
+`estudiantes_riesgo_por_curso` (HU-033, modificado): ya no usa un umbral de nota propio; reutiliza el mismo `nivel_semaforo` de `distribucion_semaforo`, agrupado por los cursos donde el estudiante está inscrito (activo). Cada curso trae `verde`, `amarillo` y `rojo`. Se conservan por compatibilidad: `estudiantes_en_riesgo` (= `rojo`) y `total_estudiantes_con_avance` (= total de estudiantes del curso, `verde + amarillo + rojo`). Ordenado por `estudiantes_en_riesgo` descendente.
+Registra en bitácora `ACCESS / reportes`.
 
 ### `GET /api/reportes/indicadores/tendencia/`
 **Permiso:** Director o administrador
@@ -1461,6 +1518,13 @@
 ### `GET /api/reportes/proyecto/<proyecto_id>/`
 **Permiso:** Docente del proyecto, director o administrador
 **Respuesta `200`:** Reporte completo del proyecto (fases, actividades, equipos, entregables, evaluaciones)
+
+> **HU-029 · Semáforo RF34 (modificado):** cada elemento de `avance_por_estudiante` incluye `nivel_semaforo`.
+> `estudiantes_bajo_rendimiento` son los estudiantes en `rojo` (nota **o** % de actividades incumplidas), ya no solo `nota < umbral`.
+> `umbral_bajo_rendimiento` (nota del rojo) se mantiene por compatibilidad y se agrega `umbrales_semaforo`:
+> ```json
+> { "umbral_bajo_rendimiento": 3.0, "umbrales_semaforo": { "nota_rojo": 3.0, "pct_rojo": 50.0, "nota_amarillo": 3.5, "pct_amarillo": 25.0 } }
+> ```
 
 ### `GET /api/reportes/curso/<curso_id>/`
 **Permiso:** Docente del curso, director o administrador
@@ -1477,26 +1541,133 @@
 ---
 
 ### `GET /api/reportes/bajo-rendimiento/`
-**Permiso:** Docente o administrador
-**Query params:** `curso_id` · `proyecto_id` · `umbral=60`
+**Permiso:** Director, docente o administrador (otro rol → `403`)
+**Query params:** `curso_id` · `proyecto_id` · `periodo_id` (enteros) · `solo_riesgo=true|false` (default `true`) · `nivel=verde|amarillo|rojo`
+- `nivel` (HU-029): devuelve solo los estudiantes de ese color e ignora `solo_riesgo`. Otro valor → `400 { "error": "El parámetro nivel debe ser verde, amarillo o rojo." }`
+
+**Ejemplo:** `GET /api/reportes/bajo-rendimiento/?periodo_id=1&nivel=amarillo`
 **Respuesta `200`:**
 ```json
-[
-  {
-    "estudiante_id": 10,
-    "nombre": "Carlos García",
-    "correo": "carlos@ufps.edu.co",
-    "proyecto_id": 1,
-    "promedio_progreso": 35.0,
-    "actividades_vencidas": 3,
-    "entregables_rechazados": 1
-  }
-]
+{
+  "total": 1,
+  "estudiantes": [
+    {
+      "id": 10,
+      "nombre": "Carlos",
+      "apellido": "García",
+      "correo": "carlos@ufps.edu.co",
+      "codigo": "1151234",
+      "nota_promedio": 3.2,
+      "porcentaje_actividades_incumplidas": 10.0,
+      "actividades_incumplidas": 1,
+      "total_actividades": 10,
+      "entregables_rechazados": 0,
+      "total_entregables": 3,
+      "en_riesgo": false,
+      "nivel_semaforo": "amarillo",
+      "alertas": []
+    }
+  ]
+}
 ```
+Registra en bitácora `ACCESS / reportes` con descripción `Consulta panel de rendimiento: filtros=...`.
+
+> **HU-029 · Semáforo RF34 (modificado):** cada estudiante devuelto y el objeto de indicadores de
+> `GET /api/reportes/estudiantes/<estudiante_id>/rendimiento/` incluyen ahora
+> `"nivel_semaforo": "verde" | "amarillo" | "rojo"`, calculado por
+> `apps.reportes.semaforo.clasificar_semaforo()`:
+> - sin actividades asignadas → `verde`
+> - `nota_promedio < umbral_nota_bajo_rendimiento` (3.0) o `porcentaje_actividades_incumplidas >= umbral_porcentaje_actividades_incumplidas` (50) → `rojo`
+> - `nota_promedio < umbral_nota_alerta` (3.5) o `porcentaje_actividades_incumplidas >= umbral_porcentaje_alerta` (25) → `amarillo`
+> - en otro caso → `verde`
+>
+> Los umbrales son parámetros de `parametro_sistema` (editables con `PATCH /api/configuracion/<clave>/`).
+> **`nivel_semaforo` es el campo principal.** `en_riesgo` queda **obsoleto** (solo por compatibilidad) y es `true` exactamente cuando `nivel_semaforo == "rojo"`.
+> No hay registros históricos que migrar: `en_riesgo` no está guardado en ninguna tabla, se calcula en cada consulta.
+>
+> ```json
+> { "nota_promedio": 3.2, "porcentaje_actividades_incumplidas": 10.0, "nivel_semaforo": "amarillo", "en_riesgo": false, "alertas": [] }
+> ```
 
 ### `GET /api/reportes/estudiantes/<estudiante_id>/rendimiento/`
 **Permiso:** Propio estudiante, docente o administrador
 **Respuesta `200`:** Perfil completo de rendimiento del estudiante (actividades, entregables, evaluaciones, avances)
+
+---
+
+## Dashboard
+
+### `GET /api/dashboard/pendientes/`
+**HU-038.** Pendientes del usuario autenticado para la pantalla de inicio, según su rol.
+**Permiso:** Cualquier usuario autenticado (sin token → `401`). Un rol sin reglas devuelve la lista vacía.
+**Respuesta `200`:**
+```json
+{
+  "al_dia": false,
+  "pendientes": [
+    { "tipo": "vencido", "titulo": "Actividad vencida: Diagrama ER", "fecha": "2026-10-03", "urgencia": 3,
+      "enlace": "/estudiante/proyectos/1/actividades" },
+    { "tipo": "proximo", "titulo": "Actividad por vencer: Informe final", "fecha": "2026-10-06", "urgencia": 2,
+      "enlace": "/estudiante/proyectos/1/actividades" }
+  ],
+  "resumen": { "total": 2, "vencido": 1, "proximo": 1, "sin_calificar": 0, "alerta": 0 }
+}
+```
+- `tipo`: `vencido` · `proximo` · `sin_calificar` · `alerta`. `urgencia`: 3 (más urgente) a 1. `fecha`: `YYYY-MM-DD`.
+- `enlace`: ruta del frontend a la que lleva el pendiente (puede ser `null` en alertas sin proyecto).
+- Orden: `urgencia` descendente y luego `fecha` ascendente. `al_dia` es `true` cuando la lista está vacía.
+
+| Rol | Pendiente | tipo | urgencia | enlace |
+|---|---|---|---|---|
+| estudiante, lider_equipo | Actividad asignada (responsable, responsables o equipo activo) no completada con `fecha_limite` < hoy | `vencido` | 3 | `/estudiante/proyectos/{id}/actividades` |
+| estudiante, lider_equipo | Actividad asignada con `fecha_limite` entre hoy y hoy + 3 días | `proximo` | 2 | `/estudiante/proyectos/{id}/actividades` |
+| estudiante, lider_equipo | Entregable del equipo en `borrador` o `rechazado` | `proximo` | 2 | `/estudiante/proyectos/{id}/actividades/{act}/entregables` |
+| estudiante, lider_equipo | Alerta no leída | `alerta` | 1 | `/estudiante/proyectos/{id}` |
+| docente | Entregable `enviado` de sus cursos sin evaluación publicada | `sin_calificar` | 3 | `/docente/proyectos/{id}/fases/{f}/actividades/{act}/entregables` |
+| docente | Actividad no completada y vencida de sus proyectos | `vencido` | 2 | `/docente/proyectos/{id}/fases/{f}/actividades/{act}` |
+| docente | Alerta no leída | `alerta` | 1 | `/docente/proyectos/{id}/monitoreo` |
+| director, administrador | Alerta no leída | `alerta` | 1 | `/director/reportes/proyecto/{id}` |
+| director, administrador | Resumen "N estudiante(s) en rojo (riesgo crítico)" del periodo activo (semáforo RF34), solo si N > 0 | `alerta` | 2 | `/director/riesgo` |
+
+---
+
+## Anuncios (muro)
+
+**HU-039.** Mismo comportamiento en las dos rutas; el curso o proyecto sale de la URL (si el body trae `id_curso`/`id_proyecto`, se ignora).
+El muro de un curso muestra solo los anuncios del curso; los de sus proyectos están en el muro de cada proyecto.
+
+### `GET /api/cursos/<curso_id>/anuncios/` · `GET /api/proyectos/<proyecto_id>/anuncios/`
+**Permiso:** docente del curso, estudiante inscrito (activo), miembro activo de un equipo del proyecto (o de un proyecto del curso), director o administrador. Otro usuario → `403 { "detail": "No tienes acceso a este muro." }`. Curso/proyecto inexistente → `404`.
+**Respuesta `200`:** lista ordenada del más reciente al más antiguo.
+```json
+[
+  {
+    "id": 12,
+    "id_curso": 3,
+    "id_proyecto": null,
+    "autor": { "id": 7, "nombre": "Ana", "apellido": "Pérez" },
+    "titulo": "Cambio de fecha",
+    "mensaje": "La entrega se mueve al viernes.",
+    "fecha_publicacion": "2026-09-30T14:00:00Z",
+    "fecha_creacion": "2026-09-30T14:00:00Z"
+  }
+]
+```
+
+### `POST /api/cursos/<curso_id>/anuncios/` · `POST /api/proyectos/<proyecto_id>/anuncios/`
+**Permiso (RN-001):**
+- `estudiante` o `lider_equipo` → `403 { "detail": "No tienes permiso para publicar en este muro" }` (antes de validar los datos).
+- `docente`: solo en sus cursos o en proyectos de sus cursos; otro docente → `403` con el mismo mensaje.
+- `director` y `administrador`: en cualquier curso o proyecto.
+
+**Body:**
+```json
+{ "titulo": "Cambio de fecha", "mensaje": "La entrega se mueve al viernes." }
+```
+`fecha_publicacion` es opcional (por defecto, ahora).
+**Respuesta `201`:** el anuncio creado (mismo formato que el GET).
+Encola un correo `anuncio` en `cola_correo` para cada integrante (miembros activos del proyecto, o estudiantes inscritos activos del curso; sin el autor) y registra en bitácora `CREATE / anuncios`.
+**Errores:** `404` curso/proyecto inexistente · `400` por campo (ej. `{ "mensaje": ["Este campo es requerido."] }`).
 
 ---
 

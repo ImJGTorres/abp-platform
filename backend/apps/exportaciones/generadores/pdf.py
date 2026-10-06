@@ -1,24 +1,26 @@
+import logging
 import os
 from datetime import datetime
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
+from reportlab.lib.utils import ImageReader
 from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
-    HRFlowable, PageBreak,
+    HRFlowable, PageBreak, Image,
 )
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+
+from . import NOMBRE_INSTITUCION, PROGRAMA, _criterio_rojo, _identidad  # noqa: F401
+
+logger = logging.getLogger(__name__)
 
 ROJO = colors.HexColor('#d32f2f')
 ROJO_CLARO = colors.HexColor('#ffcdd2')
 GRIS_OSCURO = colors.HexColor('#424242')
 GRIS_CLARO = colors.HexColor('#f5f5f5')
 BLANCO = colors.white
-
-NOMBRE_INSTITUCION = "UFPS — Plataforma ABP"
-PROGRAMA = "Ingeniería de Sistemas"
-
 
 def _estilos():
     s = getSampleStyleSheet()
@@ -54,10 +56,36 @@ def _estilo_tabla_base():
     ])
 
 
+def _logo(path):
+    """Image del logotipo, o None si no existe o está dañado (el PDF nunca falla por el logo)."""
+    if not path:
+        return None
+    try:
+        ImageReader(path).getSize()  # valida ahora: un archivo dañado fallaría en doc.build()
+        return Image(path, width=2.5 * cm, height=2.5 * cm, kind='proportional')
+    except Exception:
+        logger.warning("Logotipo institucional no disponible (%s); PDF sin logo", path, exc_info=True)
+        return None
+
+
 def _encabezado_pagina(story, titulo, subtitulo=None):
     s = _estilos()
-    story.append(Paragraph(NOMBRE_INSTITUCION, s['Normal2']))
-    story.append(Paragraph(PROGRAMA, s['Normal2']))
+    nombre, programa, logo_path = _identidad()
+    logo = _logo(logo_path)
+    if logo:
+        membrete = Table(
+            [[logo, [Paragraph(nombre, s['Subtitulo']), Paragraph(programa, s['Normal2'])]]],
+            colWidths=[3 * cm, 13.5 * cm],  # cabe en el ancho útil de A4 vertical
+        )
+        membrete.hAlign = 'LEFT'
+        membrete.setStyle(TableStyle([
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ]))
+        story.append(membrete)
+    else:
+        story.append(Paragraph(nombre, s['Normal2']))
+        story.append(Paragraph(programa, s['Normal2']))
     story.append(HRFlowable(width="100%", thickness=1.5, color=ROJO, spaceAfter=6))
     story.append(Paragraph(titulo, s['Titulo']))
     if subtitulo:
@@ -140,7 +168,7 @@ def generar_pdf_proyecto(datos, ruta_destino):
 
     bajo = datos.get('estudiantes_bajo_rendimiento', [])
     story.append(Paragraph(
-        f'Estudiantes en Bajo Rendimiento (umbral: {datos.get("umbral_bajo_rendimiento", 3.0)})',
+        f'Estudiantes en Bajo Rendimiento — {_criterio_rojo(datos)}',
         s['Subtitulo']
     ))
     if bajo:

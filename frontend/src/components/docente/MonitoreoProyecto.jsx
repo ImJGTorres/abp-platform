@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useLocation } from 'react-router-dom'
 import { monitoreoApi } from '../../services/docenteApi'
+import Semaforo, { SEMAFORO_NIVELES, nivelPorPorcentaje } from '../Compartidos/Semaforo'
+import MigasDePan from '../Compartidos/MigasDePan'
+import { migasProyecto } from '../../utils/migasDocente'
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 
@@ -59,19 +62,6 @@ const PRIORIDAD_META = {
     alta:   { label: 'Alta',   color: '#c62828', bg: '#ffebee' },
     media:  { label: 'Media',  color: '#e65100', bg: '#fff3e0' },
     baja:   { label: 'Baja',   color: '#2e7d32', bg: '#f1f8e9' },
-}
-
-function semaforo(porcentaje, bloqueadas) {
-    if (bloqueadas > 0) return 'rojo'
-    if (porcentaje >= 60) return 'verde'
-    if (porcentaje >= 30) return 'amarillo'
-    return 'rojo'
-}
-
-const SEMAFORO = {
-    verde:    { color: '#2e7d32', bg: '#f1f8e9', label: 'En buen camino' },
-    amarillo: { color: '#f9a825', bg: '#fffde7', label: 'Requiere atención' },
-    rojo:     { color: '#c62828', bg: '#ffebee', label: 'En riesgo' },
 }
 
 function estadoBadge(estado) {
@@ -175,8 +165,8 @@ function BarraFaseInner({ fase, total, completadas, enProgreso, bloqueadas, pend
 }
 
 function TarjetaEquipo({ equipo }) {
-    const sig = semaforo(equipo.porcentaje_progreso, equipo.actividades_bloqueadas)
-    const s = SEMAFORO[sig]
+    const nivel = equipo.actividades_bloqueadas > 0 ? 'rojo' : nivelPorPorcentaje(equipo.porcentaje_progreso)
+    const s = SEMAFORO_NIVELES[nivel]
     const pct = equipo.porcentaje_progreso
     return (
         <div className="bg-white border border-[#e1e3e4] rounded-2xl p-4 flex flex-col gap-3">
@@ -188,10 +178,7 @@ function TarjetaEquipo({ equipo }) {
                         <span className="text-[12px]">{equipo.num_miembros} miembro{equipo.num_miembros !== 1 ? 's' : ''}</span>
                     </div>
                 </div>
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl flex-shrink-0" style={{ backgroundColor: s.bg }}>
-                    <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
-                    <span className="text-[10px] font-bold" style={{ color: s.color }}>{s.label}</span>
-                </div>
+                <Semaforo nivel={nivel} size="md" />
             </div>
 
             {/* Progreso */}
@@ -235,6 +222,7 @@ function TarjetaEquipo({ equipo }) {
 
 export default function MonitoreoProyecto() {
     const { proyectoId } = useParams()
+    const location = useLocation()
 
     const [data,    setData]    = useState(null)
     const [loading, setLoading] = useState(true)
@@ -304,6 +292,11 @@ export default function MonitoreoProyecto() {
 
     return (
         <div className="flex-1 overflow-y-auto p-4 sm:p-6" style={{ fontFamily: "'Manrope', sans-serif" }}>
+
+            <MigasDePan items={[
+                ...migasProyecto(proyectoId, location.state),
+                { label: 'Monitoreo' },
+            ]} />
 
             {/* ── Cabecera ─────────────────────────────────────────────────── */}
             <div className="flex items-start justify-between gap-4 mb-6">

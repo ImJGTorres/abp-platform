@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
-import { useParams, useSearchParams, Link } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import { reportesApi } from '../../services/docenteApi'
 import ExportarReporte from '../Compartidos/ExportarReporte'
+import MigasDePan from '../Compartidos/MigasDePan'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -16,14 +17,6 @@ function nota5(val) {
 }
 
 // ── Iconos ────────────────────────────────────────────────────────────────────
-
-function IconBack() {
-    return (
-        <svg viewBox="0 0 16 16" fill="none" className="w-4 h-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-            <path d="M10 3L5 8l5 5" />
-        </svg>
-    )
-}
 
 function IconAlert() {
     return (
@@ -239,8 +232,6 @@ export default function PerfilRendimientoEstudiante() {
         cargar()
     }, [estudianteId, cursoId, proyectoId])
 
-    const backUrl = cursoId ? `/docente/cursos/${cursoId}/riesgo` : -1
-
     if (cargando) {
         return (
             <div className="flex-1 flex items-center justify-center">
@@ -277,16 +268,17 @@ export default function PerfilRendimientoEstudiante() {
 
     return (
         <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+            <MigasDePan items={[
+                { label: 'Mis cursos', to: '/docente/cursos' },
+                cursoId && { label: 'Curso', to: `/docente/cursos/${cursoId}` },
+                cursoId && { label: 'Desempeño', to: `/docente/cursos/${cursoId}/riesgo` },
+                { label: `${est.nombre} ${est.apellido}` },
+            ]} />
+
             {/* Encabezado */}
             <div className="flex items-start gap-4 mb-6">
-                <Link
-                    to={backUrl}
-                    className="flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-xl border border-[#e1e3e4] bg-white hover:bg-[#f0f2f3] transition-colors text-[#4c616c] mt-0.5"
-                >
-                    <IconBack />
-                </Link>
                 <div className="flex-1 min-w-0">
-                    <h1 className="text-[20px] font-extrabold text-[#191c1d] leading-tight">
+                    <h1 className="text-[22px] font-extrabold text-[#191c1d] leading-tight tracking-tight">
                         {est.nombre} {est.apellido}
                     </h1>
                     <p className="text-[13px] text-[#9ba7ae]">{est.correo} · {est.codigo ?? 'Sin código'}</p>

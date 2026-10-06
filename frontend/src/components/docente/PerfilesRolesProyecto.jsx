@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useParams, useLocation } from 'react-router-dom'
 import { equiposApi } from '../../services/docenteApi'
+import MigasDePan from '../Compartidos/MigasDePan'
+import { migasProyecto } from '../../utils/migasDocente'
 
 const AVATAR_COLORS = ['#d32f2f', '#1976d2', '#388e3c', '#7b1fa2', '#f57c00', '#0097a7', '#5d4037', '#37474f']
 
@@ -117,8 +119,13 @@ export default function PerfilesRolesProyecto() {
     return (
         <div className="flex-1 flex flex-col overflow-hidden" style={{ fontFamily: "'Manrope', sans-serif" }}>
 
+            <MigasDePan className="px-6 pt-6 flex-shrink-0" items={[
+                ...migasProyecto(proyectoId, location.state),
+                { label: 'Perfiles y roles' },
+            ]} />
+
             {/* Cuerpo: panel izquierdo + panel derecho */}
-            <div className="flex-1 flex gap-4 overflow-hidden px-6 py-6">
+            <div className="flex-1 flex gap-4 overflow-hidden px-6 pt-0 pb-6">
 
                 {/* Panel izquierdo: lista de miembros */}
                 <div className="w-64 flex-shrink-0 bg-white rounded-2xl border border-[#e1e3e4] flex flex-col overflow-hidden">
