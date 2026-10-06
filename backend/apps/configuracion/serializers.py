@@ -152,6 +152,7 @@ class IdentidadInstitucionalSerializer(serializers.ModelSerializer):
 
     EXTENSIONES_LOGO = ('png', 'jpg', 'jpeg')
     TAMANO_MAX_LOGO = 2 * 1024 * 1024  # 2 MB
+    FIRMAS_LOGO = (b'\x89PNG\r\n\x1a\n', b'\xff\xd8\xff')  # PNG, JPG
 
     class Meta:
         model = IdentidadInstitucional
@@ -164,6 +165,11 @@ class IdentidadInstitucionalSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError('Solo se permiten archivos PNG o JPG.')
         if archivo.size > self.TAMANO_MAX_LOGO:
             raise serializers.ValidationError('El logotipo no puede superar 2 MB.')
+        # La extensión se puede falsear: se revisan los primeros bytes (PRB-05)
+        inicio = archivo.read(8)
+        archivo.seek(0)  # si no, se guardaría el archivo incompleto
+        if not inicio.startswith(self.FIRMAS_LOGO):
+            raise serializers.ValidationError('Solo se permiten archivos PNG o JPG.')
         return archivo
 
     def to_representation(self, instance):

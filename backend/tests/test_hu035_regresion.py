@@ -10,13 +10,6 @@ test_hu035_identidad_endpoint.py (Gabriel, endpoint) con:
     PATCH /api/configuracion/<clave>/) no se ven afectados.
 
 No usa Pillow: el PNG de prueba se arma con bytes fijos.
-
-Hallazgos marcados con xfail(strict=True): cuando se corrija el defecto la
-prueba pasa a XPASS y falla la suite, señal para quitar la marca.
-  PRB-05 — el logotipo se valida solo por extensión, no por contenido.
-  PRB-06 — GET /api/configuracion/ lo atiende la raíz del router de DRF
-           (path('', include(router.urls)) va antes de ConfiguracionView)
-           y no devuelve los parámetros.
 """
 import struct
 import zlib
@@ -90,12 +83,6 @@ def parametros(db):
     for clave, valor, categoria, tipo in filas:
         ParametroSistema.objects.update_or_create(
             clave=clave, defaults={'valor': valor, 'categoria': categoria, 'tipo_dato': tipo})
-
-
-PRB_06 = pytest.mark.xfail(
-    strict=True,
-    reason='Hallazgo PRB-06: GET /api/configuracion/ resuelve a APIRootView del router, no a ConfiguracionView',
-)
 
 
 def _claves(data):
@@ -186,7 +173,6 @@ def test_put_extensiones_permitidas_sin_importar_mayusculas(cliente, admin, nomb
 
 
 @pytest.mark.django_db
-@pytest.mark.xfail(strict=True, reason='Hallazgo PRB-05: el logotipo se valida solo por extensión, no por contenido')
 def test_put_exe_renombrado_a_png_retorna_400(cliente, admin):
     falso = _archivo('logo.png', contenido=b'MZ\x90\x00' + b'\x00' * 60)
     r = cliente.put(URL, _datos(logotipo=falso), format='multipart')
@@ -231,7 +217,6 @@ def test_put_rechazado_no_modifica_la_identidad_guardada(cliente, admin):
 
 # ── Regresión: los demás parámetros del sistema ────────────────────────────
 
-@PRB_06
 @pytest.mark.django_db
 def test_get_parametros_lista_lo_mismo_antes_y_despues_del_put(cliente, admin, parametros):
     antes = cliente.get(URL_PARAMETROS)
@@ -265,7 +250,6 @@ def test_patch_de_clave_inexistente_sigue_en_404(cliente, admin, parametros):
     assert r.status_code == 404
 
 
-@PRB_06
 @pytest.mark.django_db
 def test_get_parametros_devuelve_parametros_agrupados_por_categoria(cliente, admin, parametros):
     r = cliente.get(URL_PARAMETROS)
@@ -274,7 +258,6 @@ def test_get_parametros_devuelve_parametros_agrupados_por_categoria(cliente, adm
     assert ('general', 'max_estudiantes_por_equipo', '6') in _claves(r.data)
 
 
-@PRB_06
 @pytest.mark.django_db
 def test_get_parametros_sigue_restringido_al_administrador(cliente, parametros):
     cliente.force_authenticate(user=DocenteFactory())

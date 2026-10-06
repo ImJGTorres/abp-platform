@@ -18,7 +18,7 @@ def admin_autenticado(cliente, db):
         nombre="Admin",
         apellido="Test",
         correo="admin@test.com",
-        contrasena_hash=make_password("admin123"),
+        password=make_password("admin123"),
         tipo_rol=Usuario.TipoRol.ADMINISTRADOR,
         estado=Usuario.Estado.ACTIVO
     )
@@ -34,7 +34,7 @@ def estudiante_autenticado(db):
         nombre="Estudiante",
         apellido="Test",
         correo="estudiante@test.com",
-        contrasena_hash=make_password("est123"),
+        password=make_password("est123"),
         tipo_rol=Usuario.TipoRol.ESTUDIANTE,
         estado=Usuario.Estado.ACTIVO
     )

@@ -27,7 +27,7 @@ def admin_autenticado(cliente, db):
         nombre="Admin",
         apellido="Test",
         correo="admin@test.com",
-        contrasena_hash=make_password("admin123"),
+        password=make_password("admin123"),
         tipo_rol=Usuario.TipoRol.ADMINISTRADOR,
         estado=Usuario.Estado.ACTIVO
     )
@@ -45,7 +45,7 @@ def docente_autenticado(cliente, db):
         nombre="Docente",
         apellido="Test",
         correo="docente@test.com",
-        contrasena_hash=make_password("doc123"),
+        password=make_password("doc123"),
         tipo_rol=Usuario.TipoRol.DOCENTE,
         estado=Usuario.Estado.ACTIVO
     )
@@ -61,7 +61,7 @@ def estudiante_autenticado(cliente, db):
         nombre="Estudiante",
         apellido="Test",
         correo="estudiante@test.com",
-        contrasena_hash=make_password("est123"),
+        password=make_password("est123"),
         tipo_rol=Usuario.TipoRol.ESTUDIANTE,
         estado=Usuario.Estado.ACTIVO
     )
@@ -200,7 +200,7 @@ def registros_bitacora(db):
         nombre="Usuario1",
         apellido="Test",
         correo="user1@test.com",
-        contrasena_hash=make_password("test123"),
+        password=make_password("test123"),
         tipo_rol=Usuario.TipoRol.ADMINISTRADOR,
         estado=Usuario.Estado.ACTIVO
     )
@@ -209,7 +209,7 @@ def registros_bitacora(db):
         nombre="Usuario2",
         apellido="Test",
         correo="user2@test.com",
-        contrasena_hash=make_password("test123"),
+        password=make_password("test123"),
         tipo_rol=Usuario.TipoRol.DOCENTE,
         estado=Usuario.Estado.ACTIVO
     )
