@@ -77,14 +77,14 @@ class EsAdministrador(BasePermission):
 
 
 class EsDocente(BasePermission):
-    """Permite acceso solo a usuarios con tipo_rol == 'docente'."""
+    """Permite acceso a usuarios con tipo_rol == 'docente' o 'administrador'."""
 
     def has_permission(self, request, view):
         user = request.user
         return (
             user is not None
             and isinstance(user, Usuario)
-            and user.tipo_rol == Usuario.TipoRol.DOCENTE
+            and user.tipo_rol in (Usuario.TipoRol.DOCENTE, Usuario.TipoRol.ADMINISTRADOR)
             and user.estado == Usuario.Estado.ACTIVO
         )
 

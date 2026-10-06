@@ -1,7 +1,6 @@
 from django.test import TestCase
 from rest_framework.test import APIClient
 from rest_framework import status
-from django.contrib.auth.hashers import make_password
 
 from apps.usuarios.models import Usuario
 from apps.configuracion.models import ParametroSistema
@@ -9,11 +8,11 @@ from apps.configuracion.models import ParametroSistema
 
 class ParametroSistemaPatchTestCase(TestCase):
     def setUp(self):
-        self.usuario = Usuario.objects.create(
+        self.usuario = Usuario.objects.create_user(
             nombre='Admin',
             apellido='Test',
             correo='admin@test.com',
-            contrasena_hash=make_password('test123'),
+            password='test123',
             tipo_rol=Usuario.TipoRol.ADMINISTRADOR,
         )
         self.parametro = ParametroSistema.objects.create(

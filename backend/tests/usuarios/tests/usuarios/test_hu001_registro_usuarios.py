@@ -1,5 +1,5 @@
 import pytest
-from django.contrib.auth.hashers import check_password
+from unittest.mock import patch
 from apps.usuarios.models import Usuario
 from tests.factories import UsuarioFactory
 
@@ -91,15 +91,18 @@ def test_cp05_contrasena_almacenada_cifrada(admin_client):
         "tipo_rol":  "estudiante",
     }
 
-    response = admin_client.post(URL, payload, format="json")
+    # La vista ignora la contraseña del payload y genera una aleatoria que envía por correo;
+    # se fija su valor para poder verificar el hash.
+    with patch("apps.usuarios.views.generar_contrasena", return_value="Abcde123!"):
+        response = admin_client.post(URL, payload, format="json")
     assert response.status_code == 201
 
     usuario = Usuario.objects.get(correo="ana3@ufps.edu.co")
 
     # No debe guardarse en texto plano
-    assert usuario.contrasena_hash != "Abcde123!"
+    assert usuario.password != "Abcde123!"
     # Debe verificarse correctamente con el hasher de Django
-    assert check_password("Abcde123!", usuario.contrasena_hash)
+    assert usuario.check_password("Abcde123!")
 
 # CP-06: Sin autenticación → 401
 

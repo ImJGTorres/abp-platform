@@ -55,7 +55,9 @@ class EntregableListCreateView(generics.ListCreateAPIView):
 
         proyecto = actividad.id_fase.id_proyecto
 
-        if tipo_rol == 'docente':
+        if tipo_rol == 'administrador':
+            pass
+        elif tipo_rol == 'docente':
             if proyecto.id_curso.id_docente_id != usuario.id:
                 raise PermissionDenied('No tienes acceso a este proyecto.')
         else:
@@ -192,7 +194,9 @@ class ArchivoListCreateView(generics.GenericAPIView):
         tipo_rol = usuario.tipo_rol
         proyecto = entregable.id_actividad.id_fase.id_proyecto
 
-        if tipo_rol == 'docente':
+        if tipo_rol == 'administrador':
+            pass
+        elif tipo_rol == 'docente':
             if proyecto.id_curso.id_docente_id != usuario.id:
                 raise PermissionDenied('No tienes acceso a este proyecto.')
         else:
@@ -339,11 +343,11 @@ class ValidarEntregableView(generics.GenericAPIView):
         entregable = get_object_or_404(Entregable, pk=pk)
         usuario = request.user
 
-        if usuario.tipo_rol != 'docente':
-            raise PermissionDenied('Solo los docentes pueden validar entregables.')
+        if usuario.tipo_rol not in ('docente', 'administrador'):
+            raise PermissionDenied('Solo los docentes o administradores pueden validar entregables.')
 
         proyecto = entregable.id_actividad.id_fase.id_proyecto
-        if proyecto.id_curso.id_docente_id != usuario.id:
+        if usuario.tipo_rol != 'administrador' and proyecto.id_curso.id_docente_id != usuario.id:
             raise PermissionDenied('No eres el docente de este proyecto.')
 
         if entregable.estado != 'enviado':
@@ -433,7 +437,9 @@ class HistorialVersionesView(generics.GenericAPIView):
 
         proyecto = entregable.id_actividad.id_fase.id_proyecto
 
-        if tipo_rol == 'docente':
+        if tipo_rol == 'administrador':
+            pass
+        elif tipo_rol == 'docente':
             if proyecto.id_curso.id_docente_id != usuario.id:
                 raise PermissionDenied('No tienes acceso a este proyecto.')
         else:
@@ -473,20 +479,9 @@ class HistorialVersionesView(generics.GenericAPIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-# HU-022 — Validación de entregables por docente
 def _solo_docente(usuario):
-    """Verifica si el usuario tiene el rol de Docente.
-
-    Se utiliza como guardia en endpoints que solo deben ser accesibles por
-    docentes (ej. validación y retroalimentación de entregables).
-
-    Args:
-        usuario: Instancia de Usuario autenticado obtenida desde request.user.
-
-    Returns:
-        bool: True si el usuario tiene tipo_rol == 'docente', False en caso contrario.
-    """
-    return usuario.tipo_rol == 'docente'
+    """Verifica si el usuario tiene rol de Docente o Administrador."""
+    return usuario.tipo_rol in ('docente', 'administrador')
 
 
 class EntregableAprobarView(APIView):
@@ -498,7 +493,7 @@ class EntregableAprobarView(APIView):
         usuario = request.user
         if not _solo_docente(usuario):
             return Response(
-                {'error': 'Solo los docentes pueden aprobar entregables.'},
+                {'error': 'Solo los docentes o administradores pueden aprobar entregables.'},
                 status=status.HTTP_403_FORBIDDEN
             )
 
@@ -548,7 +543,7 @@ class EntregableRechazarView(APIView):
         usuario = request.user
         if not _solo_docente(usuario):
             return Response(
-                {'error': 'Solo los docentes pueden rechazar entregables.'},
+                {'error': 'Solo los docentes o administradores pueden rechazar entregables.'},
                 status=status.HTTP_403_FORBIDDEN
             )
 
@@ -603,7 +598,7 @@ class EntregablesPendientesView(APIView):
         usuario = request.user
         if not _solo_docente(usuario):
             return Response(
-                {'error': 'Solo los docentes pueden ver entregables pendientes.'},
+                {'error': 'Solo los docentes o administradores pueden ver entregables pendientes.'},
                 status=status.HTTP_403_FORBIDDEN
             )
 
