@@ -1,12 +1,12 @@
 """
 HU-035 — Endpoint GET/PUT /api/configuracion/identidad/ (SCRUM-607).
 """
-import io
 import os
+import struct
+import zlib
 
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
-from PIL import Image
 from rest_framework.test import APIClient
 
 from apps.bitacora.models import BitacoraSistema
@@ -16,10 +16,18 @@ from tests.factories import AdminFactory, DocenteFactory
 URL = '/api/configuracion/identidad/'
 
 
-def _png(nombre='logo.png', tamano=(50, 50)):
-    buf = io.BytesIO()
-    Image.new('RGB', tamano, 'red').save(buf, 'PNG')
-    return SimpleUploadedFile(nombre, buf.getvalue(), content_type='image/png')
+def _png_bytes():
+    """PNG válido de 1x1 píxel armado con bytes fijos (sin Pillow)."""
+    def chunk(tipo, datos):
+        return (struct.pack('>I', len(datos)) + tipo + datos
+                + struct.pack('>I', zlib.crc32(tipo + datos) & 0xffffffff))
+    ihdr = struct.pack('>IIBBBBB', 1, 1, 8, 2, 0, 0, 0)
+    idat = zlib.compress(b'\x00\xff\x00\x00')
+    return b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', ihdr) + chunk(b'IDAT', idat) + chunk(b'IEND', b'')
+
+
+def _png(nombre='logo.png'):
+    return SimpleUploadedFile(nombre, _png_bytes(), content_type='image/png')
 
 
 def _datos(**extra):

@@ -2,8 +2,10 @@ from django.urls import path, include
 # path: Función de Django para definir rutas URL simples
 # include: Función para incluir URLs de otras aplicaciones
 
-from rest_framework.routers import DefaultRouter
-# DefaultRouter: Router de DRF que genera automáticamente rutas para ViewSets
+from rest_framework.routers import SimpleRouter
+# SimpleRouter: Router de DRF que genera automáticamente rutas para ViewSets.
+# No se usa DefaultRouter porque crea su propia vista raíz en '' y le quitaba
+# GET /api/configuracion/ a ConfiguracionView (PRB-06).
 
 from .views import ConfiguracionView, IdentidadInstitucionalView, PeriodoAcademicoViewSet
 # ConfiguracionView: Vista que maneja las solicitudes GET y PATCH de configuración
@@ -14,7 +16,7 @@ from .views import ConfiguracionView, IdentidadInstitucionalView, PeriodoAcademi
 # ROUTER PARA VIEWSETS
 # =============================================================================
 
-router = DefaultRouter()
+router = SimpleRouter()
 router.register(r'periodos', PeriodoAcademicoViewSet, basename='periodos')
 
 
