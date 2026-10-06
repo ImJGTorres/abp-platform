@@ -112,6 +112,7 @@ class MiembroDetalleSerializer(serializers.ModelSerializer):
 
 
 class EquipoDetalleSerializer(serializers.ModelSerializer):
+    proyecto             = serializers.PrimaryKeyRelatedField(read_only=True)
     miembros             = serializers.SerializerMethodField()
     cantidad_miembros    = serializers.SerializerMethodField()
     cupo_disponible      = serializers.SerializerMethodField()
@@ -121,7 +122,7 @@ class EquipoDetalleSerializer(serializers.ModelSerializer):
     class Meta:
         model  = Equipo
         fields = [
-            'id', 'nombre', 'descripcion', 'estado', 'cupo_maximo',
+            'id', 'proyecto', 'nombre', 'descripcion', 'estado', 'cupo_maximo',
             'miembros', 'cantidad_miembros', 'cupo_disponible', 'lider', 'cantidad_entregables',
         ]
 
