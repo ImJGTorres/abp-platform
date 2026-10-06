@@ -553,11 +553,12 @@ export const rubricasApi = {
 
 // ─── Reportes de rendimiento ───────────────────────────────────
 export const reportesApi = {
-    async bajoRendimiento({ cursoId, proyectoId, periodoId, soloRiesgo = true } = {}) {
+    async bajoRendimiento({ cursoId, proyectoId, periodoId, soloRiesgo = true, nivel } = {}) {
         const params = new URLSearchParams()
         if (cursoId) params.set('curso_id', cursoId)
         if (proyectoId) params.set('proyecto_id', proyectoId)
         if (periodoId) params.set('periodo_id', periodoId)
+        if (nivel) params.set('nivel', nivel)
         if (!soloRiesgo) params.set('solo_riesgo', 'false')
         const qs = params.toString() ? `?${params}` : ''
         const response = await request(`/api/reportes/bajo-rendimiento/${qs}`)

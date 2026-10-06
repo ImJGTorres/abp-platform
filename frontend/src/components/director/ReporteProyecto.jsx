@@ -446,7 +446,7 @@ export default function ReporteProyecto() {
                                             </td>
                                             <td className="px-3 py-3">
                                                 <div className="flex items-center gap-1.5">
-                                                    <Semaforo nivel={nivelPorPorcentaje(est.promedio_avance_pct)} size="sm" />
+                                                    <Semaforo nivel={est.nivel_semaforo || nivelPorPorcentaje(est.promedio_avance_pct)} size="sm" />
                                                     {esRiesgo && (
                                                         <span className="text-[10px] font-bold text-[#d32f2f] bg-red-50 px-1.5 py-0.5 rounded">Riesgo</span>
                                                     )}

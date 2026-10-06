@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { Link } from 'react-router-dom'
 import { cursosAdminApi, periodosApi } from '../services/api'
 import { handleApiError } from '../utils/errorHandler'
 import { useFormValidation, required, minValue } from '../hooks/useFormValidation'
@@ -493,7 +494,9 @@ export default function GestionCursosAdmin() {
                                 ) : cursosFiltrados.map(c => (
                                     <tr key={c.id} className="border-b border-[#e1e3e4] last:border-0 hover:bg-[#fafbfb] transition-colors">
                                         <td className="px-4 py-3.5">
-                                            <p className="text-[14px] font-semibold text-[#191c1d]">{c.nombre}</p>
+                                            <Link to={`/admin/cursos/${c.id}`} className="text-[14px] font-semibold text-[#191c1d] hover:text-[#d32f2f] transition-colors block">
+                                                {c.nombre}
+                                            </Link>
                                             <p className="text-[12px] text-[#9ba7ae] font-medium mt-0.5">{c.codigo}</p>
                                         </td>
                                         <td className="px-4 py-3.5 text-[13px] text-[#5b403d]">{c.docente_nombre}</td>
@@ -508,6 +511,12 @@ export default function GestionCursosAdmin() {
                                         </td>
                                         <td className="px-4 py-3.5">
                                             <div className="flex items-center gap-1">
+                                                <Link to={`/admin/cursos/${c.id}`}
+                                                    className="w-8 h-8 rounded-lg hover:bg-[#e3f2fd] flex items-center justify-center transition-colors" title="Ver curso y anuncios">
+                                                    <svg className="w-4 h-4 text-[#1565c0]" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                                        <path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5z" /><circle cx="8" cy="8" r="2" />
+                                                    </svg>
+                                                </Link>
                                                 <button onClick={() => setCursoEditando(c)}
                                                     className="w-8 h-8 rounded-lg hover:bg-[#f0f2f3] flex items-center justify-center transition-colors" title="Editar">
                                                     <svg className="w-4 h-4 text-[#4c616c]" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">

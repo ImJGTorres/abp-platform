@@ -761,9 +761,44 @@ export const exportacionesApi = {
   },
 }
 
-// Dashboard de pendientes (HU-038)
-//   GET /api/dashboard/pendientes/ — pendientes priorizados del usuario según su rol
+// Muro de anuncios (HU-039)
+export const anunciosApi = {
+  async listarCurso(cursoId) {
+    const response = await request(`/api/cursos/${cursoId}/anuncios/`)
+    const data = await parseJSON(response)
+    if (!response.ok) throw { status: response.status, data }
+    return data
+  },
 
+  async publicarCurso(cursoId, { titulo, mensaje }) {
+    const response = await request(`/api/cursos/${cursoId}/anuncios/`, {
+      method: 'POST',
+      body: JSON.stringify({ titulo, mensaje }),
+    })
+    const data = await parseJSON(response)
+    if (!response.ok) throw { status: response.status, data }
+    return data
+  },
+
+  async listarProyecto(proyectoId) {
+    const response = await request(`/api/proyectos/${proyectoId}/anuncios/`)
+    const data = await parseJSON(response)
+    if (!response.ok) throw { status: response.status, data }
+    return data
+  },
+
+  async publicarProyecto(proyectoId, { titulo, mensaje }) {
+    const response = await request(`/api/proyectos/${proyectoId}/anuncios/`, {
+      method: 'POST',
+      body: JSON.stringify({ titulo, mensaje }),
+    })
+    const data = await parseJSON(response)
+    if (!response.ok) throw { status: response.status, data }
+    return data
+  },
+}
+
+// Dashboard de pendientes (HU-038)
 export const dashboardApi = {
   async pendientes() {
     const response = await request('/api/dashboard/pendientes/')

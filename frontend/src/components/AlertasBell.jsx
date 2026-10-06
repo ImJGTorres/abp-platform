@@ -69,6 +69,12 @@ const TIPO_CONFIG = {
     },
 }
 
+const GRAVEDAD_CONFIG = {
+    alta:  { label: 'Alta',  cls: 'bg-red-100 text-red-700 border-red-200' },
+    media: { label: 'Media', cls: 'bg-amber-100 text-amber-700 border-amber-200' },
+    baja:  { label: 'Baja',  cls: 'bg-slate-100 text-slate-600 border-slate-200' },
+}
+
 function IconBell() {
     return (
         <svg viewBox="0 0 20 20" fill="none" className="w-5 h-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
@@ -94,6 +100,7 @@ function normAlerta(a) {
         _rawId:   a.id,
         tipo:     a.tipo,
         mensaje:  a.mensaje,
+        gravedad: a.gravedad,
         leida:    a.estado === 'leida',
         fecha:    a.fecha_generacion,
     }
@@ -263,6 +270,11 @@ export default function AlertasBell({ pollingMinutos = 5, incluirNotificaciones 
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-2 mb-0.5">
                                                     <span className={`text-[11px] font-bold ${cfg.text}`}>{cfg.label}</span>
+                                                    {item.gravedad && GRAVEDAD_CONFIG[item.gravedad] && (
+                                                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase tracking-wider ${GRAVEDAD_CONFIG[item.gravedad].cls}`}>
+                                                            {GRAVEDAD_CONFIG[item.gravedad].label}
+                                                        </span>
+                                                    )}
                                                     {!item.leida && <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot} flex-shrink-0`} />}
                                                 </div>
                                                 <p className="text-[12px] text-[#4c616c] leading-relaxed line-clamp-2">{item.mensaje}</p>
