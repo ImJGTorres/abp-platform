@@ -3,6 +3,7 @@ import { useParams, useLocation } from 'react-router-dom'
 import { monitoreoApi } from '../../services/docenteApi'
 import Semaforo, { SEMAFORO_NIVELES, nivelPorPorcentaje } from '../Compartidos/Semaforo'
 import MigasDePan from '../Compartidos/MigasDePan'
+import MuroAnuncios from '../Compartidos/MuroAnuncios'
 import { migasProyecto } from '../../utils/migasDocente'
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
@@ -165,7 +166,7 @@ function BarraFaseInner({ fase, total, completadas, enProgreso, bloqueadas, pend
 }
 
 function TarjetaEquipo({ equipo }) {
-    const nivel = equipo.actividades_bloqueadas > 0 ? 'rojo' : nivelPorPorcentaje(equipo.porcentaje_progreso)
+    const nivel = equipo.nivel_semaforo || nivelPorPorcentaje(equipo.porcentaje_progreso)
     const s = SEMAFORO_NIVELES[nivel]
     const pct = equipo.porcentaje_progreso
     return (
@@ -485,6 +486,11 @@ export default function MonitoreoProyecto() {
                     </div>
                 )}
             </section>
+
+            {/* Muro de Anuncios del Proyecto */}
+            <div className="mt-8">
+                <MuroAnuncios proyectoId={proyectoId} />
+            </div>
         </div>
     )
 }

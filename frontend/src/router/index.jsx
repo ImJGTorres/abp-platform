@@ -109,6 +109,7 @@ export default function AppRouter() {
             <Route path="/admin" element={<AdminPlaceholder />} />
             <Route path="/admin/registro" element={<PaginaRegistro />} />
             <Route path="/admin/cursos" element={<Pagina><GestionCursosAdmin /></Pagina>} />
+            <Route path="/admin/cursos/:id" element={<DetalleCurso />} />
             <Route path="/admin/configuracion" element={<Pagina><ConfiguracionParametros /></Pagina>} />
             <Route path="/admin/periodos" element={<Pagina><GestionPeriodos /></Pagina>} />
             <Route path="/admin/bitacoras" element={<Pagina><BitacorasAuditoria /></Pagina>} />
