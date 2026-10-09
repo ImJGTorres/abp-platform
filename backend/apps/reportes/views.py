@@ -403,3 +403,26 @@ class PendientesDashboardView(APIView):
     def get(self, request):
         from .pendientes import pendientes_usuario
         return Response(pendientes_usuario(request.user), status=status.HTTP_200_OK)
+
+
+# ── HU-045: Búsqueda global (director y administrador) ──────────────────────
+
+class BusquedaGlobalView(APIView):
+    """GET /api/busqueda/?q=<término> — resultados agrupados por tipo (máx. 10 por tipo)."""
+    authentication_classes = [UsuarioJWTAuthentication]
+
+    def get(self, request):
+        from .busqueda import MIN_CARACTERES, buscar_global
+
+        if request.user.tipo_rol not in ('director', 'administrador'):
+            return Response(
+                {'error': 'Solo el director o el administrador pueden usar la búsqueda global.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        q = request.query_params.get('q', '').strip()
+        if len(q) < MIN_CARACTERES:
+            return Response(
+                {'error': f'El término de búsqueda debe tener al menos {MIN_CARACTERES} caracteres.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(buscar_global(q, request.user.tipo_rol), status=status.HTTP_200_OK)

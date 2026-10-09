@@ -25,7 +25,7 @@ from django.views.generic import TemplateView
 
 from apps.usuarios.views import CambiarContrasenaView, LoginView, OlvidarContrasenaView, RecuperarContrasenaView
 from apps.roles.views import PermisosAgrupadosView
-from apps.reportes.views import PendientesDashboardView
+from apps.reportes.views import BusquedaGlobalView, PendientesDashboardView
 from apps.cursos.urls import hitos_urlpatterns, proyectos_urlpatterns, raps_urlpatterns
 
 urlpatterns = [
@@ -79,6 +79,7 @@ urlpatterns = [
     path('api/dashboard/pendientes/', PendientesDashboardView.as_view(), name='dashboard_pendientes'),  # HU-038
     path('api/alertas/', include('apps.alertas.urls')),
     path('api/calendario/', include('apps.calendario.urls')),  # HU-040
+    path('api/busqueda/', BusquedaGlobalView.as_view(), name='busqueda_global'),  # HU-045
     path('api/exportar/', include('apps.exportaciones.urls')),
 
     # SPA: Servir index.html para cualquier ruta que no sea API ni static

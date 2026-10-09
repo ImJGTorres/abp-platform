@@ -43,6 +43,11 @@ class Curso(models.Model):
 
     class Meta:
         db_table = 'curso'
+        # HU-045 — búsqueda global (varchar_pattern_ops: Postgres usa el índice en búsquedas por prefijo)
+        indexes = [
+            models.Index(fields=['nombre'], name='idx_curso_nombre', opclasses=['varchar_pattern_ops']),
+            models.Index(fields=['codigo'], name='idx_curso_codigo', opclasses=['varchar_pattern_ops']),
+        ]
         constraints = [
             models.UniqueConstraint(
                 fields=['codigo', 'id_periodo_academico'],
@@ -81,6 +86,8 @@ class Proyecto(models.Model):
 
     class Meta:
         db_table = 'proyecto'
+        # HU-045 — búsqueda global (varchar_pattern_ops: Postgres usa el índice en búsquedas por prefijo)
+        indexes = [models.Index(fields=['nombre'], name='idx_proyecto_nombre', opclasses=['varchar_pattern_ops'])]
 
     def __str__(self):
         return f'{self.nombre} ({self.id_curso})'

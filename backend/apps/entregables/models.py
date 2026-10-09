@@ -56,6 +56,8 @@ class Entregable(models.Model):
 
     class Meta:
         db_table = 'entregable'
+        # HU-045 — búsqueda global (varchar_pattern_ops: Postgres usa el índice en búsquedas por prefijo)
+        indexes = [models.Index(fields=['titulo'], name='idx_entregable_titulo', opclasses=['varchar_pattern_ops'])]
 
     def __str__(self):
         return f'{self.titulo} ({self.estado})'

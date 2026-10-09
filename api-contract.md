@@ -47,6 +47,7 @@
 | Coevaluación | `/api/proyectos/<id>/coevaluaciones/` |
 | Alertas | `/api/alertas/` |
 | Calendario | `/api/calendario/` · `/api/calendario/<evento_id>/` |
+| Búsqueda global | `/api/busqueda/` |
 | Reportes | `/api/reportes/` |
 | Dashboard (pendientes) | `/api/dashboard/pendientes/` |
 | Anuncios (muro) | `/api/cursos/<id>/anuncios/` · `/api/proyectos/<id>/anuncios/` |
@@ -1659,6 +1660,35 @@ docente → proyectos de los cursos que dicta; director y administrador → todo
 | administrador | `/admin/cursos/<curso_id>` | `/admin/cursos/<curso_id>` |
 
 **Error `404`:** `{ "detail": "Evento no encontrado." }` si no existe, no es de un proyecto del usuario o el id no tiene la forma `hito-<n>` / `actividad-<n>`
+
+---
+
+## Búsqueda global (HU-045)
+
+### `GET /api/busqueda/?q=<término>`
+**Permiso:** Director o administrador (`403` cualquier otro rol)
+**Request:** `GET /api/busqueda/?q=ing`
+Busca sin distinguir mayúsculas (contiene) en: cursos (`nombre`, `codigo`), proyectos (`nombre`), usuarios (`nombre`, `apellido`, `codigo`, `correo`) y entregables (`titulo`). Máximo **10 resultados por tipo**, ordenados alfabéticamente. Tiempo medido con ~1.000 usuarios: < 0,2 s (RNF10: < 3 s).
+**Respuesta `200`:**
+```json
+{
+  "cursos":      [{ "id": 4,  "titulo": "Ingeniería de Software", "subtitulo": "IS-901", "enlace": "/admin/cursos/4" }],
+  "proyectos":   [{ "id": 9,  "titulo": "Plataforma de ingreso", "subtitulo": "Ingeniería de Software", "enlace": "/director/reportes/proyecto/9" }],
+  "usuarios":    [{ "id": 31, "titulo": "Inguilda Rojas", "subtitulo": "irojas@ufps.edu.co · estudiante", "enlace": "/admin/registro?usuario_id=31" }],
+  "entregables": [{ "id": 57, "titulo": "Informe de ingeniería", "subtitulo": "Plataforma de ingreso", "enlace": "/director/reportes/proyecto/9" }]
+}
+```
+**`enlace` según rol** (rutas del frontend; `subtitulo` del entregable = nombre del proyecto):
+
+| Tipo | administrador | director |
+|---|---|---|
+| curso | `/admin/cursos/<id>` | `/director/reportes?curso_id=<id>` |
+| proyecto | `/director/reportes/proyecto/<id>` | `/director/reportes/proyecto/<id>` |
+| usuario | `/admin/registro?usuario_id=<id>` | `/director/riesgo?estudiante_id=<id>` |
+| entregable | `/director/reportes/proyecto/<id_proyecto>` | `/director/reportes/proyecto/<id_proyecto>` |
+
+**Error `400`:** `{ "error": "El término de búsqueda debe tener al menos 2 caracteres." }`
+**Error `403`:** `{ "error": "Solo el director o el administrador pueden usar la búsqueda global." }`
 
 ---
 
