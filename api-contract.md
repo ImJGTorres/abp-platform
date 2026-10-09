@@ -46,6 +46,7 @@
 | Autoevaluación | `/api/proyectos/<id>/autoevaluaciones/` |
 | Coevaluación | `/api/proyectos/<id>/coevaluaciones/` |
 | Alertas | `/api/alertas/` |
+| Calendario | `/api/calendario/` · `/api/calendario/<evento_id>/` |
 | Reportes | `/api/reportes/` |
 | Dashboard (pendientes) | `/api/dashboard/pendientes/` |
 | Anuncios (muro) | `/api/cursos/<id>/anuncios/` · `/api/proyectos/<id>/anuncios/` |
@@ -1493,7 +1494,10 @@ Un estudiante ya activo en el mismo equipo se omite sin generar error. Un estudi
   }
 ]
 ```
-**`tipo` válidos:** `actividad_vencida | entregable_pendiente | entregable_enviado | evaluacion_pendiente | bajo_rendimiento`
+**`tipo` válidos:** `actividad_vencida | entregable_pendiente | entregable_enviado | evaluacion_pendiente | bajo_rendimiento | recordatorio_vencimiento`
+(`recordatorio_vencimiento`, HU-040: lo crea la tarea diaria `recordatorios` de `run_scheduler` para actividades
+no completadas que vencen en ≤ 48 h; destinatarios: el responsable o, si no tiene, los miembros activos del equipo;
+`referencia_id` = id de la actividad; su correo se encola con `plantilla = "recordatorio"`).
 **`gravedad` (modificado, solo lectura):** `baja | media | alta`, asignada por tipo al crear la alerta:
 `actividad_vencida`, `bajo_rendimiento` → `alta` · `entregable_pendiente` → `media` · resto → `baja`.
 También se incluye en la respuesta de `PATCH /api/alertas/<alerta_id>/leer/`.
@@ -1506,6 +1510,98 @@ También se incluye en la respuesta de `PATCH /api/alertas/<alerta_id>/leer/`.
 **Permiso:** Dueño de la alerta
 **Body:** `{}` (vacío)
 **Respuesta `200`:** `{ "estado": "leida", "fecha_lectura": "2026-04-23T09:00:00Z" }`
+
+---
+
+## Calendario (HU-040)
+
+**Forma del evento** (la misma en la lista y como base del detalle):
+
+| Campo | Tipo | Descripción |
+|---|---|---|
+| `id` | string | `"hito-<id>"` o `"actividad-<id>"`; se usa en el detalle |
+| `tipo` | string | `hito \| entrega \| revision` (de `HitoProyecto.tipo`; las evaluaciones son `revision`) o `actividad` |
+| `titulo` | string | Nombre del hito o de la actividad |
+| `fecha` | `AAAA-MM-DD` | `HitoProyecto.fecha_fin` o `Actividad.fecha_limite` |
+| `urgencia` | string | `vencido` (fecha < hoy y no completado) · `proximo` (vence hoy, mañana o pasado mañana, ≤ 48 h, y no completado) · `normal` (resto, incluido lo completado o cancelado) |
+| `proyecto_id`, `proyecto_nombre`, `curso_nombre` | | Proyecto y curso del evento |
+
+**Visibilidad por rol:** estudiante y líder de equipo → proyectos donde tienen membresía activa, y de ellos solo
+las actividades donde son responsables o que están asignadas a su equipo (los hitos del proyecto sí los ven todos);
+docente → proyectos de los cursos que dicta; director y administrador → todos los proyectos no finalizados.
+
+### `GET /api/calendario/`
+**Permiso:** Autenticado (cada rol ve lo descrito arriba)
+**Query params:** `desde=AAAA-MM-DD` · `hasta=AAAA-MM-DD` (incluidas; por defecto, del primer al último día del mes actual)
+**Request:** `GET /api/calendario/?desde=2026-10-01&hasta=2026-10-31`
+**Respuesta `200`:** eventos ordenados por `fecha`
+```json
+{
+  "desde": "2026-10-01",
+  "hasta": "2026-10-31",
+  "total": 2,
+  "eventos": [
+    {
+      "id": "actividad-40",
+      "tipo": "actividad",
+      "titulo": "Diagrama de clases",
+      "fecha": "2026-10-09",
+      "urgencia": "proximo",
+      "proyecto_id": 3,
+      "proyecto_nombre": "Sistema de inventario",
+      "curso_nombre": "Ingeniería de Software I"
+    },
+    {
+      "id": "hito-12",
+      "tipo": "revision",
+      "titulo": "Revisión de avance 1",
+      "fecha": "2026-10-20",
+      "urgencia": "normal",
+      "proyecto_id": 3,
+      "proyecto_nombre": "Sistema de inventario",
+      "curso_nombre": "Ingeniería de Software I"
+    }
+  ]
+}
+```
+**Error `400`:** `{ "detail": "El rango no puede superar 92 días." }` · fecha con otro formato · `desde` posterior a `hasta`
+**Error `401`:** sin autenticación
+
+### `GET /api/calendario/<evento_id>/`
+**Permiso:** Autenticado; el evento debe ser de un proyecto del usuario (estudiante/líder: actividad propia o de su equipo)
+**Request:** `GET /api/calendario/actividad-40/`
+**Respuesta `200`:** los campos del evento más:
+```json
+{
+  "id": "actividad-40",
+  "tipo": "actividad",
+  "titulo": "Diagrama de clases",
+  "fecha": "2026-10-09",
+  "urgencia": "proximo",
+  "proyecto_id": 3,
+  "proyecto_nombre": "Sistema de inventario",
+  "curso_nombre": "Ingeniería de Software I",
+  "descripcion": "Modelo de clases del módulo de compras",
+  "estado": "en_progreso",
+  "porcentaje_avance": 60,
+  "equipo": { "nombre": "Equipo Alpha", "miembros": ["Ana Rojas", "Luis Pérez"] },
+  "enlace": "/estudiante/proyectos/3/actividades/40/entregables"
+}
+```
+- `porcentaje_avance`: actividad → último `AvanceActividad.porcentaje_completado` (0 si no hay);
+  hito → `porcentaje_progreso` de `vista_progreso_proyecto` (0 si no hay).
+- `equipo`: actividad → equipo asignado; si no tiene, o es un hito → el equipo del usuario en ese proyecto; `null` si no hay.
+- `enlace` (ruta del frontend según el rol):
+
+| Rol | Actividad | Hito |
+|---|---|---|
+| estudiante | `/estudiante/proyectos/<p>/actividades/<a>/entregables` | `/estudiante/proyectos/<p>/progreso` |
+| lider_equipo | `/lider/actividades/<a>/entregables` | `/lider/proyectos/<p>/kanban` |
+| docente | `/docente/proyectos/<p>/fases/<f>/actividades/<a>` | `/docente/proyectos/<p>/cronograma` |
+| director | `/director/reportes/proyecto/<p>` | `/director/reportes/proyecto/<p>` |
+| administrador | `/admin/cursos/<curso_id>` | `/admin/cursos/<curso_id>` |
+
+**Error `404`:** `{ "detail": "Evento no encontrado." }` si no existe, no es de un proyecto del usuario o el id no tiene la forma `hito-<n>` / `actividad-<n>`
 
 ---
 

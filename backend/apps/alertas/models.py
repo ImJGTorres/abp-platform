@@ -8,6 +8,7 @@ class Alerta(models.Model):
         ('entregable_enviado', 'Entregable enviado'),
         ('evaluacion_pendiente', 'Evaluación pendiente'),
         ('bajo_rendimiento', 'Bajo rendimiento'),
+        ('recordatorio_vencimiento', 'Recordatorio de vencimiento'),
     ]
     ESTADO_CHOICES = [
         ('no_leida', 'No leída'),

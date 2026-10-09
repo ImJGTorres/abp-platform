@@ -1,5 +1,5 @@
 import logging
-from datetime import date
+from datetime import date, timedelta
 from django.db import transaction, IntegrityError
 from django.utils import timezone
 
@@ -16,6 +16,11 @@ GRAVEDAD_POR_TIPO = {
     'actividad_vencida': 'alta',
     'bajo_rendimiento': 'alta',
     'entregable_pendiente': 'media',
+}
+
+# Plantilla del correo que se encola con cada alerta nueva (por defecto 'alerta').
+PLANTILLA_POR_TIPO = {
+    'recordatorio_vencimiento': 'recordatorio',
 }
 
 
@@ -46,7 +51,7 @@ def _crear_alerta(tipo, usuario_id, mensaje, proyecto_id=None, referencia_id=Non
             encolar_correo(
                 usuario_id,
                 f"Nueva alerta: {alerta.get_tipo_display()}",
-                'alerta',
+                PLANTILLA_POR_TIPO.get(tipo, 'alerta'),
                 {'mensaje': mensaje, 'proyecto_id': proyecto_id},
             )
         return True
@@ -155,6 +160,56 @@ def generar_alertas_entregables_pendientes():
                 referencia_id=ent.id,
             )
             if ok:
+                creadas += 1
+
+    return creadas
+
+
+def generar_recordatorios_48h():
+    """
+    Recordatorio para lo que vence en las próximas 48 h (HU-040, tarea diaria).
+    Actividades no completadas con fecha_limite entre hoy y hoy + 2 días: una alerta
+    'recordatorio_vencimiento' para el responsable (o, si no tiene, los miembros activos
+    del equipo asignado). _crear_alerta encola el correo 'recordatorio' solo si la alerta
+    es nueva; la restricción única (tipo, usuario, referencia_id) evita duplicados.
+    """
+    Actividad = _get_modelo('cursos.Actividad')
+    MiembroEquipo = _get_modelo('equipos.MiembroEquipo')
+
+    hoy = date.today()
+    proximas = Actividad.objects.filter(
+        fecha_limite__gte=hoy,
+        fecha_limite__lte=hoy + timedelta(days=2),
+    ).exclude(estado='completada').select_related('id_fase__id_proyecto').prefetch_related('responsables')
+
+    creadas = 0
+    for act in proximas:
+        proyecto = act.id_fase.id_proyecto
+
+        usuarios_destino = set(act.responsables.values_list('id', flat=True))
+        if act.id_responsable_id:
+            usuarios_destino.add(act.id_responsable_id)
+        if not usuarios_destino and act.id_equipo_asignado_id:
+            usuarios_destino.update(MiembroEquipo.objects.filter(
+                equipo_id=act.id_equipo_asignado_id,
+                estado='activo',
+            ).values_list('usuario_id', flat=True))
+
+        dias = (act.fecha_limite - hoy).days
+        cuando = 'hoy' if dias == 0 else f'en {dias} día(s)'
+        mensaje = (
+            f"La actividad '{act.nombre}' del proyecto '{proyecto.nombre}' vence {cuando} "
+            f"(límite: {act.fecha_limite})."
+        )
+
+        for uid in usuarios_destino:
+            if _crear_alerta(
+                tipo='recordatorio_vencimiento',
+                usuario_id=uid,
+                mensaje=mensaje,
+                proyecto_id=proyecto.id,
+                referencia_id=act.id,
+            ):
                 creadas += 1
 
     return creadas

@@ -63,6 +63,7 @@ INSTALLED_APPS = [
     'apps.alertas',
     'apps.exportaciones',
     'apps.anuncios',
+    'apps.calendario',
 ]
 
 # Configuración de Django REST Framework (BE-01)

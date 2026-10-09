@@ -78,6 +78,7 @@ urlpatterns = [
     path('api/reportes/', include('apps.reportes.urls')),
     path('api/dashboard/pendientes/', PendientesDashboardView.as_view(), name='dashboard_pendientes'),  # HU-038
     path('api/alertas/', include('apps.alertas.urls')),
+    path('api/calendario/', include('apps.calendario.urls')),  # HU-040
     path('api/exportar/', include('apps.exportaciones.urls')),
 
     # SPA: Servir index.html para cualquier ruta que no sea API ni static
