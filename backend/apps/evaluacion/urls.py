@@ -14,12 +14,19 @@ from .views import (
     RetroalimentacionEstudianteView,
     RubricaDetailView,
     RubricaDesignarProyectoView,
+    RubricaGuardarPlantillaView,
+    RubricaPlantillaClonarView,
+    RubricaPlantillaListView,
     RubricaListCreateView,
 )
 
 urlpatterns = [
     # HU-23 — Rúbricas
     path('rubricas/', RubricaListCreateView.as_view(), name='rubrica-list-create'),
+    # HU-044 — Banco de plantillas (antes de rubricas/<int:pk>/)
+    path('rubricas/plantillas/', RubricaPlantillaListView.as_view(), name='rubrica-plantilla-list'),
+    path('rubricas/plantillas/<int:pk>/clonar/', RubricaPlantillaClonarView.as_view(), name='rubrica-plantilla-clonar'),
+    path('rubricas/<int:pk>/guardar-plantilla/', RubricaGuardarPlantillaView.as_view(), name='rubrica-guardar-plantilla'),
     path('rubricas/<int:pk>/', RubricaDetailView.as_view(), name='rubrica-detail'),
     path('rubricas/<int:pk>/designar-proyecto/', RubricaDesignarProyectoView.as_view(), name='rubrica-designar-proyecto'),
     path(

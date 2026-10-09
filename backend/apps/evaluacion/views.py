@@ -10,6 +10,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.bitacora.models import BitacoraSistema
+from apps.bitacora.utils import registrar_evento
 from apps.configuracion.models import PeriodoAcademico
 from apps.cursos.models import Proyecto
 from apps.cursos.permissions import EsDocente, EsDocenteOAdministrador
@@ -36,6 +37,7 @@ from .serializers import (
     RubricaSerializer,
     RubricaUpdateSerializer,
 )
+from .services import clonar_rubrica, validar_ponderaciones
 
 
 # ---------------------------------------------------------------------------
@@ -198,6 +200,89 @@ class RubricaDesignarProyectoView(APIView):
             rubrica.save(update_fields=['es_rubrica_proyecto'])
 
         return Response(RubricaSerializer(rubrica).data)
+
+
+# ---------------------------------------------------------------------------
+# HU-044: Banco de rúbricas y plantillas reutilizables
+# ---------------------------------------------------------------------------
+
+def _rubricas_con_detalle():
+    return (
+        Rubrica.objects
+        .select_related('id_proyecto', 'id_docente')
+        .prefetch_related('criterios__niveles', 'criterios__id_rap')
+    )
+
+
+class RubricaGuardarPlantillaView(APIView):
+    """
+    PATCH /api/rubricas/<pk>/guardar-plantilla/  body: {nombre_plantilla}
+    Marca la rúbrica como plantilla del banco. Solo el docente dueño o un administrador.
+    """
+    authentication_classes = [UsuarioJWTAuthentication]
+    permission_classes = [EsDocenteOAdministrador]
+
+    def patch(self, request, pk):
+        rubrica = get_object_or_404(_rubricas_con_detalle(), pk=pk)
+        if request.user.tipo_rol != 'administrador' and rubrica.id_docente_id != request.user.pk:
+            raise PermissionDenied('Solo el docente dueño de la rúbrica o un administrador puede guardarla como plantilla.')
+
+        nombre_plantilla = (request.data.get('nombre_plantilla') or '').strip() or rubrica.nombre
+        if len(nombre_plantilla) > 200:
+            return Response(
+                {'detail': 'El nombre de la plantilla no puede superar 200 caracteres.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        validar_ponderaciones(rubrica)
+
+        rubrica.es_plantilla = True
+        rubrica.nombre_plantilla = nombre_plantilla
+        rubrica.save(update_fields=['es_plantilla', 'nombre_plantilla'])
+        registrar_evento(request, BitacoraSistema.Accion.UPDATE, 'rubricas',
+                         f'Guardó rúbrica id={rubrica.pk} como plantilla "{nombre_plantilla}"')
+        return Response(RubricaSerializer(rubrica, context={'request': request}).data)
+
+
+class RubricaPlantillaListView(generics.ListAPIView):
+    """GET /api/rubricas/plantillas/ — catálogo de plantillas con criterios y niveles."""
+    authentication_classes = [UsuarioJWTAuthentication]
+    permission_classes = [EsDocenteOAdministrador]
+    serializer_class = RubricaSerializer
+
+    def get_queryset(self):
+        return _rubricas_con_detalle().filter(es_plantilla=True).order_by('nombre_plantilla', 'id')
+
+
+class RubricaPlantillaClonarView(APIView):
+    """
+    POST /api/rubricas/plantillas/<pk>/clonar/  body: {id_proyecto}
+    Clona la plantilla como rúbrica independiente del proyecto. Solo el docente
+    del curso del proyecto o un administrador.
+    """
+    authentication_classes = [UsuarioJWTAuthentication]
+    permission_classes = [EsDocenteOAdministrador]
+
+    def post(self, request, pk):
+        plantilla = get_object_or_404(Rubrica, pk=pk, es_plantilla=True)
+
+        id_proyecto = request.data.get('id_proyecto')
+        if not str(id_proyecto or '').isdigit():
+            return Response(
+                {'detail': 'id_proyecto es obligatorio y debe ser un número entero.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        proyecto = get_object_or_404(Proyecto.objects.select_related('id_curso'), pk=int(id_proyecto))
+        if request.user.tipo_rol != 'administrador' and proyecto.id_curso.id_docente_id != request.user.pk:
+            raise PermissionDenied('Solo el docente del curso del proyecto puede clonar plantillas en él.')
+
+        # El dueño de la copia es el docente del curso (también cuando clona un administrador).
+        copia = clonar_rubrica(plantilla, proyecto.pk, proyecto.id_curso.id_docente or request.user)
+        registrar_evento(request, BitacoraSistema.Accion.CREATE, 'rubricas',
+                         f'Clonó plantilla id={plantilla.pk} como rúbrica id={copia.pk} en proyecto id={proyecto.pk}')
+        return Response(
+            RubricaSerializer(_rubricas_con_detalle().get(pk=copia.pk), context={'request': request}).data,
+            status=status.HTTP_201_CREATED,
+        )
 
 
 # ---------------------------------------------------------------------------

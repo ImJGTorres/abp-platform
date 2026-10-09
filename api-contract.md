@@ -1283,6 +1283,63 @@ Un estudiante ya activo en el mismo equipo se omite sin generar error. Un estudi
 
 ---
 
+## Banco de rúbricas y plantillas (HU-044)
+
+Toda rúbrica serializada incluye además `es_plantilla` (bool) y `nombre_plantilla` (string | null).
+Regla de ponderaciones (SCRUM-564): la suma de `peso_porcentual` de los criterios debe ser exactamente **100**; si no, `400`:
+```json
+{ "detail": "La suma de las ponderaciones de los criterios debe ser 100 %. Suma actual: 90.00 %.", "suma_actual": "90.00" }
+```
+
+### `PATCH /api/rubricas/<pk>/guardar-plantilla/`
+**Permiso:** Docente dueño de la rúbrica o administrador (`403` docente ajeno o estudiante; `404` si no existe)
+**Body:** (si `nombre_plantilla` viene vacío se usa el `nombre` de la rúbrica)
+```json
+{ "nombre_plantilla": "Rúbrica estándar de entregable" }
+```
+**Respuesta `200`:** Objeto rúbrica con `es_plantilla: true`, `nombre_plantilla`, criterios y niveles
+**Errores:** `400` si las ponderaciones no suman 100 o el nombre supera 200 caracteres
+
+### `GET /api/rubricas/plantillas/`
+**Permiso:** Docente o administrador (`403` otros roles)
+**Respuesta `200`:** Solo rúbricas con `es_plantilla=true`, ordenadas por `nombre_plantilla`, con criterios y niveles
+```json
+[
+  {
+    "id": 7,
+    "nombre": "Rúbrica de Entregable Final",
+    "nombre_plantilla": "Rúbrica estándar de entregable",
+    "es_plantilla": true,
+    "tipo": "entregable",
+    "peso_total": "100.00",
+    "id_docente": 5,
+    "docente_nombre": "Ana Pérez",
+    "criterios": [
+      {
+        "id": 21,
+        "nombre": "Claridad y estructura",
+        "peso_porcentual": "100.00",
+        "niveles": [
+          { "nivel": 1, "etiqueta": "insuficiente", "descripcion": "...", "puntos": "0.00" },
+          { "nivel": 4, "etiqueta": "excelente",    "descripcion": "...", "puntos": "5.00" }
+        ]
+      }
+    ]
+  }
+]
+```
+
+### `POST /api/rubricas/plantillas/<pk>/clonar/`
+**Permiso:** Docente del curso del proyecto destino o administrador (`403` docente de otro curso)
+**Body:**
+```json
+{ "id_proyecto": 3 }
+```
+**Respuesta `201`:** Rúbrica nueva e independiente (id nuevo, `es_plantilla: false`, `nombre_plantilla: null`, `id_proyecto` destino, `id_docente` = docente del curso) con copia de criterios y niveles. Editar la copia no modifica la plantilla.
+**Errores:** `400` si falta `id_proyecto` o las ponderaciones de la plantilla no suman 100; `404` si la plantilla o el proyecto no existen
+
+---
+
 ## Evaluaciones de entregables
 
 ### `GET /api/entregables/<id_entregable>/evaluaciones/`
