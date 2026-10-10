@@ -808,6 +808,26 @@ export const dashboardApi = {
   },
 }
 
+// Calendario unificado (HU-040)
+//   GET /api/calendario/?desde=AAAA-MM-DD&hasta=AAAA-MM-DD → { desde, hasta, total, eventos: [...] } (rango máx. 92 días)
+//   GET /api/calendario/:evento_id/                       → detalle de 'hito-<id>' o 'actividad-<id>'
+export const calendarioApi = {
+  async listar(desde, hasta) {
+    const params = new URLSearchParams({ desde, hasta })
+    const response = await request(`/api/calendario/?${params}`)
+    const data = await parseJSON(response)
+    if (!response.ok) throw { status: response.status, data }
+    return data
+  },
+
+  async detalle(eventoId) {
+    const response = await request(`/api/calendario/${encodeURIComponent(eventoId)}/`)
+    const data = await parseJSON(response)
+    if (!response.ok) throw { status: response.status, data }
+    return data
+  },
+}
+
 export function rutaPorRol(tipo_rol) {
   const rutas = {
     administrador: '/admin',
