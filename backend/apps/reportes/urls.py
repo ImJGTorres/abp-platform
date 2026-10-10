@@ -10,6 +10,7 @@ from .views import (
     IndicadoresDashboardView,
     IndicadoresTendenciaView,
     SemaforoEstudianteView,
+    SemaforosDocenteView,
 )
 
 urlpatterns = [
@@ -24,4 +25,5 @@ urlpatterns = [
     path('indicadores/tendencia/', IndicadoresTendenciaView.as_view(), name='indicadores-tendencia'),
     path('indicadores/', IndicadoresDashboardView.as_view(), name='indicadores-dashboard'),
     path('semaforos/estudiante/', SemaforoEstudianteView.as_view(), name='semaforo-estudiante'),  # HU-041
+    path('semaforos/docente/', SemaforosDocenteView.as_view(), name='semaforos-docente'),  # HU-042
 ]

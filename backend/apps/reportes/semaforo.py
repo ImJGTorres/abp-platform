@@ -153,3 +153,70 @@ def semaforo_estudiante(estudiante_id, proyecto_id=None):
         'entregables_criticos': criticos,
         'recomendaciones': recomendaciones,
     }
+
+
+def _notas_por_proyecto(proyecto_ids):
+    """Nota promedio (0-5) de cada proyecto desde vista_avance_estudiante_proyecto, en una consulta."""
+    from django.db import connection
+
+    if not proyecto_ids:
+        return {}
+    marcadores = ', '.join(['%s'] * len(proyecto_ids))
+    with connection.cursor() as cur:
+        cur.execute(
+            f"""
+            SELECT proyecto_id, AVG(nota_promedio_5)
+            FROM vista_avance_estudiante_proyecto
+            WHERE proyecto_id IN ({marcadores})
+            GROUP BY proyecto_id
+            """,
+            list(proyecto_ids),
+        )
+        return {pid: float(nota) for pid, nota in cur.fetchall() if nota is not None}
+
+
+def semaforos_docente(docente_id, color=None):
+    """
+    Panel de semáforos del docente (HU-042): un elemento por proyecto no finalizado de sus cursos.
+    Nivel RF34 del proyecto = clasificar_semaforo(nota promedio del proyecto, % de actividades
+    incumplidas del proyecto) con los umbrales de ParametroSistema (los mismos de HU-029/033/041).
+    Avance, total y completadas salen de VistaProgresoProyecto; la nota, de
+    vista_avance_estudiante_proyecto (consultas agrupadas, no un ciclo por estudiante).
+    color: si se indica, filtra después de calcular el nivel.
+    Retorna [{proyecto_id, nombre, curso_id, curso_nombre, nivel, porcentaje_avance}].
+    """
+    from apps.cursos.models import Proyecto, VistaProgresoProyecto
+
+    proyectos = list(
+        Proyecto.objects.filter(id_curso__id_docente_id=docente_id)
+        .exclude(estado=Proyecto.Estado.FINALIZADO)
+        .select_related('id_curso')
+        .order_by('id_curso__nombre', 'nombre', 'id')
+    )
+    ids = [p.id for p in proyectos]
+    progreso = {
+        v['id_proyecto']: v for v in VistaProgresoProyecto.objects.filter(id_proyecto__in=ids).values(
+            'id_proyecto', 'porcentaje_progreso', 'total_actividades', 'actividades_completadas')
+    }
+    notas = _notas_por_proyecto(ids)
+    umbrales = obtener_umbrales()
+
+    resultado = []
+    for p in proyectos:
+        datos = progreso.get(p.id, {})
+        total = datos.get('total_actividades') or 0
+        completadas = datos.get('actividades_completadas') or 0
+        pct_incumplidas = round((total - completadas) / total * 100, 2) if total else 0
+        nivel = clasificar_semaforo(notas.get(p.id, 0), pct_incumplidas,
+                                    tiene_actividades=total > 0, umbrales=umbrales)
+        if color and nivel != color:
+            continue
+        resultado.append({
+            'proyecto_id': p.id,
+            'nombre': p.nombre,
+            'curso_id': p.id_curso_id,
+            'curso_nombre': p.id_curso.nombre,
+            'nivel': nivel,
+            'porcentaje_avance': int(datos.get('porcentaje_progreso') or 0),
+        })
+    return resultado

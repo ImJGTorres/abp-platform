@@ -8,7 +8,7 @@ from apps.bitacora.models import BitacoraSistema
 from apps.bitacora.utils import registrar_evento
 from apps.usuarios.authentication import UsuarioJWTAuthentication
 
-from .semaforo import NIVELES_SEMAFORO, semaforo_estudiante
+from .semaforo import NIVELES_SEMAFORO, semaforo_estudiante, semaforos_docente
 from .services import calcular_rendimiento_estudiante, get_estudiantes_bajo_rendimiento
 
 logger = logging.getLogger(__name__)
@@ -460,3 +460,29 @@ class SemaforoEstudianteView(APIView):
             proyecto_id = None
 
         return Response(semaforo_estudiante(usuario.id, proyecto_id=proyecto_id), status=status.HTTP_200_OK)
+
+
+class SemaforosDocenteView(APIView):
+    """
+    GET /api/reportes/semaforos/docente/?color=verde|amarillo|rojo (HU-042)
+    Semáforo RF34 y avance de cada proyecto no finalizado de los cursos del docente autenticado.
+    Solo docente (otro rol → 403). Sin proyectos → 200 con lista vacía.
+    """
+    authentication_classes = [UsuarioJWTAuthentication]
+
+    def get(self, request):
+        usuario = request.user
+        if usuario.tipo_rol != 'docente':
+            return Response(
+                {'error': 'Solo los docentes pueden consultar el panel de semáforos de proyectos.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        color = request.query_params.get('color') or None
+        if color and color not in NIVELES_SEMAFORO:
+            return Response(
+                {'error': f'Color inválido. Opciones: {", ".join(NIVELES_SEMAFORO)}.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(semaforos_docente(usuario.id, color=color), status=status.HTTP_200_OK)

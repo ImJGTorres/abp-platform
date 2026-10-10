@@ -1868,6 +1868,34 @@ no recibe id de estudiante.
 **Error `400`:** `{ "error": "proyecto_id debe ser un entero." }`
 **Error `403`:** `{ "error": "Solo estudiantes y líderes de equipo pueden consultar su semáforo personal." }` · `{ "error": "No perteneces a este proyecto." }`
 
+### `GET /api/reportes/semaforos/docente/` (HU-042)
+**Permiso:** Solo `docente` (otro rol → `403`). Siempre usa el docente autenticado.
+**Query params:** `color=verde|amarillo|rojo` (opcional; otro valor → `400`). El filtro se aplica después de
+calcular el nivel, así que coincide con lo que se ve sin filtro.
+**Request:** `GET /api/reportes/semaforos/docente/?color=rojo`
+**Respuesta `200`:** un elemento por proyecto no finalizado de los cursos donde `Curso.id_docente` es el docente,
+ordenados por curso y nombre del proyecto; lista vacía si no tiene proyectos.
+```json
+[
+  {
+    "proyecto_id": 3,
+    "nombre": "Sistema de inventario",
+    "curso_id": 1,
+    "curso_nombre": "Ingeniería de Software I",
+    "nivel": "rojo",
+    "porcentaje_avance": 20
+  }
+]
+```
+- `nivel`: `clasificar_semaforo(nota promedio del proyecto, % de actividades incumplidas del proyecto)` con los
+  umbrales RF34 de `ParametroSistema` (los mismos de HU-029, HU-033 y HU-041). La nota promedio es el promedio de
+  `nota_promedio_5` de `vista_avance_estudiante_proyecto`; el % de incumplidas sale de `vista_progreso_proyecto`
+  (`total_actividades` − `actividades_completadas`). Proyecto sin actividades → `verde`.
+- `porcentaje_avance`: `porcentaje_progreso` de `vista_progreso_proyecto`.
+
+**Error `400`:** `{ "error": "Color inválido. Opciones: verde, amarillo, rojo." }`
+**Error `403`:** `{ "error": "Solo los docentes pueden consultar el panel de semáforos de proyectos." }`
+
 ---
 
 ## Dashboard
