@@ -1,6 +1,8 @@
 from rest_framework.permissions import BasePermission
 
-from apps.roles.models import Permiso, Rol, RolPermiso
+# pyrefly: ignore [missing-import]
+from apps.roles.models import RolPermiso
+# pyrefly: ignore [missing-import]
 from apps.usuarios.models import Usuario
 
 
@@ -26,6 +28,7 @@ def _usuario_tiene_acceso_curso(usuario, curso):
         bool: True si el usuario tiene acceso, False en caso contrario.
     """
     # Importación local para evitar dependencias circulares entre apps
+    # pyrefly: ignore [missing-import]
     from apps.equipos.models import MiembroEquipo
 
     tipo_rol = getattr(usuario, 'tipo_rol', None)
