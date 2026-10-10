@@ -59,8 +59,8 @@ export default function DistribucionTrabajo() {
 
     return (
         <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-            <h1 className="text-[26px] font-extrabold text-[#191c1d] mb-1">Distribucion de Trabajo</h1>
-            <p className="text-[14px] text-[#9ba7ae] mb-6">Supervise la carga de actividades de cada miembro del equipo.</p>
+            <h1 className="text-[22px] font-extrabold text-[#191c1d] tracking-tight mb-1">Distribución de trabajo</h1>
+            <p className="text-[13px] text-[#9ba7ae] mb-6">Supervisa la carga de actividades de cada miembro del equipo.</p>
 
             {loading ? (
                 <div className="text-center py-12 text-[#9ba7ae]">Cargando distribucion...</div>

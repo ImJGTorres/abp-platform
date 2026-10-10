@@ -100,8 +100,8 @@ export default function DashboardLider() {
 
     return (
         <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-            <h1 className="text-[26px] font-extrabold text-[#191c1d] mb-1">Dashboard</h1>
-            <p className="text-[14px] text-[#9ba7ae] mb-6">Resumen del estado de tu equipo y las actividades del proyecto.</p>
+            <h1 className="text-[22px] font-extrabold text-[#191c1d] tracking-tight mb-1">Dashboard</h1>
+            <p className="text-[13px] text-[#9ba7ae] mb-6">Resumen del estado de tu equipo y las actividades del proyecto.</p>
 
             {loading ? (
                 <div className="text-center py-12 text-[#9ba7ae]">Cargando datos...</div>

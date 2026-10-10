@@ -38,11 +38,13 @@ import HistorialEvaluaciones from '../components/docente/HistorialEvaluaciones'
 import EstudiantesRiesgo from '../components/docente/EstudiantesRiesgo'
 import PerfilRendimientoEstudiante from '../components/docente/PerfilRendimientoEstudiante'
 import MonitoreoProyecto from '../components/docente/MonitoreoProyecto'
+import PanelSemaforosDocente from '../components/docente/PanelSemaforosDocente'
 import AutoevaluacionesDocente from '../components/docente/AutoevaluacionesDocente'
 import CoevaluacionesDocente from '../components/docente/CoevaluacionesDocente'
 
 import EstudianteLayout from '../components/Estudiante/EstudianteLayout'
 import DashboardEstudiante from '../components/Estudiante/DashboardEstudiante'
+import MisProyectos from '../components/Estudiante/MisProyectos'
 import EntregablesActividad from '../components/Estudiante/EntregablesActividad'
 import ProyectoEstudianteLayout from '../components/Estudiante/ProyectoEstudianteLayout'
 import Autoevaluacion from '../components/Estudiante/Autoevaluacion'
@@ -124,6 +126,7 @@ export default function AppRouter() {
             <Route path="/docente" element={<Navigate to="/docente/cursos" replace />} />
             <Route path="/docente/cursos" element={<GestionCursos />} />
             <Route path="/docente/calendario" element={<CalendarioPage />} />
+            <Route path="/docente/semaforos" element={<PanelSemaforosDocente />} />
             <Route path="/docente/cursos/:id" element={<DetalleCurso />} />
             <Route path="/docente/cursos/:id/estudiantes" element={<EstudiantesCurso />} />
             <Route path="/docente/cursos/:id/equipos" element={<EquiposCurso />} />
@@ -175,6 +178,7 @@ export default function AppRouter() {
           <Route element={<EstudianteLayout />}>
             <Route path="/estudiante" element={<Navigate to="/estudiante/dashboard" replace />} />
             <Route path="/estudiante/dashboard" element={<DashboardEstudiante />} />
+            <Route path="/estudiante/proyectos" element={<MisProyectos />} />
             <Route path="/estudiante/calendario" element={<CalendarioPage />} />
           </Route>
 
@@ -199,7 +203,8 @@ export default function AppRouter() {
         <Route element={<PrivateRoute allowedRoles={['lider_equipo']} />}>
           <Route element={<LiderLayout />}>
             <Route path="/lider" element={<Navigate to="/lider/inicio" replace />} />
-            <Route path="/lider/inicio" element={<DashboardEstudiante basePath="/lider" />} />
+            <Route path="/lider/inicio" element={<DashboardEstudiante />} />
+            <Route path="/lider/proyectos" element={<MisProyectos />} />
             <Route path="/lider/dashboard" element={<DashboardLider />} />
             <Route path="/lider/distribucion" element={<DistribucionTrabajo />} />
             <Route path="/lider/asignar-responsables" element={<AsignarResponsables />} />
