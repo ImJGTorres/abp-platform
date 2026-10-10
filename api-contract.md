@@ -1817,6 +1817,57 @@ Registra en bitácora `ACCESS / reportes` con descripción `Consulta panel de re
 **Permiso:** Propio estudiante, docente o administrador
 **Respuesta `200`:** Perfil completo de rendimiento del estudiante (actividades, entregables, evaluaciones, avances)
 
+### `GET /api/reportes/semaforos/estudiante/` (HU-041)
+**Permiso:** Solo `estudiante` y `lider_equipo` (otro rol → `403`). Siempre consulta al usuario autenticado;
+no recibe id de estudiante.
+**Query params:** `proyecto_id` (opcional, entero; si el usuario no es miembro activo de ese proyecto → `403`)
+**Request:** `GET /api/reportes/semaforos/estudiante/?proyecto_id=3`
+**Respuesta `200`:**
+```json
+{
+  "nivel": "amarillo",
+  "nota_promedio": 3.2,
+  "porcentaje_actividades_incumplidas": 40.0,
+  "entregables_criticos": [
+    {
+      "titulo": "Modelo entidad-relación",
+      "fecha": "2026-10-05",
+      "estado": "vencida",
+      "enlace": "/estudiante/proyectos/3/actividades/40/entregables"
+    },
+    {
+      "titulo": "Informe parcial",
+      "fecha": "2026-10-12",
+      "estado": "por_vencer",
+      "enlace": "/estudiante/proyectos/3/actividades/41/entregables"
+    },
+    {
+      "titulo": "Informe v1",
+      "fecha": "2026-10-01",
+      "estado": "rechazado",
+      "enlace": "/estudiante/proyectos/3/actividades/38/entregables"
+    }
+  ],
+  "recomendaciones": [
+    "Tienes 1 actividad vencida; empieza por «Modelo entidad-relación»",
+    "Tu promedio (3.2) está por debajo de 3.5",
+    "Corrige y reenvía «Informe v1»"
+  ]
+}
+```
+- `nivel`, `nota_promedio` y `porcentaje_actividades_incumplidas` salen de `calcular_rendimiento_estudiante()`,
+  con los mismos umbrales RF34 de `ParametroSistema` que HU-029 y HU-033 (cambiar un umbral cambia el color en las tres).
+- `entregables_criticos`: actividades no completadas vencidas (`estado: "vencida"`) o que vencen en ≤ 3 días
+  (`"por_vencer"`), ordenadas por fecha, y luego entregables rechazados (`"rechazado"`; `fecha` = fecha límite de su actividad).
+  Se cuentan las mismas actividades que el semáforo: donde el usuario es responsable o están asignadas a su equipo.
+- `recomendaciones`, por reglas y en este orden: actividades vencidas → `"Tienes N actividades vencidas; empieza por «X»"`
+  (la más antigua); nota bajo el umbral → `"Tu promedio (N) está por debajo de U"` (U = umbral de rojo o de amarillo,
+  el que incumpla); cada rechazado → `"Corrige y reenvía «X»"`. Si no aplica ninguna: en verde
+  `"Vas al día; mantén el ritmo"`; en amarillo o rojo `"Tienes el N% de tus actividades sin completar; revisa tu tablero"`.
+
+**Error `400`:** `{ "error": "proyecto_id debe ser un entero." }`
+**Error `403`:** `{ "error": "Solo estudiantes y líderes de equipo pueden consultar su semáforo personal." }` · `{ "error": "No perteneces a este proyecto." }`
+
 ---
 
 ## Dashboard

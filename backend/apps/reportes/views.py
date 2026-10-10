@@ -8,7 +8,7 @@ from apps.bitacora.models import BitacoraSistema
 from apps.bitacora.utils import registrar_evento
 from apps.usuarios.authentication import UsuarioJWTAuthentication
 
-from .semaforo import NIVELES_SEMAFORO
+from .semaforo import NIVELES_SEMAFORO, semaforo_estudiante
 from .services import calcular_rendimiento_estudiante, get_estudiantes_bajo_rendimiento
 
 logger = logging.getLogger(__name__)
@@ -426,3 +426,37 @@ class BusquedaGlobalView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         return Response(buscar_global(q, request.user.tipo_rol), status=status.HTTP_200_OK)
+
+
+class SemaforoEstudianteView(APIView):
+    """
+    GET /api/reportes/semaforos/estudiante/?proyecto_id=<id> (HU-041)
+    Semáforo personal del estudiante autenticado (siempre request.user.id).
+    Solo estudiante y lider_equipo; si se filtra por un proyecto al que no pertenece → 403.
+    """
+    authentication_classes = [UsuarioJWTAuthentication]
+
+    def get(self, request):
+        from apps.equipos.models import MiembroEquipo
+
+        usuario = request.user
+        if usuario.tipo_rol not in ('estudiante', 'lider_equipo'):
+            return Response(
+                {'error': 'Solo estudiantes y líderes de equipo pueden consultar su semáforo personal.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        proyecto_id = request.query_params.get('proyecto_id')
+        if proyecto_id:
+            try:
+                proyecto_id = int(proyecto_id)
+            except ValueError:
+                return Response({'error': 'proyecto_id debe ser un entero.'}, status=status.HTTP_400_BAD_REQUEST)
+            if not MiembroEquipo.objects.filter(
+                usuario=usuario, equipo__proyecto_id=proyecto_id, estado='activo'
+            ).exists():
+                return Response({'error': 'No perteneces a este proyecto.'}, status=status.HTTP_403_FORBIDDEN)
+        else:
+            proyecto_id = None
+
+        return Response(semaforo_estudiante(usuario.id, proyecto_id=proyecto_id), status=status.HTTP_200_OK)
