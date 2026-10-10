@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ asunto }}</title>
+</head>
+<body style="margin:0; padding:0; background-color:#f4f4f4;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f4f4f4;">
+  <tr>
+    <td align="center" style="padding:24px 12px;">
+      <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px; max-width:600px; background-color:#ffffff; border:1px solid #e0e0e0; font-family:Arial, Helvetica, sans-serif; color:#333333;">
+        <!-- Membrete institucional -->
+        <tr>
+          <td style="padding:24px 32px 16px 32px;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                {% if identidad.logo_url %}
+                <td style="padding-right:16px; vertical-align:middle;">
+                  <img src="{{ identidad.logo_url }}" alt="{{ identidad.nombre_institucion }}" width="64" style="display:block; width:64px; height:auto; border:0;">
+                </td>
+                {% endif %}
+                <td style="vertical-align:middle;">
+                  <div style="font-size:18px; font-weight:bold; color:#222222;">{{ identidad.nombre_institucion }}</div>
+                  {% if identidad.programa_academico %}
+                  <div style="font-size:13px; color:#666666; padding-top:2px;">{{ identidad.programa_academico }}</div>
+                  {% endif %}
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:0 32px;">
+            <div style="height:3px; line-height:3px; font-size:0; background-color:#d32f2f;">&nbsp;</div>
+          </td>
+        </tr>
+        <!-- Contenido -->
+        <tr>
+          <td style="padding:24px 32px; font-size:15px; line-height:22px;">
+            {% if destinatario %}<p style="margin:0 0 16px 0;">Hola, {{ destinatario }}:</p>{% endif %}
+            {% block contenido %}{% endblock %}
+          </td>
+        </tr>
+        <!-- Pie -->
+        <tr>
+          <td style="padding:16px 32px; background-color:#fafafa; border-top:1px solid #eeeeee; font-size:12px; line-height:18px; color:#888888;">
+            Este es un mensaje automático de la Plataforma ABP. Por favor no respondas a este correo.
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>

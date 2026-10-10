@@ -1,0 +1,13 @@
+{% extends "correos/base.html" %}
+{% block contenido %}
+<p style="margin:0 0 4px 0; font-size:13px; color:#888888;">Nuevo anuncio{% if autor %} de {{ autor }}{% endif %}</p>
+<p style="margin:0 0 12px 0; font-size:17px; font-weight:bold; color:#222222;">{{ titulo }}</p>
+<p style="margin:0 0 20px 0; white-space:pre-line;">{{ mensaje }}</p>
+<table role="presentation" cellpadding="0" cellspacing="0" border="0">
+  <tr>
+    <td style="background-color:#d32f2f; border-radius:4px;">
+      <a href="{{ url_base }}/" style="display:inline-block; padding:10px 20px; font-size:14px; font-weight:bold; color:#ffffff; text-decoration:none;">Ver el muro de anuncios</a>
+    </td>
+  </tr>
+</table>
+{% endblock %}

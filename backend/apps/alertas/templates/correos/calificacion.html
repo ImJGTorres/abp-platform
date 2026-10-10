@@ -1,0 +1,23 @@
+{% extends "correos/base.html" %}
+{% block contenido %}
+<p style="margin:0 0 8px 0; font-size:17px; font-weight:bold; color:#222222;">Calificación publicada</p>
+<p style="margin:0 0 16px 0;">Se publicó la calificación del entregable <strong>{{ entregable }}</strong>{% if proyecto_nombre %} del proyecto <strong>{{ proyecto_nombre }}</strong>{% endif %}.</p>
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 16px 0;">
+  <tr>
+    <td style="padding:12px 20px; background-color:#fdecea; border-left:4px solid #d32f2f; font-size:15px;">
+      Puntuación total: <strong style="font-size:20px; color:#d32f2f;">{{ puntuacion_total }}</strong>
+    </td>
+  </tr>
+</table>
+{% if comentario_general %}
+<p style="margin:0 0 4px 0; font-weight:bold;">Comentario del docente</p>
+<p style="margin:0 0 20px 0; white-space:pre-line;">{{ comentario_general }}</p>
+{% endif %}
+<table role="presentation" cellpadding="0" cellspacing="0" border="0">
+  <tr>
+    <td style="background-color:#d32f2f; border-radius:4px;">
+      <a href="{{ url_base }}{{ enlace }}" style="display:inline-block; padding:10px 20px; font-size:14px; font-weight:bold; color:#ffffff; text-decoration:none;">Ver historial de evaluaciones</a>
+    </td>
+  </tr>
+</table>
+{% endblock %}

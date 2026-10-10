@@ -1393,6 +1393,11 @@ Regla de ponderaciones (SCRUM-564): la suma de `peso_porcentual` de los criterio
 **Permiso:** Docente creador de la evaluación
 **Body:** `{}` (vacío)
 **Respuesta `200`:** `{ "estado": "publicada" }`
+**Error `400`:** `{ "detail": "La evaluación ya está publicada." }`
+**Efecto (modificado, HU-043):** en la misma transacción encola en `cola_correo` un correo `plantilla = "calificacion"`
+por cada miembro **activo** del equipo del entregable, con
+`contexto = {"evaluacion_id", "entregable", "proyecto_id", "proyecto_nombre", "puntuacion_total", "comentario_general", "enlace": "/estudiante/proyectos/<p>/historial"}`.
+Como una evaluación publicada no se puede volver a publicar, el correo sale una sola vez.
 
 ---
 
@@ -1562,7 +1567,14 @@ También se incluye en la respuesta de `PATCH /api/alertas/<alerta_id>/leer/`.
 
 > **Cola de correos (`cola_correo`, sin endpoint):** cada alerta **nueva** deja una fila en estado
 > `pendiente` con `plantilla = "alerta"` y `contexto = {"mensaje": "...", "proyecto_id": 1}`.
-> Si la alerta ya existía no se encola nada. El envío real lo hace HU-043.
+> Si la alerta ya existía no se encola nada.
+>
+> **Envío (HU-043):** la tarea `correos` de `run_scheduler` (cada 5 min, RNF28) envía hasta 50 filas `pendiente`
+> por ciclo, las más antiguas primero, con la plantilla `apps/alertas/templates/correos/<plantilla>.html`
+> (`alerta | anuncio | calificacion | recordatorio`, membrete de `obtener_identidad()`), en HTML y texto plano.
+> Éxito → `estado = "enviado"` y `fecha_envio`. Fallo → `intentos + 1` y se guarda `error`; al tercer intento
+> fallido queda en `estado = "error"` y no se reintenta. Quién encola: alertas y recordatorios (`_crear_alerta`,
+> solo si la alerta es nueva), anuncios (`publicar_anuncio`) y calificaciones (`PATCH /api/evaluaciones/<pk>/publicar/`).
 
 ### `PATCH /api/alertas/<alerta_id>/leer/`
 **Permiso:** Dueño de la alerta
