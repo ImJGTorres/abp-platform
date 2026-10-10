@@ -457,6 +457,29 @@ class EvaluacionListCreateView(APIView):
         )
 
 
+def _encolar_correos_calificacion(evaluacion):
+    """HU-043: un correo 'calificacion' por cada miembro activo del equipo del entregable."""
+    from apps.alertas.services import encolar_correo
+
+    entregable = Entregable.objects.select_related('id_actividad__id_fase__id_proyecto').get(
+        pk=evaluacion.id_entregable_id)
+    proyecto = entregable.id_actividad.id_fase.id_proyecto
+    contexto = {
+        'evaluacion_id': evaluacion.id,
+        'entregable': entregable.titulo,
+        'proyecto_id': proyecto.id,
+        'proyecto_nombre': proyecto.nombre,
+        'puntuacion_total': str(evaluacion.puntuacion_total),
+        'comentario_general': evaluacion.comentario_general or '',
+        'enlace': f'/estudiante/proyectos/{proyecto.id}/historial',
+    }
+    miembros = MiembroEquipo.objects.filter(
+        equipo_id=entregable.id_equipo_id, estado='activo',
+    ).values_list('usuario_id', flat=True)
+    for usuario_id in miembros:
+        encolar_correo(usuario_id, f'Calificación publicada: {entregable.titulo}', 'calificacion', contexto)
+
+
 class EvaluacionPublicarView(APIView):
     """
     PATCH /api/evaluaciones/<pk>/publicar/
@@ -464,6 +487,7 @@ class EvaluacionPublicarView(APIView):
     Cambia el estado de una evaluación de 'borrador' a 'publicada',
     haciendo visible la calificación para el equipo evaluado.
     Solo el docente que creó la evaluación puede publicarla.
+    Encola un correo 'calificacion' para cada miembro activo del equipo (HU-043).
     """
     authentication_classes = [UsuarioJWTAuthentication]
     permission_classes = [EsDocente]
@@ -495,7 +519,9 @@ class EvaluacionPublicarView(APIView):
             context={'request': request},
         )
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        with transaction.atomic():
+            serializer.save()
+            _encolar_correos_calificacion(evaluacion)
         return Response(serializer.data)
 
 
