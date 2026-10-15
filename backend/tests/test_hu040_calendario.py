@@ -257,3 +257,50 @@ def test_run_scheduler_crea_recordatorios_48h_sin_duplicar():
     # Un solo correo por recordatorio: ninguno con plantilla 'alerta' para estos mensajes
     mensajes_alerta = [c.contexto.get('mensaje', '') for c in ColaCorreo.objects.filter(plantilla='alerta')]
     assert not any(' vence ' in m for m in mensajes_alerta)
+
+
+@pytest.mark.django_db
+def test_run_scheduler_recordatorio_a_cada_responsable_m2m():
+    r1, r2 = UsuarioFactory(), UsuarioFactory()
+    proyecto, fase, equipo = _proyecto_con_equipo(r1, 'Curso A')
+    act = ActividadFactory(id_fase=fase, fecha_limite=HOY + timedelta(days=1))
+    act.responsables.set([r1, r2])
+
+    call_command('run_scheduler', '--once')
+
+    recordatorios = Alerta.objects.filter(tipo='recordatorio_vencimiento', referencia_id=act.id)
+    assert set(recordatorios.values_list('id_usuario_destino_id', flat=True)) == {r1.id, r2.id}
+
+
+@pytest.mark.django_db
+def test_run_scheduler_sin_responsable_ni_equipo_no_genera_recordatorio():
+    ActividadFactory(fecha_limite=HOY + timedelta(days=1))  # sin id_responsable, sin equipo
+
+    call_command('run_scheduler', '--once')  # no debe fallar
+
+    assert not Alerta.objects.filter(tipo='recordatorio_vencimiento').exists()
+
+
+# ── Rol administrador y proyectos finalizados ────────────────────────────────
+
+@pytest.mark.django_db
+def test_administrador_ve_eventos_de_todos_los_proyectos_como_director():
+    mia = ActividadFactory(fecha_limite=HOY)
+    otra = ActividadFactory(fecha_limite=HOY)
+
+    ids = {e['id'] for e in _cliente(UsuarioFactory(tipo_rol='administrador')).get(URL, _rango()).data['eventos']}
+
+    assert ids == {f'actividad-{mia.id}', f'actividad-{otra.id}'}
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize('tipo_rol', ['director', 'administrador'])
+def test_rol_global_no_ve_eventos_de_proyecto_finalizado(tipo_rol):
+    from apps.cursos.models import Proyecto
+
+    fase = FaseProyectoFactory(id_proyecto__estado=Proyecto.Estado.FINALIZADO)
+    ActividadFactory(id_fase=fase, fecha_limite=HOY)
+
+    r = _cliente(UsuarioFactory(tipo_rol=tipo_rol)).get(URL, _rango())
+
+    assert r.data['eventos'] == []
