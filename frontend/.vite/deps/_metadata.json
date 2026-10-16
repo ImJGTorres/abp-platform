@@ -1,0 +1,66 @@
+{
+  "hash": "f44a9e0b",
+  "configHash": "be6d663d",
+  "lockfileHash": "f0901634",
+  "browserHash": "88003d23",
+  "optimized": {
+    "@tanstack/react-query": {
+      "src": "../../node_modules/.pnpm/@tanstack+react-query@5.96.2_react@19.2.4/node_modules/@tanstack/react-query/build/modern/index.js",
+      "file": "@tanstack_react-query.js",
+      "fileHash": "282733c2",
+      "needsInterop": false
+    },
+    "lucide-react": {
+      "src": "../../node_modules/.pnpm/lucide-react@1.7.0_react@19.2.4/node_modules/lucide-react/dist/esm/lucide-react.js",
+      "file": "lucide-react.js",
+      "fileHash": "db539a9b",
+      "needsInterop": false
+    },
+    "react-dom/client": {
+      "src": "../../node_modules/.pnpm/react-dom@19.2.4_react@19.2.4/node_modules/react-dom/client.js",
+      "file": "react-dom_client.js",
+      "fileHash": "271adec8",
+      "needsInterop": true
+    },
+    "react-hot-toast": {
+      "src": "../../node_modules/.pnpm/react-hot-toast@2.6.0_react_072825f278682551d938cdeee8eba691/node_modules/react-hot-toast/dist/index.mjs",
+      "file": "react-hot-toast.js",
+      "fileHash": "650a88df",
+      "needsInterop": false
+    },
+    "react-router-dom": {
+      "src": "../../node_modules/.pnpm/react-router-dom@7.14.0_rea_445fc36f3b47e1b4b30bccf8cc776484/node_modules/react-router-dom/dist/index.mjs",
+      "file": "react-router-dom.js",
+      "fileHash": "ea482830",
+      "needsInterop": false
+    },
+    "react": {
+      "src": "../../node_modules/.pnpm/react@19.2.4/node_modules/react/index.js",
+      "file": "react.js",
+      "fileHash": "f4ce8554",
+      "needsInterop": true
+    },
+    "react/jsx-dev-runtime": {
+      "src": "../../node_modules/.pnpm/react@19.2.4/node_modules/react/jsx-dev-runtime.js",
+      "file": "react_jsx-dev-runtime.js",
+      "fileHash": "d289b776",
+      "needsInterop": true
+    },
+    "recharts": {
+      "src": "../../node_modules/.pnpm/recharts@2.15.4_react-dom@19.2.4_react@19.2.4__react@19.2.4/node_modules/recharts/es6/index.js",
+      "file": "recharts.js",
+      "fileHash": "11cb010e",
+      "needsInterop": false
+    }
+  },
+  "chunks": {
+    "react--WRKu3Vm": {
+      "file": "react--WRKu3Vm.js",
+      "isDynamicEntry": false
+    },
+    "react-dom-C8nfHGDw": {
+      "file": "react-dom-C8nfHGDw.js",
+      "isDynamicEntry": false
+    }
+  }
+}
