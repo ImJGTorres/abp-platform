@@ -95,6 +95,33 @@ def test_estudiante_con_2_vencidas_tiene_2_criticos_y_recomendacion(entorno):
 
 
 @pytest.mark.django_db
+def test_estudiante_sin_actividades_asignadas_es_verde(entorno):
+    """Regla 1 de clasificar_semaforo: sin actividades -> verde, sin importar la nota."""
+    est, fase, equipo = entorno
+
+    r = _get(est)
+
+    assert r.status_code == 200
+    assert r.data['nivel'] == 'verde'
+    assert r.data['entregables_criticos'] == []
+    assert r.data['recomendaciones'] == ['Vas al día; mantén el ritmo']
+
+
+@pytest.mark.django_db
+def test_estudiante_con_nota_muy_baja_es_rojo(entorno):
+    est, fase, equipo = entorno
+    hecha = _actividad(fase, equipo, -2, estado=Actividad.Estado.COMPLETADA)
+    _avance(hecha, est, 40)  # nota 2.0 -> bajo umbral_nota_bajo_rendimiento (3.0)
+
+    r = _get(est)
+
+    assert r.status_code == 200
+    assert r.data['nivel'] == 'rojo'
+    assert r.data['nota_promedio'] == 2.0
+    assert 'Tu promedio (2.0) está por debajo de 3.0' in r.data['recomendaciones']
+
+
+@pytest.mark.django_db
 def test_por_vencer_en_3_dias_y_rechazados_son_criticos(entorno):
     est, fase, equipo = entorno
     proxima = _actividad(fase, equipo, 3, nombre='Informe parcial')
@@ -190,7 +217,9 @@ def test_cambiar_un_umbral_cambia_el_color_en_todos_los_reportes(entorno):
 
     assert niveles() == ('amarillo', 'amarillo', 'amarillo')
 
-    ParametroSistema.objects.create(clave='umbral_nota_alerta', valor='3.0',
-                                    categoria='general', tipo_dato='string')
+    ParametroSistema.objects.update_or_create(
+        clave='umbral_nota_alerta',
+        defaults={'valor': '3.0', 'categoria': 'general', 'tipo_dato': 'string'},
+    )
 
     assert niveles() == ('verde', 'verde', 'verde')
