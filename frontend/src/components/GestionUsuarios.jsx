@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { usuariosApi } from "../services/api";
 
 const ROLES = [
@@ -28,6 +29,37 @@ export default function GestionUsuarios() {
   const PAGE_SIZE = 10;
 
   useEffect(() => { cargarUsuarios(1); }, []);
+
+  // Enlace desde la búsqueda global: /admin/registro?usuario_id=<id>
+  const [searchParams, setSearchParams] = useSearchParams();
+  const usuarioId = searchParams.get("usuario_id");
+  const [encontrado, setEncontrado] = useState(null);   // { id, usuario?, error? }
+
+  useEffect(() => {
+    if (!usuarioId) return;
+    let activo = true;
+    usuariosApi.obtener(usuarioId)
+      .then((u) => { if (activo) setEncontrado({ id: usuarioId, usuario: u }); })
+      .catch((err) => {
+        if (!activo) return;
+        setEncontrado({
+          id: usuarioId,
+          error: err?.status === 404 ? "Usuario no encontrado." : "No se pudo cargar el usuario buscado.",
+        });
+      });
+    return () => { activo = false; };
+  }, [usuarioId]);
+
+  function quitarUsuario() {
+    setSearchParams((prev) => {
+      const p = new URLSearchParams(prev);
+      p.delete("usuario_id");
+      return p;
+    }, { replace: true });
+  }
+
+  const tarjeta = usuarioId && encontrado?.id === usuarioId ? encontrado : null;
+  const cargandoTarjeta = Boolean(usuarioId) && !tarjeta;
 
   async function cargarUsuarios(p = page) {
     setLoading(true);
@@ -91,6 +123,28 @@ export default function GestionUsuarios() {
           Recargar
         </button>
       </div>
+
+      {usuarioId && (
+        <div className="mx-4 sm:mx-5 mt-3 px-4 py-3 rounded-lg border border-[#fecdd3] bg-[#fff5f5] flex items-center justify-between gap-3 flex-wrap">
+          {cargandoTarjeta ? (
+            <p className="text-sm text-gray-500">Buscando usuario…</p>
+          ) : tarjeta.error ? (
+            <p className="text-sm text-red-700">{tarjeta.error}</p>
+          ) : (
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Usuario encontrado</p>
+              <p className="text-sm font-semibold text-gray-800">{tarjeta.usuario.nombre} {tarjeta.usuario.apellido}</p>
+              <p className="text-xs text-gray-500 break-all">
+                {tarjeta.usuario.correo} · {ROLES.find((r) => r.value === tarjeta.usuario.tipo_rol)?.label ?? tarjeta.usuario.tipo_rol}
+                {" · "}{(estadoConfig[tarjeta.usuario.estado] ?? estadoConfig.inactivo).label}
+              </p>
+            </div>
+          )}
+          <button onClick={quitarUsuario} className="text-xs font-semibold text-[#d32f2f] hover:underline">
+            Ver todos
+          </button>
+        </div>
+      )}
 
       {toast && (
         <div className={`mx-4 sm:mx-5 mt-3 px-4 py-3 rounded-lg text-sm ${

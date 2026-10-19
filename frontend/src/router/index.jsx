@@ -66,6 +66,8 @@ import DashboardDirector from '../components/director/DashboardDirector'
 import ListaReportes from '../components/director/ListaReportes'
 import ReporteProyecto from '../components/director/ReporteProyecto'
 import EstudiantesRiesgoDirector from '../components/director/EstudiantesRiesgoDirector'
+import ResultadosBusqueda from '../components/Compartidos/ResultadosBusqueda'
+import IdentidadInstitucional from '../components/IdentidadInstitucional'
 
 function PanelEstudiante() { return <div className="p-10">Estudiante</div> }
 
@@ -117,6 +119,8 @@ export default function AppRouter() {
             <Route path="/admin/periodos" element={<Pagina><GestionPeriodos /></Pagina>} />
             <Route path="/admin/bitacoras" element={<Pagina><BitacorasAuditoria /></Pagina>} />
             <Route path="/admin/roles" element={<GestionRoles />} />
+            <Route path="/admin/identidad" element={<Pagina><IdentidadInstitucional /></Pagina>} />
+            <Route path="/admin/busqueda" element={<ResultadosBusqueda />} />
           </Route>
         </Route>
 
@@ -169,6 +173,7 @@ export default function AppRouter() {
             <Route path="/director/reportes" element={<ListaReportes />} />
             <Route path="/director/reportes/proyecto/:proyectoId" element={<ReporteProyecto />} />
             <Route path="/director/calendario" element={<CalendarioPage />} />
+            <Route path="/director/busqueda" element={<ResultadosBusqueda />} />
           </Route>
         </Route>
 

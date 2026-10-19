@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { reportesApi } from '../../services/docenteApi'
 import { periodosApi, cursosAdminApi } from '../../services/api'
 import Semaforo from '../Compartidos/Semaforo'
@@ -24,6 +25,9 @@ function BarraRiesgo({ valor, critica }) {
 }
 
 export default function EstudiantesRiesgoDirector() {
+    // Enlace desde la búsqueda global: /director/riesgo?estudiante_id=<id>
+    const [searchParams, setSearchParams] = useSearchParams()
+    const estudianteId = searchParams.get('estudiante_id')
     const [periodos, setPeriodos] = useState([])
     const [periodoSel, setPeriodoSel] = useState('')
     const [todosCursos, setTodosCursos] = useState([])
@@ -81,6 +85,25 @@ export default function EstudiantesRiesgoDirector() {
         if (filtroNivel === 'todos') return estudiantes
         return estudiantes.filter(e => e.nivel_semaforo === filtroNivel)
     }, [estudiantes, filtroNivel])
+
+    const estudianteResaltado = estudianteId
+        ? estudiantes.find(e => String(e.id) === String(estudianteId)) ?? null
+        : null
+
+    // Lleva la vista a la fila del estudiante buscado una vez cargada la lista
+    useEffect(() => {
+        if (cargando || !estudianteResaltado) return
+        document.getElementById(`fila-estudiante-${estudianteResaltado.id}`)
+            ?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    }, [cargando, estudianteResaltado, filtroNivel])
+
+    function quitarSeleccion() {
+        setSearchParams(prev => {
+            const p = new URLSearchParams(prev)
+            p.delete('estudiante_id')
+            return p
+        }, { replace: true })
+    }
 
     return (
         <div className="p-4 sm:p-6 flex flex-col gap-5">
@@ -185,6 +208,22 @@ export default function EstudiantesRiesgoDirector() {
                 </div>
             )}
 
+            {estudianteId && !cargando && !error && (
+                <div className="flex items-center justify-between gap-3 flex-wrap bg-[#fff5f5] border border-[#fecdd3] rounded-xl px-4 py-3">
+                    <p className="text-[13px] text-[#191c1d]">
+                        {estudianteResaltado
+                            ? <>Estudiante seleccionado desde la búsqueda: <strong>{estudianteResaltado.nombre} {estudianteResaltado.apellido}</strong></>
+                            : 'El estudiante buscado no aparece en la lista con los filtros actuales.'}
+                    </p>
+                    <button
+                        onClick={quitarSeleccion}
+                        className="text-[12px] font-semibold text-[#d32f2f] hover:underline"
+                    >
+                        Quitar selección
+                    </button>
+                </div>
+            )}
+
             {/* Tabla */}
             {!cargando && estudiantesVisibles.length === 0 && !error && (
                 <div className="bg-white rounded-2xl border border-[#e1e3e4] flex flex-col items-center justify-center py-16 gap-3">
@@ -216,8 +255,13 @@ export default function EstudiantesRiesgoDirector() {
                                 {estudiantesVisibles.map((est, i) => {
                                     const notaCritica = est.nota_promedio != null && est.nota_promedio < 3.0
                                     const pctCritica = est.porcentaje_actividades_incumplidas >= 50
+                                    const resaltado = String(est.id) === String(estudianteId)
                                     return (
-                                        <tr key={est.id} className="hover:bg-[#fafafa] transition-colors">
+                                        <tr
+                                            key={est.id}
+                                            id={`fila-estudiante-${est.id}`}
+                                            className={`transition-colors ${resaltado ? 'bg-[#fff5f5] ring-2 ring-inset ring-[#d32f2f]/40' : 'hover:bg-[#fafafa]'}`}
+                                        >
                                             <td className="px-4 py-3 text-[12px] font-bold text-[#9ba7ae] w-8">{i + 1}</td>
                                             <td className="px-4 py-3">
                                                 <div className="flex items-center gap-2.5">

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { reportesApi } from '../../services/docenteApi'
-import { periodosApi } from '../../services/api'
+import { periodosApi, cursosAdminApi } from '../../services/api'
 
 // Normaliza el resultado de indicadoresDashboard al shape que usa el componente
 function normalizarProyecto(p) {
@@ -71,6 +71,11 @@ function ProgressBar({ value }) {
 
 export default function ListaReportes() {
     const navigate = useNavigate()
+    // Enlace desde la búsqueda global: /director/reportes?curso_id=<id>
+    const [searchParams, setSearchParams] = useSearchParams()
+    const cursoParam = searchParams.get('curso_id')
+    const [cursoInfo, setCursoInfo] = useState(null)   // { id, nombre } del curso del parámetro
+    const [cursoNoEncontrado, setCursoNoEncontrado] = useState(false)
     const [periodos, setPeriodos] = useState([])
     const [periodoSel, setPeriodoSel] = useState('')
     const [reporte, setReporte] = useState(null)
@@ -82,13 +87,41 @@ export default function ListaReportes() {
         periodosApi.listar().then(setPeriodos).catch(() => {})
     }, [])
 
+    // Con ?curso_id=: busca el curso y preselecciona su período
+    useEffect(() => {
+        if (!cursoParam) return
+        let activo = true
+        cursosAdminApi.listar()
+            .then(data => {
+                if (!activo) return
+                const arr = Array.isArray(data) ? data : (data?.results ?? [])
+                const curso = arr.find(c => String(c.id) === String(cursoParam))
+                if (!curso) { setCursoNoEncontrado(true); return }
+                setCursoNoEncontrado(false)
+                setCursoInfo({ id: curso.id, nombre: curso.nombre })
+                if (curso.id_periodo_academico != null) setPeriodoSel(String(curso.id_periodo_academico))
+            })
+            .catch(() => { if (activo) setCursoNoEncontrado(true) })
+        return () => { activo = false }
+    }, [cursoParam])
+
+    function quitarCurso() {
+        setSearchParams(prev => {
+            const p = new URLSearchParams(prev)
+            p.delete('curso_id')
+            return p
+        }, { replace: true })
+        setCursoInfo(null)
+        setCursoNoEncontrado(false)
+    }
+
     useEffect(() => {
         if (!periodoSel) { setReporte(null); return }
         async function cargar() {
             setCargando(true)
             setError(null)
             try {
-                const res = await reportesApi.indicadoresDashboard({ periodoId: periodoSel })
+                const res = await reportesApi.indicadoresDashboard({ periodoId: periodoSel, cursoId: cursoParam })
                 setReporte(res)
             } catch {
                 setError('No se pudo cargar el reporte.')
@@ -97,7 +130,7 @@ export default function ListaReportes() {
             }
         }
         cargar()
-    }, [periodoSel])
+    }, [periodoSel, cursoParam])
 
     const periodoNombre = (() => {
         const raw = reporte?.resumen_periodo
@@ -126,7 +159,7 @@ export default function ListaReportes() {
                 <div className="flex gap-3 flex-wrap">
                     <select
                         value={periodoSel}
-                        onChange={e => { setPeriodoSel(e.target.value); setBusqueda('') }}
+                        onChange={e => { setPeriodoSel(e.target.value); setBusqueda(''); if (cursoParam) quitarCurso() }}
                         className="flex-1 min-w-[200px] border border-[#e1e3e4] rounded-xl px-3 py-2 text-[13px] text-[#191c1d] bg-white focus:outline-none focus:ring-2 focus:ring-[#d32f2f]/30"
                     >
                         <option value="">— Seleccionar período —</option>
@@ -134,6 +167,20 @@ export default function ListaReportes() {
                             <option key={p.id} value={p.id}>{p.nombre ?? `Curso ${p.id}`}</option>
                         ))}
                     </select>
+                    {cursoParam && (
+                        <div className="flex items-center gap-2 px-3 py-2 bg-[#fff5f5] border border-[#fecdd3] rounded-xl text-[13px] text-[#191c1d]">
+                            <span>
+                                Curso: <strong>{cursoInfo?.nombre ?? (cursoNoEncontrado ? `#${cursoParam} (no encontrado)` : 'Cargando...')}</strong>
+                            </span>
+                            <button
+                                onClick={quitarCurso}
+                                aria-label="Quitar filtro de curso"
+                                className="text-[#d32f2f] font-bold hover:underline"
+                            >
+                                ×
+                            </button>
+                        </div>
+                    )}
                     {periodoSel && (
                         <div className="relative flex-1 min-w-[180px]">
                             <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9ba7ae]">

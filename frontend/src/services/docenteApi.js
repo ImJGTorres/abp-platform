@@ -549,6 +549,34 @@ export const rubricasApi = {
         if (!response.ok) throw { status: response.status, data }
         return data
     },
+
+    // Banco de rúbricas (HU-044)
+    async guardarPlantilla(rubricaId, nombrePlantilla) {
+        const response = await request(`/api/rubricas/${rubricaId}/guardar-plantilla/`, {
+            method: 'PATCH',
+            body: JSON.stringify({ nombre_plantilla: nombrePlantilla }),
+        })
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+
+    async listarPlantillas() {
+        const response = await request('/api/rubricas/plantillas/')
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+
+    async clonar(plantillaId, proyectoId) {
+        const response = await request(`/api/rubricas/plantillas/${plantillaId}/clonar/`, {
+            method: 'POST',
+            body: JSON.stringify({ id_proyecto: Number(proyectoId) }),
+        })
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
 }
 
 // ─── Reportes de rendimiento ───────────────────────────────────

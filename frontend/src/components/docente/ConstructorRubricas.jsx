@@ -1,6 +1,8 @@
 import { useState, useEffect, Fragment } from 'react'
 import { useParams, useLocation } from 'react-router-dom'
+import toast from 'react-hot-toast'
 import { rubricasApi } from '../../services/docenteApi'
+import CatalogoPlantillas from './CatalogoPlantillas'
 import MigasDePan from '../Compartidos/MigasDePan'
 import { migasFase } from '../../utils/migasDocente'
 
@@ -61,6 +63,15 @@ function IconEye() {
         <svg viewBox="0 0 20 20" fill="none" className="w-4 h-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
             <path d="M1 10s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z" />
             <circle cx="10" cy="10" r="2.5" />
+        </svg>
+    )
+}
+
+function IconTemplate() {
+    return (
+        <svg viewBox="0 0 20 20" fill="none" className="w-4 h-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="3" width="14" height="14" rx="2" />
+            <path d="M3 8h14M8 8v9" />
         </svg>
     )
 }
@@ -179,6 +190,13 @@ export default function ConstructorRubricas() {
     const [eliminando,      setEliminando]      = useState(false)
     const [errorEliminar,   setErrorEliminar]   = useState('')
 
+    // Banco de plantillas (HU-044)
+    const [catalogoAbierto, setCatalogoAbierto] = useState(false)
+    const [clonando,        setClonando]        = useState(false)
+    const [plantillaDe,     setPlantillaDe]     = useState(null)  // rúbrica que se guardará como plantilla
+    const [nombrePlantilla, setNombrePlantilla] = useState('')
+    const [guardandoPlantilla, setGuardandoPlantilla] = useState(false)
+
     useEffect(() => { cargarRubricas() }, [proyectoId])
 
     async function cargarRubricas() {
@@ -234,6 +252,43 @@ export default function ConstructorRubricas() {
             })))
             if (rubricaVista?.id === r.id) setRubricaVista(actualizada)
         } catch { }
+    }
+
+    function abrirGuardarPlantilla(r) {
+        setPlantillaDe(r)
+        setNombrePlantilla(r.nombre_plantilla || r.nombre || '')
+    }
+
+    async function confirmarGuardarPlantilla() {
+        if (!plantillaDe || guardandoPlantilla) return
+        setGuardandoPlantilla(true)
+        try {
+            const actualizada = await rubricasApi.guardarPlantilla(plantillaDe.id, nombrePlantilla.trim())
+            setRubricas(prev => prev.map(r => r.id === plantillaDe.id ? { ...r, ...actualizada } : r))
+            if (rubricaVista?.id === plantillaDe.id) setRubricaVista(v => ({ ...v, ...actualizada }))
+            toast.success('Rúbrica guardada como plantilla.')
+            setPlantillaDe(null)
+        } catch (e) {
+            toast.error(parsearError(e?.data))
+        } finally {
+            setGuardandoPlantilla(false)
+        }
+    }
+
+    async function usarPlantilla(plantilla) {
+        if (clonando) return
+        setClonando(true)
+        try {
+            const nueva = await rubricasApi.clonar(plantilla.id, proyectoId)
+            setRubricas(prev => [...prev, nueva])
+            setCatalogoAbierto(false)
+            toast.success('Rúbrica creada desde la plantilla. Ya puedes editarla.')
+            editarRubrica(nueva)
+        } catch (e) {
+            toast.error(parsearError(e?.data))
+        } finally {
+            setClonando(false)
+        }
     }
 
     async function ejecutarEliminar() {
@@ -308,6 +363,7 @@ export default function ConstructorRubricas() {
         : 0
 
     const sumaValida = Math.abs(sumaExcelente - 100) < 0.01
+    const mensajePonderaciones = `Las ponderaciones suman ${Number(sumaExcelente.toFixed(2))} %; deben sumar 100 %`
 
     const formValida =
         editando?.nombre?.trim() &&
@@ -355,6 +411,67 @@ export default function ConstructorRubricas() {
         }
     }
 
+    // ── Modales del banco de plantillas (se muestran en lista y detalle) ──────
+
+    const modalesPlantilla = (
+        <>
+            {catalogoAbierto && (
+                <CatalogoPlantillas
+                    onSeleccionar={usarPlantilla}
+                    onCerrar={() => setCatalogoAbierto(false)}
+                    procesando={clonando}
+                />
+            )}
+
+            {plantillaDe && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                    <form
+                        onSubmit={e => { e.preventDefault(); confirmarGuardarPlantilla() }}
+                        className="bg-white rounded-2xl shadow-2xl w-full max-w-sm"
+                        style={{ fontFamily: "'Manrope', sans-serif" }}
+                    >
+                        <div className="p-6">
+                            <p className="text-[16px] font-bold text-[#191c1d] mb-1">Guardar como plantilla</p>
+                            <p className="text-[13px] text-[#6b7b83] mb-4">
+                                Otros docentes podrán crear rúbricas a partir de “{plantillaDe.nombre}”.
+                            </p>
+                            <label htmlFor="nombre-plantilla" className="text-[11px] font-bold uppercase tracking-[0.8px] text-[#6b7b83] block mb-1.5">
+                                Nombre de la plantilla *
+                            </label>
+                            <input
+                                id="nombre-plantilla"
+                                type="text"
+                                autoFocus
+                                maxLength={200}
+                                value={nombrePlantilla}
+                                onChange={e => setNombrePlantilla(e.target.value)}
+                                placeholder="Ej: Rúbrica estándar de entregable"
+                                className="w-full px-3.5 py-2.5 text-[14px] text-[#191c1d] bg-[#f8f9fa] border border-[#e1e3e4] rounded-xl focus:outline-none focus:border-[#d32f2f] focus:bg-white transition-colors placeholder-[#c4cdd2]"
+                            />
+                        </div>
+                        <div className="flex gap-2 px-6 pb-6">
+                            <button
+                                type="button"
+                                onClick={() => setPlantillaDe(null)}
+                                disabled={guardandoPlantilla}
+                                className="flex-1 h-11 rounded-xl border-2 border-[#e1e3e4] text-[#4c616c] font-semibold text-[13px] hover:bg-[#f0f2f3] transition-colors disabled:opacity-50"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                type="submit"
+                                disabled={guardandoPlantilla || !nombrePlantilla.trim()}
+                                className="flex-1 h-11 rounded-xl bg-[#d32f2f] text-white font-bold text-[13px] hover:bg-[#b71c1c] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {guardandoPlantilla ? 'Guardando...' : 'Guardar'}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            )}
+        </>
+    )
+
     // ── Vista: Lista ──────────────────────────────────────────────────────────
 
     if (vista === 'lista') {
@@ -372,13 +489,22 @@ export default function ConstructorRubricas() {
                             Define criterios y niveles de desempeño para evaluar a tus estudiantes.
                         </p>
                     </div>
-                    <button
-                        onClick={nuevaRubrica}
-                        className="flex items-center gap-2 px-4 py-2.5 bg-[#d32f2f] text-white text-[13px] font-semibold rounded-xl hover:bg-[#b71c1c] transition-colors shadow-sm"
-                    >
-                        <IconPlus />
-                        Nueva rúbrica
-                    </button>
+                    <div className="flex items-center gap-2 flex-wrap justify-end">
+                        <button
+                            onClick={() => setCatalogoAbierto(true)}
+                            className="flex items-center gap-2 px-4 py-2.5 text-[13px] font-semibold text-[#4c616c] bg-[#f0f2f3] rounded-xl hover:bg-[#e1e3e4] transition-colors"
+                        >
+                            <IconTemplate />
+                            Crear desde plantilla
+                        </button>
+                        <button
+                            onClick={nuevaRubrica}
+                            className="flex items-center gap-2 px-4 py-2.5 bg-[#d32f2f] text-white text-[13px] font-semibold rounded-xl hover:bg-[#b71c1c] transition-colors shadow-sm"
+                        >
+                            <IconPlus />
+                            Nueva rúbrica
+                        </button>
+                    </div>
                 </div>
 
                 {loadingLista ? (
@@ -427,6 +553,12 @@ export default function ConstructorRubricas() {
                                                 {r.tipo_display ?? r.tipo}
                                             </span>
                                         )}
+                                        {r.es_plantilla && (
+                                            <span className="flex items-center gap-1 text-[11px] font-bold text-[#2e7d32] bg-[#f1f8e9] border border-[#c8e6c9] px-2 py-0.5 rounded-lg">
+                                                <IconTemplate />
+                                                Plantilla
+                                            </span>
+                                        )}
                                         {r.es_rubrica_proyecto && (
                                             <span className="flex items-center gap-1 text-[11px] font-bold text-[#e65100] bg-[#fff3e0] border border-[#ffcc80] px-2 py-0.5 rounded-lg">
                                                 <IconStar filled />
@@ -446,6 +578,13 @@ export default function ConstructorRubricas() {
                                         }`}
                                     >
                                         <IconStar filled={r.es_rubrica_proyecto} />
+                                    </button>
+                                    <button
+                                        onClick={() => abrirGuardarPlantilla(r)}
+                                        title="Guardar como plantilla"
+                                        className="flex items-center justify-center w-8 h-8 text-[#9ba7ae] bg-[#f0f2f3] rounded-xl hover:bg-[#e1e3e4] hover:text-[#4c616c] transition-colors"
+                                    >
+                                        <IconTemplate />
                                     </button>
                                     <button
                                         onClick={() => editarRubrica(r)}
@@ -505,6 +644,8 @@ export default function ConstructorRubricas() {
                         </div>
                     </div>
                 )}
+
+                {modalesPlantilla}
             </div>
         )
     }
@@ -541,13 +682,22 @@ export default function ConstructorRubricas() {
                                 )}
                             </div>
                         </div>
-                        <button
-                            onClick={() => editarRubrica(r)}
-                            className="flex-shrink-0 flex items-center gap-1.5 px-4 py-2.5 text-[13px] font-semibold text-[#4c616c] bg-[#f0f2f3] rounded-xl hover:bg-[#e1e3e4] transition-colors"
-                        >
-                            <IconEdit />
-                            Editar
-                        </button>
+                        <div className="flex-shrink-0 flex items-center gap-2">
+                            <button
+                                onClick={() => abrirGuardarPlantilla(r)}
+                                className="flex items-center gap-1.5 px-4 py-2.5 text-[13px] font-semibold text-[#4c616c] bg-[#f0f2f3] rounded-xl hover:bg-[#e1e3e4] transition-colors"
+                            >
+                                <IconTemplate />
+                                Guardar como plantilla
+                            </button>
+                            <button
+                                onClick={() => editarRubrica(r)}
+                                className="flex items-center gap-1.5 px-4 py-2.5 text-[13px] font-semibold text-[#4c616c] bg-[#f0f2f3] rounded-xl hover:bg-[#e1e3e4] transition-colors"
+                            >
+                                <IconEdit />
+                                Editar
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -597,6 +747,8 @@ export default function ConstructorRubricas() {
                         </div>
                     ))}
                 </div>
+
+                {modalesPlantilla}
             </div>
         )
     }
@@ -640,6 +792,12 @@ export default function ConstructorRubricas() {
                             </button>
                         </div>
                     </div>
+
+                    {!sumaValida && (
+                        <div role="alert" className="bg-[#fff3e0] border border-[#ffe0b2] text-[#e65100] text-[13px] font-semibold rounded-xl px-4 py-3">
+                            {mensajePonderaciones}
+                        </div>
+                    )}
 
                     {saveError && (
                         <div className="bg-[#ffebee] border border-[#ef9a9a] text-[#c62828] text-[13px] rounded-xl px-4 py-3">
@@ -820,12 +978,7 @@ export default function ConstructorRubricas() {
                         </div>
 
                         <p className="text-[11px] mt-2" style={{ color: sumaValida ? '#2e7d32' : sumaExcelente > 100 ? '#c62828' : '#6b7b83' }}>
-                            {sumaValida
-                                ? '✓ Suma de excelente = 100 pts'
-                                : sumaExcelente > 100
-                                    ? `Excede en ${(sumaExcelente - 100).toFixed(1)} pts`
-                                    : `Faltan ${(100 - sumaExcelente).toFixed(1)} pts`
-                            }
+                            {sumaValida ? '✓ Las ponderaciones suman 100 %' : mensajePonderaciones}
                         </p>
 
                         <button
