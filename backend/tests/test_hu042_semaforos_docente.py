@@ -107,7 +107,10 @@ def test_docente_con_3_proyectos_recibe_3_elementos_con_nivel_y_avance(docente_c
     duracion = time.perf_counter() - inicio
 
     assert r.status_code == 200
-    assert duracion < 1
+    # Margen generoso: la garantía real de performance (sin ciclo por estudiante) la
+    # verifica test_consultas_constantes_sin_ciclo_por_estudiante contando queries, no el
+    # tiempo de pared, que contra la Supabase remota depende de la latencia de red.
+    assert duracion < 3
     assert [(e['nombre'], e['nivel']) for e in r.data] == [
         ('A-Verde', 'verde'), ('B-Amarillo', 'amarillo'), ('C-Rojo', 'rojo')]
     assert r.data[0] == {
@@ -169,8 +172,10 @@ def test_sin_autenticar_retorna_401():
 
 def test_nivel_usa_los_umbrales_de_configuracion(docente_con_3_proyectos):
     docente, _ = docente_con_3_proyectos
-    ParametroSistema.objects.create(clave='umbral_nota_alerta', valor='3.0',
-                                    categoria='general', tipo_dato='string')
+    ParametroSistema.objects.update_or_create(
+        clave='umbral_nota_alerta',
+        defaults={'valor': '3.0', 'categoria': 'general', 'tipo_dato': 'string'},
+    )
 
     niveles = {e['nombre']: e['nivel'] for e in _get(docente).data}
 
@@ -199,3 +204,39 @@ def test_color_invalido_retorna_400():
     r = _get(DocenteFactory(), color='azul')
     assert r.status_code == 400
     assert 'verde, amarillo, rojo' in r.data['error']
+
+
+def test_filtro_color_es_sensible_a_mayusculas():
+    r = _get(DocenteFactory(), color='ROJO')
+    assert r.status_code == 400
+
+
+# ── Valores límite de los umbrales RF34 ──────────────────────────────────────
+
+def test_pct_incumplidas_exactamente_en_el_umbral_es_critico():
+    """pct_rojo=50 y pct_amarillo=25 por defecto; el operador es '>=' (límite incluido)."""
+    docente = DocenteFactory()
+    # 1 de 2 completadas, avance 100 -> nota 5.0; pct_incumplidas = 50.0 exacto -> rojo pese a la nota
+    en_el_limite_rojo = _proyecto(docente, 'Límite-50', 50, avances=[100], completadas=1, pendientes=1)
+    # 3 de 4 completadas, avance 100 -> nota 5.0; pct_incumplidas = 25.0 exacto -> amarillo
+    en_el_limite_amarillo = _proyecto(docente, 'Límite-25', 75, avances=[100, 100, 100],
+                                      completadas=3, pendientes=1)
+
+    niveles = {e['nombre']: e['nivel'] for e in _get(docente).data}
+
+    assert niveles[en_el_limite_rojo.nombre] == 'rojo'
+    assert niveles[en_el_limite_amarillo.nombre] == 'amarillo'
+
+
+def test_nota_exactamente_en_el_umbral_no_activa_el_nivel_mas_bajo():
+    """nota_rojo=3.0 y nota_amarillo=3.5 por defecto; el operador es '<' (límite excluido)."""
+    docente = DocenteFactory()
+    # avance 60 -> nota 3.0 exacta; no es '< 3.0' -> no es rojo, pero sí '< 3.5' -> amarillo
+    en_el_limite_rojo = _proyecto(docente, 'Nota-3.0', 100, avances=[60], completadas=1, pendientes=0)
+    # avance 70 -> nota 3.5 exacta; no es '< 3.5' -> verde
+    en_el_limite_amarillo = _proyecto(docente, 'Nota-3.5', 100, avances=[70], completadas=1, pendientes=0)
+
+    niveles = {e['nombre']: e['nivel'] for e in _get(docente).data}
+
+    assert niveles[en_el_limite_rojo.nombre] == 'amarillo'
+    assert niveles[en_el_limite_amarillo.nombre] == 'verde'
