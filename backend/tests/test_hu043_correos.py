@@ -3,6 +3,7 @@ HU-043 — Notificaciones por correo: proveedor (SCRUM-538), plantillas con memb
 despacho de la cola (SCRUM-540) y eventos que encolan (SCRUM-541).
 """
 from datetime import date, timedelta
+from smtplib import SMTPException
 from unittest.mock import patch
 
 import pytest
@@ -10,6 +11,7 @@ from django.conf import settings
 from django.core import mail
 from django.core.management import call_command
 from django.test import override_settings
+from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.alertas.models import ColaCorreo
@@ -226,3 +228,229 @@ def test_alerta_recordatorio_y_anuncio_encolan_una_sola_vez():
 
     por_plantilla = sorted(ColaCorreo.objects.values_list('plantilla', flat=True))
     assert por_plantilla == ['alerta', 'anuncio', 'recordatorio']
+
+
+# ── SCRUM-542: valores extremos y casos borde ────────────────────────────────
+
+SIN_LOGO = patch('apps.configuracion.identidad.obtener_identidad', return_value=IDENTIDAD_SIN_LOGO)
+
+
+def _encolar(**extra):
+    return encolar_correo(UsuarioFactory(**extra).id, 'Asunto', 'alerta', CONTEXTOS['alerta'])
+
+
+@pytest.mark.django_db
+def test_despachar_con_cola_vacia_no_envia_nada():
+    assert despachar_cola() == {'enviados': 0, 'fallidos': 0}
+    assert mail.outbox == []
+
+
+@pytest.mark.django_db
+@SIN_LOGO
+def test_despachar_es_idempotente_un_enviado_no_se_reenvia(_identidad):
+    _encolar()
+    despachar_cola()
+    assert despachar_cola() == {'enviados': 0, 'fallidos': 0}
+    assert len(mail.outbox) == 1
+
+
+@pytest.mark.django_db
+@SIN_LOGO
+def test_limite_cero_y_limite_uno_son_exactos(_identidad):
+    _encolar()
+    _encolar()
+
+    assert despachar_cola(limite=0) == {'enviados': 0, 'fallidos': 0}
+    assert despachar_cola(limite=1) == {'enviados': 1, 'fallidos': 0}
+    assert ColaCorreo.objects.filter(estado='pendiente').count() == 1
+
+
+@pytest.mark.django_db
+@SIN_LOGO
+def test_se_despachan_primero_los_correos_mas_antiguos(_identidad):
+    nuevo, medio, viejo = _encolar(), _encolar(), _encolar()
+    ahora = timezone.now()
+    ColaCorreo.objects.filter(pk=viejo.pk).update(fecha_creacion=ahora - timedelta(hours=2))
+    ColaCorreo.objects.filter(pk=medio.pk).update(fecha_creacion=ahora - timedelta(hours=1))
+
+    despachar_cola(limite=2)
+
+    estados = dict(ColaCorreo.objects.values_list('id', 'estado'))
+    assert estados == {viejo.id: 'enviado', medio.id: 'enviado', nuevo.id: 'pendiente'}
+
+
+@pytest.mark.django_db
+@SIN_LOGO
+def test_fallo_del_proveedor_reintenta_y_a_los_3_queda_en_error(_identidad):
+    correo = _encolar()
+
+    with patch('django.core.mail.EmailMultiAlternatives.send', side_effect=SMTPException('SMTP caído')):
+        for intento in (1, 2):
+            assert despachar_cola() == {'enviados': 0, 'fallidos': 1}
+            correo.refresh_from_db()
+            assert (correo.estado, correo.intentos) == ('pendiente', intento)
+        despachar_cola()
+        correo.refresh_from_db()
+        assert (correo.estado, correo.intentos) == ('error', 3)
+        assert 'SMTP caído' in correo.error and correo.fecha_envio is None
+        assert despachar_cola() == {'enviados': 0, 'fallidos': 0}  # en 'error' no se reintenta
+    correo.refresh_from_db()
+    assert correo.intentos == 3 and mail.outbox == []
+
+
+@pytest.mark.django_db
+@SIN_LOGO
+@pytest.mark.parametrize('fallos', [1, 2])
+def test_correo_que_se_recupera_antes_del_tercer_intento_queda_enviado(_identidad, fallos):
+    correo = _encolar()
+    efectos = [SMTPException('transitorio')] * fallos + [1]
+
+    with patch('django.core.mail.EmailMultiAlternatives.send', side_effect=efectos):
+        for _ in range(fallos + 1):
+            despachar_cola()
+
+    correo.refresh_from_db()
+    assert correo.estado == 'enviado' and correo.intentos == fallos
+    assert correo.error is None and correo.fecha_envio is not None
+
+
+@pytest.mark.django_db
+@SIN_LOGO
+def test_el_mensaje_de_error_se_trunca_a_2000_caracteres(_identidad):
+    correo = _encolar()
+
+    with patch('django.core.mail.EmailMultiAlternatives.send', side_effect=SMTPException('x' * 5000)):
+        despachar_cola()
+
+    correo.refresh_from_db()
+    assert len(correo.error) == 2000
+
+
+@pytest.mark.django_db
+@SIN_LOGO
+@pytest.mark.parametrize('direccion', ['', '   ', 'sin-arroba', 'a@', '@ufps.edu.co', 'a b@ufps.edu.co'])
+def test_destinatarios_con_correo_invalido_o_vacio_fallan_sin_enviar(_identidad, direccion):
+    correo = _encolar(correo=direccion)
+
+    assert despachar_cola() == {'enviados': 0, 'fallidos': 1}
+
+    correo.refresh_from_db()
+    assert correo.estado == 'pendiente' and correo.intentos == 1
+    assert 'Destinatario sin correo válido' in correo.error
+    assert mail.outbox == []
+
+
+@pytest.mark.django_db
+@SIN_LOGO
+def test_correo_con_espacios_alrededor_se_envia_recortado(_identidad):
+    _encolar(correo='  ana@ufps.edu.co  ')
+
+    assert despachar_cola() == {'enviados': 1, 'fallidos': 0}
+    assert mail.outbox[0].to == ['ana@ufps.edu.co']
+
+
+@pytest.mark.django_db
+@SIN_LOGO
+def test_plantilla_inexistente_cuenta_como_fallo_y_no_detiene_la_cola(_identidad):
+    malo = ColaCorreo.objects.create(id_usuario_destino=UsuarioFactory(), asunto='A',
+                                     plantilla='no_existe', contexto={})
+    bueno = _encolar()
+
+    assert despachar_cola() == {'enviados': 1, 'fallidos': 1}
+
+    malo.refresh_from_db()
+    bueno.refresh_from_db()
+    assert malo.estado == 'pendiente' and 'no_existe' in malo.error
+    assert bueno.estado == 'enviado'
+
+
+@pytest.mark.django_db
+@SIN_LOGO
+def test_asunto_de_255_caracteres_se_envia_completo(_identidad):
+    asunto = 'A' * 255
+    encolar_correo(UsuarioFactory().id, asunto, 'alerta', CONTEXTOS['alerta'])
+
+    despachar_cola()
+
+    assert mail.outbox[0].subject == asunto
+
+
+@pytest.mark.parametrize('plantilla', list(CONTEXTOS))
+@SIN_LOGO
+def test_plantillas_renderizan_con_contexto_vacio_o_nulo(_identidad, plantilla):
+    for contexto in ({}, None):
+        correo = _sin_guardar(plantilla)
+        correo.contexto = contexto
+        html = renderizar_correo(correo)
+        assert 'Universidad Francisco de Paula Santander' in html and 'Hola, Ana Rojas' in html
+
+
+@SIN_LOGO
+def test_html_del_contexto_se_escapa_en_la_plantilla(_identidad):
+    correo = _sin_guardar('anuncio')
+    correo.contexto = {**CONTEXTOS['anuncio'], 'titulo': '<script>alert(1)</script>',
+                       'mensaje': '<b>negrita</b> & "comillas"'}
+
+    html = renderizar_correo(correo)
+
+    assert '<script>alert(1)</script>' not in html and '<b>negrita</b>' not in html
+    assert '&lt;script&gt;' in html and '&amp;' in html
+
+
+@SIN_LOGO
+def test_texto_con_tildes_y_emoji_se_conserva(_identidad):
+    correo = _sin_guardar('anuncio')
+    correo.contexto = {**CONTEXTOS['anuncio'], 'mensaje': 'Reunión mañana ñandú 🎓'}
+    assert 'Reunión mañana ñandú 🎓' in renderizar_correo(correo)
+
+
+@patch('apps.configuracion.identidad.obtener_identidad',
+       return_value={**IDENTIDAD_CON_LOGO, 'logotipo_url': 'https://cdn.ufps.edu.co/logo.png'})
+def test_logo_con_url_absoluta_no_se_antepone_frontend_url(_identidad):
+    html = renderizar_correo(_sin_guardar('alerta'))
+    assert 'src="https://cdn.ufps.edu.co/logo.png"' in html
+    assert f'{settings.FRONTEND_URL}https' not in html
+
+
+@pytest.mark.parametrize('puntuacion', ['0.00', '5.00'])
+@SIN_LOGO
+def test_calificacion_con_puntuacion_en_los_extremos_y_sin_comentario(_identidad, puntuacion):
+    correo = _sin_guardar('calificacion')
+    correo.contexto = {**CONTEXTOS['calificacion'], 'puntuacion_total': puntuacion, 'comentario_general': ''}
+    assert puntuacion in renderizar_correo(correo)
+
+
+@pytest.mark.django_db
+def test_alerta_duplicada_no_encola_un_segundo_correo():
+    est = UsuarioFactory()
+    fase = FaseProyectoFactory()
+
+    assert _crear_alerta('actividad_vencida', est.id, 'V', proyecto_id=fase.id_proyecto_id, referencia_id=7)
+    assert not _crear_alerta('actividad_vencida', est.id, 'V', proyecto_id=fase.id_proyecto_id, referencia_id=7)
+
+    assert ColaCorreo.objects.filter(id_usuario_destino=est).count() == 1
+
+
+@pytest.mark.django_db
+def test_anuncio_de_proyecto_excluye_al_autor_y_a_los_miembros_retirados():
+    fase = FaseProyectoFactory()
+    docente = fase.id_proyecto.id_curso.id_docente
+    equipo = EquipoFactory(proyecto=fase.id_proyecto)
+    activos = [MiembroEquipoFactory(equipo=equipo).usuario for _ in range(2)]
+    MiembroEquipoFactory(equipo=equipo, estado='retirado')
+    MiembroEquipoFactory(equipo=equipo, usuario=docente)  # el autor también es miembro: no se autoenvía
+
+    publicar_anuncio(docente, {'id_proyecto': fase.id_proyecto, 'titulo': 'Aviso', 'mensaje': 'Hola'}, None)
+
+    destinos = ColaCorreo.objects.filter(plantilla='anuncio').values_list('id_usuario_destino_id', flat=True)
+    assert sorted(destinos) == sorted(u.id for u in activos)
+
+
+@pytest.mark.django_db
+def test_anuncio_sin_destinatarios_no_encola_ningun_correo():
+    fase = FaseProyectoFactory()  # proyecto sin equipos
+
+    publicar_anuncio(fase.id_proyecto.id_curso.id_docente,
+                     {'id_proyecto': fase.id_proyecto, 'titulo': 'Aviso', 'mensaje': 'Hola'}, None)
+
+    assert ColaCorreo.objects.count() == 0
