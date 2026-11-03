@@ -51,6 +51,7 @@ function SidebarContent({ collapsed, onCollapse, loggingOut, handleLogout, onNav
         { seccion: 'Seguimiento' },
         { label: 'Tablero Kanban', to: `${base}/kanban`, icon: 'kanban', state: navState },
         { seccion: 'Evaluación' },
+        { label: 'Rúbricas', to: `${base}/rubricas`, icon: 'rubrica', state: navState },
         { label: 'Autoevaluaciones', to: `${base}/autoevaluaciones`, icon: 'autoeval', state: navState },
         { label: 'Coevaluaciones', to: `${base}/coevaluaciones`, icon: 'coeval', state: navState },
         { label: 'Historial de calificaciones', to: `${base}/historial`, icon: 'historial', state: navState },
@@ -162,6 +163,10 @@ export default function ProyectoLayout() {
                 backTo: `/docente/proyectos/${proyectoId}/fases`,
                 backLabel: 'Fases',
             }
+        }
+        // Si se entró desde el panel de semáforos (HU-042), volver ahí
+        if (savedNavState?.desde === 'semaforos') {
+            return { backTo: '/docente/semaforos', backLabel: 'Panel de semáforos' }
         }
         if (cursoId) {
             return {

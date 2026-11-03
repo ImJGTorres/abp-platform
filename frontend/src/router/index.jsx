@@ -39,6 +39,7 @@ import EstudiantesRiesgo from '../components/docente/EstudiantesRiesgo'
 import PerfilRendimientoEstudiante from '../components/docente/PerfilRendimientoEstudiante'
 import MonitoreoProyecto from '../components/docente/MonitoreoProyecto'
 import PanelSemaforosDocente from '../components/docente/PanelSemaforosDocente'
+import BancoRubricas from '../components/docente/BancoRubricas'
 import AutoevaluacionesDocente from '../components/docente/AutoevaluacionesDocente'
 import CoevaluacionesDocente from '../components/docente/CoevaluacionesDocente'
 
@@ -66,6 +67,8 @@ import DashboardDirector from '../components/director/DashboardDirector'
 import ListaReportes from '../components/director/ListaReportes'
 import ReporteProyecto from '../components/director/ReporteProyecto'
 import EstudiantesRiesgoDirector from '../components/director/EstudiantesRiesgoDirector'
+import ResultadosBusqueda from '../components/Compartidos/ResultadosBusqueda'
+import IdentidadInstitucional from '../components/IdentidadInstitucional'
 
 function PanelEstudiante() { return <div className="p-10">Estudiante</div> }
 
@@ -117,6 +120,8 @@ export default function AppRouter() {
             <Route path="/admin/periodos" element={<Pagina><GestionPeriodos /></Pagina>} />
             <Route path="/admin/bitacoras" element={<Pagina><BitacorasAuditoria /></Pagina>} />
             <Route path="/admin/roles" element={<GestionRoles />} />
+            <Route path="/admin/identidad" element={<Pagina><IdentidadInstitucional /></Pagina>} />
+            <Route path="/admin/busqueda" element={<ResultadosBusqueda />} />
           </Route>
         </Route>
 
@@ -127,6 +132,7 @@ export default function AppRouter() {
             <Route path="/docente/cursos" element={<GestionCursos />} />
             <Route path="/docente/calendario" element={<CalendarioPage />} />
             <Route path="/docente/semaforos" element={<PanelSemaforosDocente />} />
+            <Route path="/docente/rubricas" element={<BancoRubricas />} />
             <Route path="/docente/cursos/:id" element={<DetalleCurso />} />
             <Route path="/docente/cursos/:id/estudiantes" element={<EstudiantesCurso />} />
             <Route path="/docente/cursos/:id/equipos" element={<EquiposCurso />} />
@@ -149,6 +155,7 @@ export default function AppRouter() {
             <Route path="/docente/proyectos/:proyectoId/autoevaluaciones" element={<AutoevaluacionesDocente />} />
             <Route path="/docente/proyectos/:proyectoId/coevaluaciones" element={<CoevaluacionesDocente />} />
             <Route path="/docente/proyectos/:proyectoId/monitoreo" element={<MonitoreoProyecto />} />
+            <Route path="/docente/proyectos/:proyectoId/rubricas" element={<ConstructorRubricas />} />
           </Route>
 
           {/* Layout de actividad — Actividad / Entregables / Rúbricas */}
@@ -169,6 +176,7 @@ export default function AppRouter() {
             <Route path="/director/reportes" element={<ListaReportes />} />
             <Route path="/director/reportes/proyecto/:proyectoId" element={<ReporteProyecto />} />
             <Route path="/director/calendario" element={<CalendarioPage />} />
+            <Route path="/director/busqueda" element={<ResultadosBusqueda />} />
           </Route>
         </Route>
 

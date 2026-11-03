@@ -1,6 +1,6 @@
 from django.db import models
-from django.db.models import Avg, Count, IntegerField, Q, Value
-from django.db.models.functions import Coalesce, Round
+from django.db.models import Count, IntegerField, OuterRef, Q, Subquery, Value
+from django.db.models.functions import Coalesce
 
 
 class FaseProyectoQuerySet(models.QuerySet):
@@ -37,13 +37,15 @@ class ProyectoQuerySet(models.QuerySet):
         query SQL (GROUP BY), evitando N+1 al listar proyectos.
 
         Campos añadidos:
-          porcentaje_progreso      — promedio del porcentaje_completado de sus fases
+          porcentaje_progreso      — avance real de vista_progreso_proyecto (promedio por actividad)
           total_fases              — número de fases del proyecto
           fases_completadas        — fases en estado 'completada'
           fases_en_progreso        — fases en estado 'en_progreso'
           total_actividades        — actividades en todas las fases
           actividades_completadas  — actividades en estado 'completada'
         """
+        from .models import VistaProgresoProyecto  # evita import circular (models importa este módulo)
+
         return self.annotate(
             total_fases=Count('fases', distinct=True),
             fases_completadas=Count(
@@ -57,7 +59,8 @@ class ProyectoQuerySet(models.QuerySet):
                 distinct=True,
             ),
             porcentaje_progreso=Coalesce(
-                Round(Avg('fases__porcentaje_completado')),
+                Subquery(VistaProgresoProyecto.objects.filter(id_proyecto=OuterRef('pk'))
+                         .values('porcentaje_progreso')[:1]),
                 Value(0),
                 output_field=IntegerField(),
             ),
