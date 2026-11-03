@@ -363,7 +363,7 @@ export default function ConfiguracionParametros() {
       <SectionCard
         icon="S"
         iconBg="#d32f2f"
-        title="Umbrales del Semáforo Académico (RF34)"
+        title="Umbrales del Semáforo Académico"
         onSave={() => handleSave("semaforo")}
       >
         <ParamRow
