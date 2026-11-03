@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { configuracionApi } from "../services/api";
-import IdentidadInstitucional from "./IdentidadInstitucional";
 
 // ─── Subcomponentes ──────────────────────────────────────────────────────────
 
@@ -405,8 +404,6 @@ export default function ConfiguracionParametros() {
         />
       </SectionCard>
 
-      {/* Sección 3: Identidad institucional */}
-      <IdentidadInstitucional />
     </div>
   );
 }
