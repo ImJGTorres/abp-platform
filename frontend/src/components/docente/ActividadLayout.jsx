@@ -53,8 +53,11 @@ function SidebarContent({
         { label: 'Rúbricas', to: `${base}/rubricas`, icon: 'rubrica', state: navState },
     ]
 
-    const backTo = `/docente/proyectos/${proyectoId}/fases/${faseId}/actividades`
-    const backLabel = faseNombre || 'Actividades'
+    // Entrada directa desde otra pantalla (calendario, pendientes…): volver ahí. Si se llegó por
+    // Fases › Actividades el estado trae faseNombre (y arrastra el origen del proyecto): volver a la fase.
+    const origen = navState?.faseNombre ? null : navState?.origen
+    const backTo = origen?.to ?? `/docente/proyectos/${proyectoId}/fases/${faseId}/actividades`
+    const backLabel = origen?.label ?? (faseNombre || 'Actividades')
 
     return (
         <>
@@ -103,7 +106,7 @@ function SidebarContent({
                 {!collapsed && (
                     <Link
                         to={backTo}
-                        state={navState}
+                        state={origen ? undefined : navState}
                         onClick={onNavClick}
                         className="flex items-center gap-2 px-3 py-2 rounded-xl text-[11px] font-semibold text-[#9ba7ae] tracking-[0.6px] uppercase hover:bg-[#f0f2f3] hover:text-[#4c616c] transition-all mb-1 truncate">
                         <svg viewBox="0 0 16 16" fill="none" className="w-3 h-3 flex-shrink-0" stroke="currentColor" strokeWidth="2" strokeLinecap="round">

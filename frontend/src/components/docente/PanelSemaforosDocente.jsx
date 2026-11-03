@@ -1,9 +1,9 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { reportesApi } from '../../services/docenteApi'
 import Semaforo, { SEMAFORO_NIVELES } from '../Compartidos/Semaforo'
 import MigasDePan from '../Compartidos/MigasDePan'
+import { conOrigen } from '../../utils/origen'
 
 // ── Panel de semáforos del docente (HU-042) ───────────────────────────────────
 // Un proyecto por tarjeta con su avance y nivel. La lista que se muestra la filtra
@@ -22,6 +22,7 @@ function rutaProyecto(p) {
 }
 
 function TarjetaProyecto({ proyecto }) {
+    const location = useLocation()
     const nivel = SEMAFORO_NIVELES[proyecto.nivel] ? proyecto.nivel : 'rojo'
     const cfg = SEMAFORO_NIVELES[nivel]
     const avance = Math.min(Math.max(Math.round(Number(proyecto.porcentaje_avance ?? 0)), 0), 100)
@@ -30,7 +31,7 @@ function TarjetaProyecto({ proyecto }) {
     return (
         <Link
             to={rutaProyecto(proyecto)}
-            state={{ nombre: proyecto.nombre, cursoId: proyecto.curso_id, cursoNombre: proyecto.curso_nombre, desde: 'semaforos' }}
+            state={conOrigen(location, 'Panel de semáforos', { nombre: proyecto.nombre, cursoId: proyecto.curso_id, cursoNombre: proyecto.curso_nombre })}
             className="group bg-white border border-[#e1e3e4] border-l-4 rounded-xl px-4 py-4 flex flex-col gap-3 hover:shadow-md hover:border-[#d0d4d6] transition-all"
             style={{ borderLeftColor: cfg.color }}
         >
@@ -84,7 +85,10 @@ function Vacio({ titulo, texto, accion }) {
 }
 
 export default function PanelSemaforosDocente() {
-    const [color, setColor] = useState('')
+    // Filtro en la URL (?color=): al volver desde un proyecto se conserva
+    const [params, setParams] = useSearchParams()
+    const color = FILTROS.some(f => f.valor === params.get('color')) ? params.get('color') : ''
+    const setColor = valor => setParams(valor ? { color: valor } : {}, { replace: true })
 
     const reintento = (intentos, err) => err?.status !== 404 && intentos < 1
 

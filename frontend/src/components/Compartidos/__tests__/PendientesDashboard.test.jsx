@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import PendientesDashboard from '../PendientesDashboard'
 import DashboardEstudiante from '../../Estudiante/DashboardEstudiante'
 
@@ -160,19 +161,28 @@ describe('PendientesDashboard (HU-038 / SCRUM-513)', () => {
 })
 
 describe('Integración en pantallas de inicio', () => {
-    it('DashboardEstudiante muestra el panel de pendientes junto a sus proyectos', async () => {
+    it('DashboardEstudiante muestra el panel de pendientes junto al semáforo de rendimiento', async () => {
         mockFetch({
             '/api/mis-equipos/': [],
             '/api/dashboard/pendientes/': CON_PENDIENTES,
+            '/api/reportes/semaforos/estudiante/': {
+                nivel: 'verde', nota_promedio: 4.5, porcentaje_actividades_incumplidas: 0,
+                entregables_criticos: [], recomendaciones: ['Vas al día; mantén el ritmo'],
+            },
         })
+        // DashboardEstudiante incluye SemaforoPersonal (HU-041), que usa react-query
+        const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
         render(
-            <MemoryRouter>
-                <DashboardEstudiante />
-            </MemoryRouter>
+            <QueryClientProvider client={queryClient}>
+                <MemoryRouter>
+                    <DashboardEstudiante />
+                </MemoryRouter>
+            </QueryClientProvider>
         )
 
         expect(await screen.findByText('Mis pendientes')).toBeInTheDocument()
         expect(await screen.findByText('Actividad vencida: Diagrama ER')).toBeInTheDocument()
-        expect(screen.getByText('Mis proyectos')).toBeInTheDocument()
+        // Desde HU-041 el inicio muestra el semáforo; los proyectos están en "Mis proyectos"
+        expect(screen.getByText('Semáforo de rendimiento')).toBeInTheDocument()
     })
 })

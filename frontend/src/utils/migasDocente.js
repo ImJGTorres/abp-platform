@@ -12,11 +12,11 @@ export function migasCurso(cursoId, cursoNombre) {
 }
 
 /** Mis cursos › Curso › Proyecto  (state = location.state de las vistas del proyecto).
- *  Si se entró desde el panel de semáforos: Panel de semáforos › Proyecto. */
+ *  Si se entró desde otra pantalla (state.origen, ver utils/origen.js), esa pantalla reemplaza a Mis cursos › Curso. */
 export function migasProyecto(proyectoId, state) {
     return [
-        ...(state?.desde === 'semaforos'
-            ? [{ label: 'Panel de semáforos', to: '/docente/semaforos' }]
+        ...(state?.origen
+            ? [{ label: state.origen.label, to: state.origen.to }]
             : migasCurso(state?.cursoId, state?.cursoNombre)),
         {
             label: state?.nombre ?? 'Proyecto',

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { busquedaApi, session } from '../../services/api'
+import { conOrigen } from '../../utils/origen'
 import { GRUPOS_BUSQUEDA, rutaBusqueda, mensajeErrorBusqueda } from '../../utils/busqueda'
 
 const MIN_CARACTERES = 2
@@ -127,6 +128,7 @@ export default function BusquedaGlobal() {
                                             <Link
                                                 key={`${g.clave}-${it.id}`}
                                                 to={it.enlace}
+                                                state={conOrigen({ pathname: rutaBusqueda(rol, location.pathname), search: `?q=${encodeURIComponent(termino)}` }, 'Resultados de búsqueda')}
                                                 onClick={cerrarYLimpiar}
                                                 className="block px-4 py-2 hover:bg-[#f0f2f3] transition-colors"
                                             >

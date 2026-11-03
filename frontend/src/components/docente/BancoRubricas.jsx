@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { reportesApi, rubricasApi } from '../../services/docenteApi'
 import CatalogoPlantillas from './CatalogoPlantillas'
 import MigasDePan from '../Compartidos/MigasDePan'
+import { conOrigen } from '../../utils/origen'
 
 // ── Banco de rúbricas (HU-044) ───────────────────────────────────────────────
 // Acceso directo al catálogo de plantillas desde el menú del docente: se elige el
@@ -13,7 +14,11 @@ import MigasDePan from '../Compartidos/MigasDePan'
 
 export default function BancoRubricas() {
     const navigate = useNavigate()
-    const [proyectoId, setProyectoId] = useState('')
+    const location = useLocation()
+    // Proyecto elegido en la URL (?proyecto=): al volver desde el proyecto sigue seleccionado
+    const [params, setParams] = useSearchParams()
+    const proyectoId = params.get('proyecto') ?? ''
+    const setProyectoId = id => setParams(id ? { proyecto: id } : {}, { replace: true })
     const [catalogoAbierto, setCatalogoAbierto] = useState(false)
     const [clonando, setClonando] = useState(false)
 
@@ -31,7 +36,7 @@ export default function BancoRubricas() {
             await rubricasApi.clonar(plantilla.id, proyecto.proyecto_id)
             toast.success('Rúbrica creada desde la plantilla. Ya puedes editarla.')
             navigate(`/docente/proyectos/${proyecto.proyecto_id}/rubricas`, {
-                state: { nombre: proyecto.nombre, cursoId: proyecto.curso_id, cursoNombre: proyecto.curso_nombre },
+                state: conOrigen(location, 'Banco de rúbricas', { nombre: proyecto.nombre, cursoId: proyecto.curso_id, cursoNombre: proyecto.curso_nombre }),
             })
         } catch (err) {
             toast.error(err?.data?.detail || err?.data?.error || 'No se pudo clonar la plantilla.')
@@ -91,7 +96,7 @@ export default function BancoRubricas() {
                     <button
                         type="button"
                         onClick={() => navigate(`/docente/proyectos/${proyecto.proyecto_id}/rubricas`, {
-                            state: { nombre: proyecto.nombre, cursoId: proyecto.curso_id, cursoNombre: proyecto.curso_nombre },
+                            state: conOrigen(location, 'Banco de rúbricas', { nombre: proyecto.nombre, cursoId: proyecto.curso_id, cursoNombre: proyecto.curso_nombre }),
                         })}
                         disabled={!proyecto}
                         className="px-4 py-2 bg-[#f0f2f3] text-[#4c616c] text-[13px] font-semibold rounded-xl hover:bg-[#e1e3e4] transition-colors disabled:opacity-50"

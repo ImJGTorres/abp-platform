@@ -3,6 +3,7 @@ import { useParams, useLocation, useNavigate, Link } from 'react-router-dom'
 import { actividadesApi } from '../../services/docenteApi'
 import MigasDePan from '../Compartidos/MigasDePan'
 import { migasFase } from '../../utils/migasDocente'
+import { sinOrigen } from '../../utils/origen'
 
 // ── Constantes ────────────────────────────────────────────────────────────────
 
@@ -246,7 +247,7 @@ export default function DetalleActividad() {
                     {/* Botón Gestionar Equipo */}
                     {cursoId && (
                         <button
-                            onClick={() => navigate(`/docente/cursos/${cursoId}`, { state: navState })}
+                            onClick={() => navigate(`/docente/cursos/${cursoId}`, { state: sinOrigen(navState) })}
                             className="mt-4 w-full py-2 border-2 border-[#d32f2f] text-[#d32f2f] text-[13px] font-bold rounded-xl hover:bg-[#fff1f0] transition-colors"
                         >
                             Gestionar Equipo

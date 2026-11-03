@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { dashboardApi } from '../../services/api'
+import { conOrigen } from '../../utils/origen'
 
 // HU-038 — Pendientes priorizados del usuario (GET /api/dashboard/pendientes/).
 // El backend ya devuelve la lista ordenada por urgencia desc y fecha asc.
@@ -91,8 +92,9 @@ function PendienteItem({ item, onIr }) {
 
 // ── Componente principal ──────────────────────────────────────────────────────
 
-export default function PendientesDashboard({ className = '' }) {
+export default function PendientesDashboard({ className = '', origenLabel = 'Inicio' }) {
     const navigate = useNavigate()
+    const location = useLocation()
     const [data, setData] = useState(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')
@@ -168,7 +170,7 @@ export default function PendientesDashboard({ className = '' }) {
                     {/* Lista priorizada */}
                     <ul className="border-t border-[#f0f2f3] divide-y divide-[#f0f2f3] max-h-[360px] overflow-y-auto">
                         {pendientes.map((p, i) => (
-                            <PendienteItem key={`${p.tipo}-${p.enlace}-${i}`} item={p} onIr={navigate} />
+                            <PendienteItem key={`${p.tipo}-${p.enlace}-${i}`} item={p} onIr={enlace => navigate(enlace, { state: conOrigen(location, origenLabel) })} />
                         ))}
                     </ul>
                 </>

@@ -142,6 +142,9 @@ export default function DocenteLayout() {
     const { backTo, backLabel } = (() => {
         const path = location.pathname
         if (path === '/docente/cursos') return { backTo: null, backLabel: null }
+        // Entrada directa al curso desde otra pantalla (búsqueda, calendario…): volver ahí
+        const origen = location.state?.origen
+        if (origen && /^\/docente\/cursos\/\d+$/.test(path)) return { backTo: origen.to, backLabel: origen.label }
         // Dentro de un curso siempre vuelve a la lista; el curso se abre con "Proyectos"
         if (cursoId) {
             return user?.tipo_rol === 'administrador'
