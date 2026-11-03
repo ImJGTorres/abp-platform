@@ -281,6 +281,13 @@ export const usuariosApi = {
     return data
   },
 
+  async obtener(id) {
+    const response = await request(`/api/usuarios/${id}/`)
+    const data = await parseJSON(response)
+    if (!response.ok) throw { status: response.status, data }
+    return data
+  },
+
   async cambiarRolUsuario(id, tipo_rol) {
     const response = await request(`/api/usuarios/${id}/`, {
       method: 'PATCH',
@@ -822,6 +829,17 @@ export const calendarioApi = {
 
   async detalle(eventoId) {
     const response = await request(`/api/calendario/${encodeURIComponent(eventoId)}/`)
+    const data = await parseJSON(response)
+    if (!response.ok) throw { status: response.status, data }
+    return data
+  },
+}
+
+// Búsqueda global (HU-045)
+//   GET /api/busqueda/?q=<término> → { cursos, proyectos, usuarios, entregables } (solo director/administrador)
+export const busquedaApi = {
+  async buscar(q) {
+    const response = await request(`/api/busqueda/?q=${encodeURIComponent(q)}`)
     const data = await parseJSON(response)
     if (!response.ok) throw { status: response.status, data }
     return data

@@ -185,7 +185,9 @@ function TarjetaEquipo({ equipo }) {
             {/* Progreso */}
             <div>
                 <div className="flex items-center justify-between mb-1">
-                    <span className="text-[11px] text-[#9ba7ae]">Progreso</span>
+                    <span className="text-[11px] text-[#9ba7ae]">
+                        Avance · {equipo.actividades_completadas} de {equipo.actividades_total} completadas
+                    </span>
                     <span className="text-[13px] font-extrabold" style={{ color: s.color }}>{pct}%</span>
                 </div>
                 <div className="h-2 bg-[#f0f2f3] rounded-full overflow-hidden">
@@ -321,6 +323,7 @@ export default function MonitoreoProyecto() {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
                 <div className="col-span-2 sm:col-span-1 bg-[#d32f2f] rounded-2xl p-4 flex flex-col justify-between">
                     <p className="text-[11px] font-bold uppercase tracking-[0.7px] text-white/70">Progreso global</p>
+                    <p className="text-[10.5px] text-white/70 mt-0.5">Promedio del avance de las actividades</p>
                     <div className="mt-2">
                         <div className="flex items-baseline gap-1">
                             <span className="text-[40px] font-extrabold text-white leading-none">{porcentaje_progreso}</span>

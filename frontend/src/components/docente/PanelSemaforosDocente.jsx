@@ -30,7 +30,7 @@ function TarjetaProyecto({ proyecto }) {
     return (
         <Link
             to={rutaProyecto(proyecto)}
-            state={{ nombre: proyecto.nombre, cursoId: proyecto.curso_id, cursoNombre: proyecto.curso_nombre }}
+            state={{ nombre: proyecto.nombre, cursoId: proyecto.curso_id, cursoNombre: proyecto.curso_nombre, desde: 'semaforos' }}
             className="group bg-white border border-[#e1e3e4] border-l-4 rounded-xl px-4 py-4 flex flex-col gap-3 hover:shadow-md hover:border-[#d0d4d6] transition-all"
             style={{ borderLeftColor: cfg.color }}
         >

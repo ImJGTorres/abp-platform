@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { buildMediaUrl } from '../../services/api'
 import AlertasBell from '../AlertasBell'
+import BusquedaGlobal from './BusquedaGlobal'
 
 
 const NOMBRE_ROL = {
@@ -82,6 +83,8 @@ export default function BarraSuperior({ user, menuAbierto, onToggleMenu, onLogou
                     {menuAbierto ? <IconX /> : <IconMenu />}
                 </button>
             )}
+
+            {(rol === 'director' || rol === 'administrador') && <BusquedaGlobal />}
 
             <div className="flex-1" />
 

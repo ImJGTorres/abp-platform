@@ -1460,12 +1460,27 @@ class ActividadesPorEquipoView(generics.ListAPIView):
 # BE 01 — Progreso del proyecto
 # ---------------------------------------------------------------------------
 
+def _avance_actividad(actividad):
+    """100 si está completada; si no, su último avance (avances_ordenados prefetch); 0 sin avance."""
+    if actividad.estado == Actividad.Estado.COMPLETADA:
+        return 100
+    ultimo = actividad.avances_ordenados[0] if actividad.avances_ordenados else None
+    return ultimo.porcentaje_completado if ultimo else 0
+
+
+def _promedio_avance(actividades):
+    """Avance real de un grupo de actividades (misma regla que vista_progreso_proyecto, migración 0028)."""
+    return round(sum(_avance_actividad(a) for a in actividades) / len(actividades)) if actividades else 0
+
+
 class ProyectoProgresoView(APIView):
     """
     GET /api/proyectos/<pk>/progreso/
 
     Retorna el resumen de progreso del proyecto:
-      - porcentaje_progreso: promedio del porcentaje_completado de todas sus fases.
+      - porcentaje_progreso: avance real = promedio del avance de sus actividades
+        (_avance_actividad); fases y equipos usan la misma regla. Coincide con
+        vista_progreso_proyecto (panel de semáforos HU-042, reportes).
       - fases: lista ordenada con conteos de actividades por estado por fase.
       - actividades_por_estado: conteos globales (pendiente / en_progreso / completada / bloqueada).
 
@@ -1534,7 +1549,7 @@ class ProyectoProgresoView(APIView):
             .prefetch_related(
                 Prefetch(
                     'avances',
-                    queryset=AvanceActividad.objects.order_by('-fecha_registro'),
+                    queryset=AvanceActividad.objects.order_by('-fecha_registro', '-id'),
                     to_attr='avances_ordenados',
                 )
             )
@@ -1574,11 +1589,9 @@ class ProyectoProgresoView(APIView):
             .order_by('nombre')
         )
 
-        # Construir datos de fases con actividades anidadas
-        porcentaje_progreso = (
-            round(sum(f.porcentaje_completado for f in fases) / len(fases))
-            if fases else 0
-        )
+        # Avance real (HU-042): misma regla para proyecto, fases y equipos
+        todas = [a for acts in actividades_por_fase.values() for a in acts]
+        porcentaje_progreso = _promedio_avance(todas)
         fases_data = []
         totales = {'pendiente': 0, 'en_progreso': 0, 'completada': 0, 'bloqueada': 0}
         for f in fases:
@@ -1617,7 +1630,7 @@ class ProyectoProgresoView(APIView):
                 'nombre': f.nombre,
                 'orden': f.orden,
                 'estado': f.estado,
-                'porcentaje_completado': f.porcentaje_completado,
+                'porcentaje_completado': _promedio_avance(actividades_por_fase.get(f.id, [])),
                 'total_actividades': f.total_actividades,
                 'actividades_completadas': f.actividades_completadas,
                 'actividades_en_progreso': f.actividades_en_progreso,
@@ -1636,10 +1649,7 @@ class ProyectoProgresoView(APIView):
                 - eq.actividades_bloqueadas,
                 0,
             )
-            porcentaje_eq = (
-                round(eq.actividades_completadas / eq.actividades_total * 100)
-                if eq.actividades_total else 0
-            )
+            porcentaje_eq = _promedio_avance([a for a in todas if a.id_equipo_asignado_id == eq.id])
             equipos_data.append({
                 'id': eq.id,
                 'nombre': eq.nombre,

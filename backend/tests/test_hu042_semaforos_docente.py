@@ -119,7 +119,7 @@ def test_docente_con_3_proyectos_recibe_3_elementos_con_nivel_y_avance(docente_c
         'curso_id': proyectos['verde'].id_curso_id,
         'curso_nombre': 'Curso A-Verde',
         'nivel': 'verde',
-        'porcentaje_avance': 80,
+        'porcentaje_avance': 100,  # avance real: 2 de 2 actividades completadas
     }
 
 

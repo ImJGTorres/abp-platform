@@ -14,6 +14,7 @@ export const MENU_POR_ROL = {
         { label: 'Cursos',        to: '/admin/cursos',        icon: 'cursos' },
         { label: 'Períodos',      to: '/admin/periodos',      icon: 'calendario' },
         { label: 'Configuración', to: '/admin/configuracion', icon: 'ajustes' },
+        { label: 'Identidad',     to: '/admin/identidad',     icon: 'institucion' },
         { label: 'Roles',         to: '/admin/roles',         icon: 'escudo' },
         { label: 'Bitácoras',     to: '/admin/bitacoras',     icon: 'bitacora' },
     ],
@@ -27,6 +28,7 @@ export const MENU_POR_ROL = {
         { label: 'Mis cursos', to: '/docente/cursos', icon: 'cursos', exact: true },
         { label: 'Semáforos',  to: '/docente/semaforos', icon: 'alerta' },
         { label: 'Calendario', to: '/docente/calendario', icon: 'calendario' },
+        { label: 'Banco de rúbricas', to: '/docente/rubricas', icon: 'rubrica' },
     ],
     lider_equipo: [
         { label: 'Inicio',               to: '/lider/inicio',               icon: 'tablero' },
