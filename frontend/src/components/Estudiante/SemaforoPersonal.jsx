@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { semaforoApi } from '../../services/estudianteApi'
 import Semaforo, { SEMAFORO_NIVELES } from '../Compartidos/Semaforo'
+import { conOrigen } from '../../utils/origen'
 
 // ── Semáforo de rendimiento personal (HU-041) ─────────────────────────────────
 // El nivel lo calcula el backend con la misma regla que ve el director
@@ -96,6 +97,7 @@ function Esqueleto() {
  * @param proyectos  [{ id, nombre, curso }] — si hay más de uno se muestra el selector
  */
 export default function SemaforoPersonal({ proyectos = [], className = '' }) {
+    const location = useLocation()
     const [proyectoId, setProyectoId] = useState('')
 
     const { data, isLoading, isError, error, refetch } = useQuery({
@@ -218,7 +220,7 @@ export default function SemaforoPersonal({ proyectos = [], className = '' }) {
                                                 {String(i + 1).padStart(2, '0')}
                                             </span>
                                             {ent.enlace
-                                                ? <Link to={ent.enlace} className={`${clases} hover:border-[#d0d4d6] hover:shadow-sm transition-all`}>{contenido}</Link>
+                                                ? <Link to={ent.enlace} state={conOrigen(location, 'Inicio')} className={`${clases} hover:border-[#d0d4d6] hover:shadow-sm transition-all`}>{contenido}</Link>
                                                 : <div className={clases}>{contenido}</div>}
                                         </li>
                                     )

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useLocation } from 'react-router-dom'
 import {
     BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
     PieChart, Pie, Legend,
@@ -142,6 +142,7 @@ const PIE_COLORS = ['#4caf50', '#d32f2f', '#42a5f5', '#ffa726']
 
 export default function ReporteProyecto() {
     const { proyectoId } = useParams()
+    const origen = useLocation().state?.origen  // pantalla desde la que se entró (utils/origen.js)
     const [data, setData] = useState(null)
     const [cargando, setCargando] = useState(true)
     const [error, setError] = useState(null)
@@ -208,7 +209,9 @@ export default function ReporteProyecto() {
             {/* Encabezado */}
             <div className="flex items-start gap-4">
                 <Link
-                    to="/director/reportes"
+                    to={origen?.to ?? '/director/reportes'}
+                    title={`Volver a ${origen?.label ?? 'Reportes'}`}
+                    aria-label={`Volver a ${origen?.label ?? 'Reportes'}`}
                     className="flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-xl border border-[#e1e3e4] bg-white hover:bg-[#f0f2f3] transition-colors text-[#4c616c] mt-0.5"
                 >
                     <IconBack />

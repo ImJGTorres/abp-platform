@@ -118,7 +118,7 @@ export default function GestionCursos() {
                 <p className="text-[13px] text-[#9ba7ae] mt-0.5">Selecciona un curso para ver sus proyectos y equipos</p>
             </div>
 
-            <PendientesDashboard className="mb-6" />
+            <PendientesDashboard className="mb-6" origenLabel="Mis cursos" />
 
             {/* Filtros */}
             <div className="mb-5 flex flex-col sm:flex-row gap-3">

@@ -146,8 +146,9 @@ export default function ProyectoLayout() {
 
     useEffect(() => {
         const state = location.state
-        if (state?.nombre) {
-            setProyecto({ nombre: state.nombre, periodo: state.periodo ?? '' })
+        // Guardar también si solo trae el origen (p. ej. un hito abierto desde el calendario)
+        if (state?.nombre || state?.origen) {
+            if (state.nombre) setProyecto({ nombre: state.nombre, periodo: state.periodo ?? '' })
             setSavedNavState(state)
         }
     }, [location.state, proyectoId])
@@ -164,9 +165,9 @@ export default function ProyectoLayout() {
                 backLabel: 'Fases',
             }
         }
-        // Si se entró desde el panel de semáforos (HU-042), volver ahí
-        if (savedNavState?.desde === 'semaforos') {
-            return { backTo: '/docente/semaforos', backLabel: 'Panel de semáforos' }
+        // Si se entró desde otra pantalla (semáforos, banco de rúbricas, calendario…), volver ahí
+        if (savedNavState?.origen) {
+            return { backTo: savedNavState.origen.to, backLabel: savedNavState.origen.label }
         }
         if (cursoId) {
             return {

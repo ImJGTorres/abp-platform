@@ -621,7 +621,9 @@ export default function EntregablesActividad() {
 
             {/* Breadcrumb */}
             <div className="mb-5 flex items-center gap-2 text-[13px] flex-wrap">
-                <Link to="/estudiante" className="text-[#9ba7ae] hover:text-[#4c616c] transition-colors">Inicio</Link>
+                <Link to={location.state?.origen?.to ?? '/estudiante'} className="text-[#9ba7ae] hover:text-[#4c616c] transition-colors">
+                    {location.state?.origen?.label ?? 'Inicio'}
+                </Link>
                 <IconChevron />
                 <span className="text-[#191c1d] font-semibold">{actividadNombre}</span>
                 <IconChevron />

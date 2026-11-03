@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { calendarioApi, session } from '../../services/api'
 import CalendarioUnificado from './CalendarioUnificado'
@@ -45,8 +46,11 @@ function TarjetaEvento({ evento, onClick }) {
 
 export default function CalendarioPage() {
     const rol = session.getUser()?.tipo_rol
-    const [mes, setMes] = useState(() => inicioMes(new Date()))
-    const [dia, setDia] = useState(() => new Date())
+    // El mes visible vive en la URL (?mes=AAAA-MM): al volver de un evento se abre el mismo mes
+    const [params, setParams] = useSearchParams()
+    const mesURL = /^\d{4}-\d{2}$/.test(params.get('mes') ?? '') ? desdeISO(`${params.get('mes')}-01`) : null
+    const mes = inicioMes(mesURL ?? new Date())
+    const [dia, setDia] = useState(() => (mismoMes(mes, new Date()) ? new Date() : null))
     const [eventoId, setEventoId] = useState(null)
 
     const desde = aISO(inicioMes(mes))
@@ -61,7 +65,7 @@ export default function CalendarioPage() {
 
     function cambiarMes(nuevo) {
         const hoy = new Date()
-        setMes(nuevo)
+        setParams(p => { p.set('mes', aISO(nuevo).slice(0, 7)); return p }, { replace: true })
         setDia(mismoMes(nuevo, hoy) ? hoy : null)
         setEventoId(null)
     }

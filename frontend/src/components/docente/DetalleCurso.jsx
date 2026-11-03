@@ -331,7 +331,9 @@ export default function DetalleCurso() {
         <div className="flex-1 overflow-y-auto p-4 sm:p-6" style={{ fontFamily: "'Manrope', sans-serif" }}>
 
             <MigasDePan items={[
-                { label: esAdmin ? 'Gestión de cursos' : 'Mis cursos', to: esAdmin ? '/admin/cursos' : '/docente/cursos' },
+                location.state?.origen
+                    ? { label: location.state.origen.label, to: location.state.origen.to }
+                    : { label: esAdmin ? 'Gestión de cursos' : 'Mis cursos', to: esAdmin ? '/admin/cursos' : '/docente/cursos' },
                 { label: curso.nombre },
             ]} />
 

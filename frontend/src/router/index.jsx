@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import PrivateRoute from './PrivateRoute'
 import AdminLayout from '../components/AdminLayout'
 import AdminPlaceholder from '../components/AdminPlaceholder'
@@ -69,6 +69,12 @@ import ReporteProyecto from '../components/director/ReporteProyecto'
 import EstudiantesRiesgoDirector from '../components/director/EstudiantesRiesgoDirector'
 import ResultadosBusqueda from '../components/Compartidos/ResultadosBusqueda'
 import IdentidadInstitucional from '../components/IdentidadInstitucional'
+
+// Redirige conservando location.state (origen de navegación, nombres para migas)
+function RedirigirConEstado({ to }) {
+  const { state } = useLocation()
+  return <Navigate to={to} replace state={state} />
+}
 
 function PanelEstudiante() { return <div className="p-10">Estudiante</div> }
 
@@ -160,7 +166,7 @@ export default function AppRouter() {
 
           {/* Layout de actividad — Actividad / Entregables / Rúbricas */}
           <Route element={<ActividadLayout />}>
-            <Route path="/docente/proyectos/:proyectoId/fases/:faseId/actividades/:actividadId" element={<Navigate to="actividad" replace />} />
+            <Route path="/docente/proyectos/:proyectoId/fases/:faseId/actividades/:actividadId" element={<RedirigirConEstado to="actividad" />} />
             <Route path="/docente/proyectos/:proyectoId/fases/:faseId/actividades/:actividadId/actividad" element={<DetalleActividad />} />
             <Route path="/docente/proyectos/:proyectoId/fases/:faseId/actividades/:actividadId/entregables" element={<PanelRevisionEntregables />} />
             <Route path="/docente/proyectos/:proyectoId/fases/:faseId/actividades/:actividadId/rubricas" element={<ConstructorRubricas />} />
@@ -192,7 +198,7 @@ export default function AppRouter() {
 
           {/* Layout por proyecto — sidebar centralizado */}
           <Route element={<ProyectoEstudianteLayout />}>
-            <Route path="/estudiante/proyectos/:proyectoId" element={<Navigate to="actividades" replace />} />
+            <Route path="/estudiante/proyectos/:proyectoId" element={<RedirigirConEstado to="actividades" />} />
             <Route path="/estudiante/proyectos/:proyectoId/actividades" element={<DetalleProyectoEstudiante />} />
             <Route path="/estudiante/proyectos/:proyectoId/actividades/:actividadId/entregables" element={<EntregablesActividad />} />
             <Route path="/estudiante/proyectos/:proyectoId/kanban" element={<TableroKanban />} />

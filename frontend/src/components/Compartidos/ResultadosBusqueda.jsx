@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams, useLocation } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { busquedaApi } from '../../services/api'
+import { conOrigen } from '../../utils/origen'
 import { GRUPOS_BUSQUEDA, mensajeErrorBusqueda } from '../../utils/busqueda'
 
 const MIN_CARACTERES = 2
@@ -12,6 +13,7 @@ const MIN_CARACTERES = 2
  */
 export default function ResultadosBusqueda() {
     const [params] = useSearchParams()
+    const location = useLocation()
     const q = (params.get('q') ?? '').trim()
     const consultable = q.length >= MIN_CARACTERES
 
@@ -75,6 +77,7 @@ export default function ResultadosBusqueda() {
                                         <Link
                                             key={`${g.clave}-${it.id}`}
                                             to={it.enlace}
+                                            state={conOrigen(location, 'Resultados de búsqueda')}
                                             className="bg-white border border-[#e1e3e4] rounded-2xl px-4 py-3 hover:border-[#d32f2f]/40 hover:shadow-sm transition-all"
                                         >
                                             <p className="text-[14px] font-bold text-[#191c1d] truncate">{it.titulo}</p>

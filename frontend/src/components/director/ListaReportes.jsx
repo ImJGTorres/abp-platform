@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import { reportesApi } from '../../services/docenteApi'
 import { periodosApi, cursosAdminApi } from '../../services/api'
+import { conOrigen } from '../../utils/origen'
 
 // Normaliza el resultado de indicadoresDashboard al shape que usa el componente
 function normalizarProyecto(p) {
@@ -71,13 +72,25 @@ function ProgressBar({ value }) {
 
 export default function ListaReportes() {
     const navigate = useNavigate()
+    const location = useLocation()
     // Enlace desde la búsqueda global: /director/reportes?curso_id=<id>
     const [searchParams, setSearchParams] = useSearchParams()
     const cursoParam = searchParams.get('curso_id')
     const [cursoInfo, setCursoInfo] = useState(null)   // { id, nombre } del curso del parámetro
     const [cursoNoEncontrado, setCursoNoEncontrado] = useState(false)
     const [periodos, setPeriodos] = useState([])
-    const [periodoSel, setPeriodoSel] = useState('')
+    // Período en la URL (?periodo=): al volver de un reporte de proyecto sigue seleccionado.
+    // Un solo setSearchParams por cambio (si se llaman dos seguidos, el segundo pisa al primero).
+    const periodoSel = searchParams.get('periodo') ?? ''
+    function setPeriodoSel(valor, sinCurso = false) {
+        setSearchParams(prev => {
+            const p = new URLSearchParams(prev)
+            if (valor) p.set('periodo', valor)
+            else p.delete('periodo')
+            if (sinCurso) p.delete('curso_id')
+            return p
+        }, { replace: true })
+    }
     const [reporte, setReporte] = useState(null)
     const [cargando, setCargando] = useState(false)
     const [error, setError] = useState(null)
@@ -103,6 +116,9 @@ export default function ListaReportes() {
             })
             .catch(() => { if (activo) setCursoNoEncontrado(true) })
         return () => { activo = false }
+    // Solo al cambiar el curso: setPeriodoSel cambia la URL y, con ella en las dependencias,
+    // el efecto se volvería a ejecutar en cada cambio de filtros.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [cursoParam])
 
     function quitarCurso() {
@@ -159,7 +175,11 @@ export default function ListaReportes() {
                 <div className="flex gap-3 flex-wrap">
                     <select
                         value={periodoSel}
-                        onChange={e => { setPeriodoSel(e.target.value); setBusqueda(''); if (cursoParam) quitarCurso() }}
+                        onChange={e => {
+                            setPeriodoSel(e.target.value, Boolean(cursoParam))
+                            setBusqueda('')
+                            if (cursoParam) { setCursoInfo(null); setCursoNoEncontrado(false) }
+                        }}
                         className="flex-1 min-w-[200px] border border-[#e1e3e4] rounded-xl px-3 py-2 text-[13px] text-[#191c1d] bg-white focus:outline-none focus:ring-2 focus:ring-[#d32f2f]/30"
                     >
                         <option value="">— Seleccionar período —</option>
@@ -235,7 +255,7 @@ export default function ListaReportes() {
                                 <div
                                     key={p.id}
                                     className="bg-white rounded-2xl border border-[#e1e3e4] p-5 hover:border-[#d32f2f]/40 hover:shadow-sm transition-all cursor-pointer"
-                                    onClick={() => navigate(`/director/reportes/proyecto/${p.id}`)}
+                                    onClick={() => navigate(`/director/reportes/proyecto/${p.id}`, { state: conOrigen(location, 'Reportes') })}
                                 >
                                     <div className="flex items-start justify-between gap-3 mb-3">
                                         <div className="flex-1 min-w-0">

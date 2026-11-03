@@ -1,6 +1,7 @@
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { calendarioApi } from '../../services/api'
+import { conOrigen } from '../../utils/origen'
 import { URGENCIA, TIPO_EVENTO, desdeISO, fechaLarga } from '../../utils/calendario'
 
 // ── Ficha de detalle de un evento del calendario (HU-040) ─────────────────────
@@ -37,6 +38,7 @@ function Cargando() {
  * @param onCerrar  vuelve a la lista del día
  */
 export default function FichaEvento({ eventoId, onCerrar }) {
+    const location = useLocation()
     const { data, isLoading, isError, error, refetch } = useQuery({
         queryKey: ['calendario-evento', eventoId],
         queryFn: () => calendarioApi.detalle(eventoId),
@@ -132,6 +134,7 @@ export default function FichaEvento({ eventoId, onCerrar }) {
                     {data.enlace && (
                         <Link
                             to={data.enlace}
+                            state={conOrigen(location, 'Calendario')}
                             className="mt-1 text-center px-4 py-2.5 bg-[#d32f2f] text-white text-[13px] font-semibold rounded-xl hover:bg-[#b71c1c] transition-colors"
                         >
                             {data.tipo === 'actividad' ? 'Ir a la actividad' : 'Ver en el proyecto'}
