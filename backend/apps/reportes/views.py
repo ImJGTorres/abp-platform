@@ -8,7 +8,7 @@ from apps.bitacora.models import BitacoraSistema
 from apps.bitacora.utils import registrar_evento
 from apps.usuarios.authentication import UsuarioJWTAuthentication
 
-from .semaforo import NIVELES_SEMAFORO
+from .semaforo import NIVELES_SEMAFORO, semaforo_estudiante, semaforos_docente
 from .services import calcular_rendimiento_estudiante, get_estudiantes_bajo_rendimiento
 
 logger = logging.getLogger(__name__)
@@ -403,3 +403,86 @@ class PendientesDashboardView(APIView):
     def get(self, request):
         from .pendientes import pendientes_usuario
         return Response(pendientes_usuario(request.user), status=status.HTTP_200_OK)
+
+
+# ── HU-045: Búsqueda global (director y administrador) ──────────────────────
+
+class BusquedaGlobalView(APIView):
+    """GET /api/busqueda/?q=<término> — resultados agrupados por tipo (máx. 10 por tipo)."""
+    authentication_classes = [UsuarioJWTAuthentication]
+
+    def get(self, request):
+        from .busqueda import MIN_CARACTERES, buscar_global
+
+        if request.user.tipo_rol not in ('director', 'administrador'):
+            return Response(
+                {'error': 'Solo el director o el administrador pueden usar la búsqueda global.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        q = request.query_params.get('q', '').strip()
+        if len(q) < MIN_CARACTERES:
+            return Response(
+                {'error': f'El término de búsqueda debe tener al menos {MIN_CARACTERES} caracteres.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(buscar_global(q, request.user.tipo_rol), status=status.HTTP_200_OK)
+
+
+class SemaforoEstudianteView(APIView):
+    """
+    GET /api/reportes/semaforos/estudiante/?proyecto_id=<id> (HU-041)
+    Semáforo personal del estudiante autenticado (siempre request.user.id).
+    Solo estudiante y lider_equipo; si se filtra por un proyecto al que no pertenece → 403.
+    """
+    authentication_classes = [UsuarioJWTAuthentication]
+
+    def get(self, request):
+        from apps.equipos.models import MiembroEquipo
+
+        usuario = request.user
+        if usuario.tipo_rol not in ('estudiante', 'lider_equipo'):
+            return Response(
+                {'error': 'Solo estudiantes y líderes de equipo pueden consultar su semáforo personal.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        proyecto_id = request.query_params.get('proyecto_id')
+        if proyecto_id:
+            try:
+                proyecto_id = int(proyecto_id)
+            except ValueError:
+                return Response({'error': 'proyecto_id debe ser un entero.'}, status=status.HTTP_400_BAD_REQUEST)
+            if not MiembroEquipo.objects.filter(
+                usuario=usuario, equipo__proyecto_id=proyecto_id, estado='activo'
+            ).exists():
+                return Response({'error': 'No perteneces a este proyecto.'}, status=status.HTTP_403_FORBIDDEN)
+        else:
+            proyecto_id = None
+
+        return Response(semaforo_estudiante(usuario.id, proyecto_id=proyecto_id), status=status.HTTP_200_OK)
+
+
+class SemaforosDocenteView(APIView):
+    """
+    GET /api/reportes/semaforos/docente/?color=verde|amarillo|rojo (HU-042)
+    Semáforo RF34 y avance de cada proyecto no finalizado de los cursos del docente autenticado.
+    Solo docente (otro rol → 403). Sin proyectos → 200 con lista vacía.
+    """
+    authentication_classes = [UsuarioJWTAuthentication]
+
+    def get(self, request):
+        usuario = request.user
+        if usuario.tipo_rol != 'docente':
+            return Response(
+                {'error': 'Solo los docentes pueden consultar el panel de semáforos de proyectos.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        color = request.query_params.get('color') or None
+        if color and color not in NIVELES_SEMAFORO:
+            return Response(
+                {'error': f'Color inválido. Opciones: {", ".join(NIVELES_SEMAFORO)}.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(semaforos_docente(usuario.id, color=color), status=status.HTTP_200_OK)

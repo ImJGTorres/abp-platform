@@ -275,6 +275,11 @@ const ICONOS = {
             <path d="M2 8h2M2 11h2M2 14h2" />
         </svg>
     ),
+    carpeta: (
+        <svg {...svgProps}>
+            <path d="M2 5a2 2 0 012-2h4l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V5z" />
+        </svg>
+    ),
     historial: (
         <svg {...svgProps}>
             <circle cx="10" cy="10" r="8" />

@@ -46,6 +46,8 @@
 | Autoevaluación | `/api/proyectos/<id>/autoevaluaciones/` |
 | Coevaluación | `/api/proyectos/<id>/coevaluaciones/` |
 | Alertas | `/api/alertas/` |
+| Calendario | `/api/calendario/` · `/api/calendario/<evento_id>/` |
+| Búsqueda global | `/api/busqueda/` |
 | Reportes | `/api/reportes/` |
 | Dashboard (pendientes) | `/api/dashboard/pendientes/` |
 | Anuncios (muro) | `/api/cursos/<id>/anuncios/` · `/api/proyectos/<id>/anuncios/` |
@@ -1282,6 +1284,63 @@ Un estudiante ya activo en el mismo equipo se omite sin generar error. Un estudi
 
 ---
 
+## Banco de rúbricas y plantillas (HU-044)
+
+Toda rúbrica serializada incluye además `es_plantilla` (bool) y `nombre_plantilla` (string | null).
+Regla de ponderaciones (SCRUM-564): la suma de `peso_porcentual` de los criterios debe ser exactamente **100**; si no, `400`:
+```json
+{ "detail": "La suma de las ponderaciones de los criterios debe ser 100 %. Suma actual: 90.00 %.", "suma_actual": "90.00" }
+```
+
+### `PATCH /api/rubricas/<pk>/guardar-plantilla/`
+**Permiso:** Docente dueño de la rúbrica o administrador (`403` docente ajeno o estudiante; `404` si no existe)
+**Body:** (si `nombre_plantilla` viene vacío se usa el `nombre` de la rúbrica)
+```json
+{ "nombre_plantilla": "Rúbrica estándar de entregable" }
+```
+**Respuesta `200`:** Objeto rúbrica con `es_plantilla: true`, `nombre_plantilla`, criterios y niveles
+**Errores:** `400` si las ponderaciones no suman 100 o el nombre supera 200 caracteres
+
+### `GET /api/rubricas/plantillas/`
+**Permiso:** Docente o administrador (`403` otros roles)
+**Respuesta `200`:** Solo rúbricas con `es_plantilla=true`, ordenadas por `nombre_plantilla`, con criterios y niveles
+```json
+[
+  {
+    "id": 7,
+    "nombre": "Rúbrica de Entregable Final",
+    "nombre_plantilla": "Rúbrica estándar de entregable",
+    "es_plantilla": true,
+    "tipo": "entregable",
+    "peso_total": "100.00",
+    "id_docente": 5,
+    "docente_nombre": "Ana Pérez",
+    "criterios": [
+      {
+        "id": 21,
+        "nombre": "Claridad y estructura",
+        "peso_porcentual": "100.00",
+        "niveles": [
+          { "nivel": 1, "etiqueta": "insuficiente", "descripcion": "...", "puntos": "0.00" },
+          { "nivel": 4, "etiqueta": "excelente",    "descripcion": "...", "puntos": "5.00" }
+        ]
+      }
+    ]
+  }
+]
+```
+
+### `POST /api/rubricas/plantillas/<pk>/clonar/`
+**Permiso:** Docente del curso del proyecto destino o administrador (`403` docente de otro curso)
+**Body:**
+```json
+{ "id_proyecto": 3 }
+```
+**Respuesta `201`:** Rúbrica nueva e independiente (id nuevo, `es_plantilla: false`, `nombre_plantilla: null`, `id_proyecto` destino, `id_docente` = docente del curso) con copia de criterios y niveles. Editar la copia no modifica la plantilla.
+**Errores:** `400` si falta `id_proyecto` o las ponderaciones de la plantilla no suman 100; `404` si la plantilla o el proyecto no existen
+
+---
+
 ## Evaluaciones de entregables
 
 ### `GET /api/entregables/<id_entregable>/evaluaciones/`
@@ -1334,6 +1393,11 @@ Un estudiante ya activo en el mismo equipo se omite sin generar error. Un estudi
 **Permiso:** Docente creador de la evaluación
 **Body:** `{}` (vacío)
 **Respuesta `200`:** `{ "estado": "publicada" }`
+**Error `400`:** `{ "detail": "La evaluación ya está publicada." }`
+**Efecto (modificado, HU-043):** en la misma transacción encola en `cola_correo` un correo `plantilla = "calificacion"`
+por cada miembro **activo** del equipo del entregable, con
+`contexto = {"evaluacion_id", "entregable", "proyecto_id", "proyecto_nombre", "puntuacion_total", "comentario_general", "enlace": "/estudiante/proyectos/<p>/historial"}`.
+Como una evaluación publicada no se puede volver a publicar, el correo sale una sola vez.
 
 ---
 
@@ -1493,19 +1557,150 @@ Un estudiante ya activo en el mismo equipo se omite sin generar error. Un estudi
   }
 ]
 ```
-**`tipo` válidos:** `actividad_vencida | entregable_pendiente | entregable_enviado | evaluacion_pendiente | bajo_rendimiento`
+**`tipo` válidos:** `actividad_vencida | entregable_pendiente | entregable_enviado | evaluacion_pendiente | bajo_rendimiento | recordatorio_vencimiento`
+(`recordatorio_vencimiento`, HU-040: lo crea la tarea diaria `recordatorios` de `run_scheduler` para actividades
+no completadas que vencen en ≤ 48 h; destinatarios: el responsable o, si no tiene, los miembros activos del equipo;
+`referencia_id` = id de la actividad; su correo se encola con `plantilla = "recordatorio"`).
 **`gravedad` (modificado, solo lectura):** `baja | media | alta`, asignada por tipo al crear la alerta:
 `actividad_vencida`, `bajo_rendimiento` → `alta` · `entregable_pendiente` → `media` · resto → `baja`.
 También se incluye en la respuesta de `PATCH /api/alertas/<alerta_id>/leer/`.
 
 > **Cola de correos (`cola_correo`, sin endpoint):** cada alerta **nueva** deja una fila en estado
 > `pendiente` con `plantilla = "alerta"` y `contexto = {"mensaje": "...", "proyecto_id": 1}`.
-> Si la alerta ya existía no se encola nada. El envío real lo hace HU-043.
+> Si la alerta ya existía no se encola nada.
+>
+> **Envío (HU-043):** la tarea `correos` de `run_scheduler` (cada 5 min, RNF28) envía hasta 50 filas `pendiente`
+> por ciclo, las más antiguas primero, con la plantilla `apps/alertas/templates/correos/<plantilla>.html`
+> (`alerta | anuncio | calificacion | recordatorio`, membrete de `obtener_identidad()`), en HTML y texto plano.
+> Éxito → `estado = "enviado"` y `fecha_envio`. Fallo → `intentos + 1` y se guarda `error`; al tercer intento
+> fallido queda en `estado = "error"` y no se reintenta. Quién encola: alertas y recordatorios (`_crear_alerta`,
+> solo si la alerta es nueva), anuncios (`publicar_anuncio`) y calificaciones (`PATCH /api/evaluaciones/<pk>/publicar/`).
 
 ### `PATCH /api/alertas/<alerta_id>/leer/`
 **Permiso:** Dueño de la alerta
 **Body:** `{}` (vacío)
 **Respuesta `200`:** `{ "estado": "leida", "fecha_lectura": "2026-04-23T09:00:00Z" }`
+
+---
+
+## Calendario (HU-040)
+
+**Forma del evento** (la misma en la lista y como base del detalle):
+
+| Campo | Tipo | Descripción |
+|---|---|---|
+| `id` | string | `"hito-<id>"` o `"actividad-<id>"`; se usa en el detalle |
+| `tipo` | string | `hito \| entrega \| revision` (de `HitoProyecto.tipo`; las evaluaciones son `revision`) o `actividad` |
+| `titulo` | string | Nombre del hito o de la actividad |
+| `fecha` | `AAAA-MM-DD` | `HitoProyecto.fecha_fin` o `Actividad.fecha_limite` |
+| `urgencia` | string | `vencido` (fecha < hoy y no completado) · `proximo` (vence hoy, mañana o pasado mañana, ≤ 48 h, y no completado) · `normal` (resto, incluido lo completado o cancelado) |
+| `proyecto_id`, `proyecto_nombre`, `curso_nombre` | | Proyecto y curso del evento |
+
+**Visibilidad por rol:** estudiante y líder de equipo → proyectos donde tienen membresía activa, y de ellos solo
+las actividades donde son responsables o que están asignadas a su equipo (los hitos del proyecto sí los ven todos);
+docente → proyectos de los cursos que dicta; director y administrador → todos los proyectos no finalizados.
+
+### `GET /api/calendario/`
+**Permiso:** Autenticado (cada rol ve lo descrito arriba)
+**Query params:** `desde=AAAA-MM-DD` · `hasta=AAAA-MM-DD` (incluidas; por defecto, del primer al último día del mes actual)
+**Request:** `GET /api/calendario/?desde=2026-10-01&hasta=2026-10-31`
+**Respuesta `200`:** eventos ordenados por `fecha`
+```json
+{
+  "desde": "2026-10-01",
+  "hasta": "2026-10-31",
+  "total": 2,
+  "eventos": [
+    {
+      "id": "actividad-40",
+      "tipo": "actividad",
+      "titulo": "Diagrama de clases",
+      "fecha": "2026-10-09",
+      "urgencia": "proximo",
+      "proyecto_id": 3,
+      "proyecto_nombre": "Sistema de inventario",
+      "curso_nombre": "Ingeniería de Software I"
+    },
+    {
+      "id": "hito-12",
+      "tipo": "revision",
+      "titulo": "Revisión de avance 1",
+      "fecha": "2026-10-20",
+      "urgencia": "normal",
+      "proyecto_id": 3,
+      "proyecto_nombre": "Sistema de inventario",
+      "curso_nombre": "Ingeniería de Software I"
+    }
+  ]
+}
+```
+**Error `400`:** `{ "detail": "El rango no puede superar 92 días." }` · fecha con otro formato · `desde` posterior a `hasta`
+**Error `401`:** sin autenticación
+
+### `GET /api/calendario/<evento_id>/`
+**Permiso:** Autenticado; el evento debe ser de un proyecto del usuario (estudiante/líder: actividad propia o de su equipo)
+**Request:** `GET /api/calendario/actividad-40/`
+**Respuesta `200`:** los campos del evento más:
+```json
+{
+  "id": "actividad-40",
+  "tipo": "actividad",
+  "titulo": "Diagrama de clases",
+  "fecha": "2026-10-09",
+  "urgencia": "proximo",
+  "proyecto_id": 3,
+  "proyecto_nombre": "Sistema de inventario",
+  "curso_nombre": "Ingeniería de Software I",
+  "descripcion": "Modelo de clases del módulo de compras",
+  "estado": "en_progreso",
+  "porcentaje_avance": 60,
+  "equipo": { "nombre": "Equipo Alpha", "miembros": ["Ana Rojas", "Luis Pérez"] },
+  "enlace": "/estudiante/proyectos/3/actividades/40/entregables"
+}
+```
+- `porcentaje_avance`: actividad → último `AvanceActividad.porcentaje_completado` (0 si no hay);
+  hito → `porcentaje_progreso` de `vista_progreso_proyecto` (0 si no hay).
+- `equipo`: actividad → equipo asignado; si no tiene, o es un hito → el equipo del usuario en ese proyecto; `null` si no hay.
+- `enlace` (ruta del frontend según el rol):
+
+| Rol | Actividad | Hito |
+|---|---|---|
+| estudiante | `/estudiante/proyectos/<p>/actividades/<a>/entregables` | `/estudiante/proyectos/<p>/progreso` |
+| lider_equipo | `/lider/actividades/<a>/entregables` | `/lider/proyectos/<p>/kanban` |
+| docente | `/docente/proyectos/<p>/fases/<f>/actividades/<a>` | `/docente/proyectos/<p>/cronograma` |
+| director | `/director/reportes/proyecto/<p>` | `/director/reportes/proyecto/<p>` |
+| administrador | `/admin/cursos/<curso_id>` | `/admin/cursos/<curso_id>` |
+
+**Error `404`:** `{ "detail": "Evento no encontrado." }` si no existe, no es de un proyecto del usuario o el id no tiene la forma `hito-<n>` / `actividad-<n>`
+
+---
+
+## Búsqueda global (HU-045)
+
+### `GET /api/busqueda/?q=<término>`
+**Permiso:** Director o administrador (`403` cualquier otro rol)
+**Request:** `GET /api/busqueda/?q=ing`
+Busca sin distinguir mayúsculas (contiene) en: cursos (`nombre`, `codigo`), proyectos (`nombre`), usuarios (`nombre`, `apellido`, `codigo`, `correo`) y entregables (`titulo`). Máximo **10 resultados por tipo**, ordenados alfabéticamente. Tiempo medido con ~1.000 usuarios: < 0,2 s (RNF10: < 3 s).
+**Respuesta `200`:**
+```json
+{
+  "cursos":      [{ "id": 4,  "titulo": "Ingeniería de Software", "subtitulo": "IS-901", "enlace": "/admin/cursos/4" }],
+  "proyectos":   [{ "id": 9,  "titulo": "Plataforma de ingreso", "subtitulo": "Ingeniería de Software", "enlace": "/director/reportes/proyecto/9" }],
+  "usuarios":    [{ "id": 31, "titulo": "Inguilda Rojas", "subtitulo": "irojas@ufps.edu.co · estudiante", "enlace": "/admin/registro?usuario_id=31" }],
+  "entregables": [{ "id": 57, "titulo": "Informe de ingeniería", "subtitulo": "Plataforma de ingreso", "enlace": "/director/reportes/proyecto/9" }]
+}
+```
+**`enlace` según rol** (rutas del frontend; `subtitulo` del entregable = nombre del proyecto):
+
+| Tipo | administrador | director |
+|---|---|---|
+| curso | `/admin/cursos/<id>` | `/director/reportes?curso_id=<id>` |
+| proyecto | `/director/reportes/proyecto/<id>` | `/director/reportes/proyecto/<id>` |
+| usuario | `/admin/registro?usuario_id=<id>` | `/director/riesgo?estudiante_id=<id>` |
+| entregable | `/director/reportes/proyecto/<id_proyecto>` | `/director/reportes/proyecto/<id_proyecto>` |
+
+**Error `400`:** `{ "error": "El término de búsqueda debe tener al menos 2 caracteres." }`
+**Error `403`:** `{ "error": "Solo el director o el administrador pueden usar la búsqueda global." }`
 
 ---
 
@@ -1621,6 +1816,85 @@ Registra en bitácora `ACCESS / reportes` con descripción `Consulta panel de re
 ### `GET /api/reportes/estudiantes/<estudiante_id>/rendimiento/`
 **Permiso:** Propio estudiante, docente o administrador
 **Respuesta `200`:** Perfil completo de rendimiento del estudiante (actividades, entregables, evaluaciones, avances)
+
+### `GET /api/reportes/semaforos/estudiante/` (HU-041)
+**Permiso:** Solo `estudiante` y `lider_equipo` (otro rol → `403`). Siempre consulta al usuario autenticado;
+no recibe id de estudiante.
+**Query params:** `proyecto_id` (opcional, entero; si el usuario no es miembro activo de ese proyecto → `403`)
+**Request:** `GET /api/reportes/semaforos/estudiante/?proyecto_id=3`
+**Respuesta `200`:**
+```json
+{
+  "nivel": "amarillo",
+  "nota_promedio": 3.2,
+  "porcentaje_actividades_incumplidas": 40.0,
+  "entregables_criticos": [
+    {
+      "titulo": "Modelo entidad-relación",
+      "fecha": "2026-10-05",
+      "estado": "vencida",
+      "enlace": "/estudiante/proyectos/3/actividades/40/entregables"
+    },
+    {
+      "titulo": "Informe parcial",
+      "fecha": "2026-10-12",
+      "estado": "por_vencer",
+      "enlace": "/estudiante/proyectos/3/actividades/41/entregables"
+    },
+    {
+      "titulo": "Informe v1",
+      "fecha": "2026-10-01",
+      "estado": "rechazado",
+      "enlace": "/estudiante/proyectos/3/actividades/38/entregables"
+    }
+  ],
+  "recomendaciones": [
+    "Tienes 1 actividad vencida; empieza por «Modelo entidad-relación»",
+    "Tu promedio (3.2) está por debajo de 3.5",
+    "Corrige y reenvía «Informe v1»"
+  ]
+}
+```
+- `nivel`, `nota_promedio` y `porcentaje_actividades_incumplidas` salen de `calcular_rendimiento_estudiante()`,
+  con los mismos umbrales RF34 de `ParametroSistema` que HU-029 y HU-033 (cambiar un umbral cambia el color en las tres).
+- `entregables_criticos`: actividades no completadas vencidas (`estado: "vencida"`) o que vencen en ≤ 3 días
+  (`"por_vencer"`), ordenadas por fecha, y luego entregables rechazados (`"rechazado"`; `fecha` = fecha límite de su actividad).
+  Se cuentan las mismas actividades que el semáforo: donde el usuario es responsable o están asignadas a su equipo.
+- `recomendaciones`, por reglas y en este orden: actividades vencidas → `"Tienes N actividades vencidas; empieza por «X»"`
+  (la más antigua); nota bajo el umbral → `"Tu promedio (N) está por debajo de U"` (U = umbral de rojo o de amarillo,
+  el que incumpla); cada rechazado → `"Corrige y reenvía «X»"`. Si no aplica ninguna: en verde
+  `"Vas al día; mantén el ritmo"`; en amarillo o rojo `"Tienes el N% de tus actividades sin completar; revisa tu tablero"`.
+
+**Error `400`:** `{ "error": "proyecto_id debe ser un entero." }`
+**Error `403`:** `{ "error": "Solo estudiantes y líderes de equipo pueden consultar su semáforo personal." }` · `{ "error": "No perteneces a este proyecto." }`
+
+### `GET /api/reportes/semaforos/docente/` (HU-042)
+**Permiso:** Solo `docente` (otro rol → `403`). Siempre usa el docente autenticado.
+**Query params:** `color=verde|amarillo|rojo` (opcional; otro valor → `400`). El filtro se aplica después de
+calcular el nivel, así que coincide con lo que se ve sin filtro.
+**Request:** `GET /api/reportes/semaforos/docente/?color=rojo`
+**Respuesta `200`:** un elemento por proyecto no finalizado de los cursos donde `Curso.id_docente` es el docente,
+ordenados por curso y nombre del proyecto; lista vacía si no tiene proyectos.
+```json
+[
+  {
+    "proyecto_id": 3,
+    "nombre": "Sistema de inventario",
+    "curso_id": 1,
+    "curso_nombre": "Ingeniería de Software I",
+    "nivel": "rojo",
+    "porcentaje_avance": 20
+  }
+]
+```
+- `nivel`: `clasificar_semaforo(nota promedio del proyecto, % de actividades incumplidas del proyecto)` con los
+  umbrales RF34 de `ParametroSistema` (los mismos de HU-029, HU-033 y HU-041). La nota promedio es el promedio de
+  `nota_promedio_5` de `vista_avance_estudiante_proyecto`; el % de incumplidas sale de `vista_progreso_proyecto`
+  (`total_actividades` − `actividades_completadas`). Proyecto sin actividades → `verde`.
+- `porcentaje_avance`: `porcentaje_progreso` de `vista_progreso_proyecto`.
+
+**Error `400`:** `{ "error": "Color inválido. Opciones: verde, amarillo, rojo." }`
+**Error `403`:** `{ "error": "Solo los docentes pueden consultar el panel de semáforos de proyectos." }`
 
 ---
 

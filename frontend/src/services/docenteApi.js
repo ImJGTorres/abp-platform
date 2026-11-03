@@ -567,6 +567,18 @@ export const reportesApi = {
         return data
     },
 
+    // Panel de semáforos del docente (HU-042) — el filtro por color lo aplica el backend.
+    // GET /api/reportes/semaforos/docente/?color=verde|amarillo|rojo   (sin color = todos; solo rol docente)
+    // 200 [{ proyecto_id, nombre, curso_id, curso_nombre, nivel, porcentaje_avance }]
+    // 400 si el color no es válido.
+    async semaforosDocente(color) {
+        const qs = color ? `?color=${encodeURIComponent(color)}` : ''
+        const response = await request(`/api/reportes/semaforos/docente/${qs}`)
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+
     async rendimientoEstudiante(estudianteId, { cursoId, proyectoId } = {}) {
         const params = new URLSearchParams()
         if (cursoId) params.set('curso_id', cursoId)

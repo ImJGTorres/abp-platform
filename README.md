@@ -255,6 +255,29 @@ python manage.py runserver
 
 El backend queda disponible en **http://localhost:8000**
 
+#### Variables de entorno
+
+Todas están en `backend/.env.example` con valores de ejemplo. Nunca subas claves reales al repositorio.
+
+| Variable | Uso | Local | Producción / staging |
+|---|---|---|---|
+| `EMAIL_BACKEND` | Cómo se envían los correos | `django.core.mail.backends.console.EmailBackend` (se imprimen en consola) | `anymail.backends.sendgrid.EmailBackend` |
+| `SENDGRID_API_KEY` | Clave de la API de SendGrid | vacía | clave real (solo en el servidor) |
+| `DEFAULT_FROM_EMAIL` | Remitente de los correos | `Plataforma ABP <noreply@ufps.edu.co>` | remitente o dominio **verificado** en SendGrid |
+| `EMAIL_TIMEOUT` | Segundos de espera al proveedor | `10` | `10` |
+| `FRONTEND_URL` | URL pública; los correos la usan para el logo y los enlaces | `http://localhost:5173` | URL del despliegue |
+| `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USE_TLS`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD` | Solo si se usa SMTP en lugar de SendGrid | — | — |
+
+**Correos automáticos (HU-043):** los eventos (alertas, recordatorios, anuncios y calificaciones) dejan filas
+en `cola_correo`; la tarea `correos` de `python manage.py run_scheduler` las envía cada 5 minutos con las
+plantillas de `apps/alertas/templates/correos/` (`run_scheduler --once` las procesa una vez).
+
+Correo de prueba (en staging, con las variables de SendGrid configuradas):
+
+```bash
+python manage.py shell -c "from django.core.mail import send_mail; send_mail('Prueba ABP', 'Correo de prueba', None, ['tu-correo@ufps.edu.co'])"
+```
+
 ### Frontend
 
 ```bash

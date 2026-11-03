@@ -4,13 +4,15 @@ import time
 from django.core.management.base import BaseCommand
 from django.db import close_old_connections
 
-from apps.alertas.services import ejecutar_generacion_completa
+from apps.alertas.services import despachar_cola, ejecutar_generacion_completa, generar_recordatorios_48h
 
 logger = logging.getLogger(__name__)
 
 # (nombre, función, intervalo en minutos). Otras HU solo agregan una línea.
 TAREAS = [
     ('alertas', ejecutar_generacion_completa, 15),
+    ('recordatorios', generar_recordatorios_48h, 1440),  # HU-040: diaria
+    ('correos', despachar_cola, 5),  # HU-043: envío de cola_correo (RNF28)
 ]
 
 # Tareas cuyo intervalo se puede cambiar en ParametroSistema.

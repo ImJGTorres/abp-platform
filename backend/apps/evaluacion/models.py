@@ -32,6 +32,9 @@ class Rubrica(models.Model):
     )
     peso_total = models.DecimalField(max_digits=5, decimal_places=2, default=100)
     es_rubrica_proyecto = models.BooleanField(default=False)
+    # HU-044 — banco de plantillas reutilizables
+    es_plantilla = models.BooleanField(default=False, db_index=True)
+    nombre_plantilla = models.CharField(max_length=200, null=True, blank=True)
     fecha_creacion = models.DateTimeField(auto_now_add=True)
 
     class Meta:

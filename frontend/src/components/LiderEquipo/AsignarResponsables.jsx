@@ -119,10 +119,10 @@ export default function AsignarResponsables() {
         : actividades
 
     return (
-        <div className="flex-1 overflow-y-auto p-6">
-            <div className="max-w-4xl mx-auto">
-                <h1 className="text-[26px] font-extrabold text-[#191c1d] mb-1">Asignar Responsables</h1>
-                <p className="text-[14px] text-[#9ba7ae] mb-6">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+            <div>
+                <h1 className="text-[22px] font-extrabold text-[#191c1d] tracking-tight mb-1">Asignar responsables</h1>
+                <p className="text-[13px] text-[#9ba7ae] mb-6">
                     Asigna uno o más integrantes del equipo como responsables de cada actividad.
                 </p>
 

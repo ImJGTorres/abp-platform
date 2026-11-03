@@ -21,17 +21,24 @@ export const MENU_POR_ROL = {
         { label: 'Inicio',   to: '/director',          icon: 'inicio', exact: true },
         { label: 'Riesgo',   to: '/director/riesgo',   icon: 'alerta' },
         { label: 'Reportes', to: '/director/reportes', icon: 'reportes' },
+        { label: 'Calendario', to: '/director/calendario', icon: 'calendario' },
     ],
     docente: [
         { label: 'Mis cursos', to: '/docente/cursos', icon: 'cursos', exact: true },
+        { label: 'Semáforos',  to: '/docente/semaforos', icon: 'alerta' },
+        { label: 'Calendario', to: '/docente/calendario', icon: 'calendario' },
     ],
     lider_equipo: [
         { label: 'Inicio',               to: '/lider/inicio',               icon: 'tablero' },
+        { label: 'Mis proyectos',        to: '/lider/proyectos',            icon: 'carpeta', exact: true },
         { label: 'Dashboard',            to: '/lider/dashboard',            icon: 'objetivo' },
         { label: 'Distribución',         to: '/lider/distribucion',         icon: 'distribucion' },
         { label: 'Asignar responsables', to: '/lider/asignar-responsables', icon: 'agenda' },
+        { label: 'Calendario',           to: '/lider/calendario',           icon: 'calendario' },
     ],
     estudiante: [
         { label: 'Inicio', to: '/estudiante/dashboard', icon: 'tablero' },
+        { label: 'Mis proyectos', to: '/estudiante/proyectos', icon: 'carpeta', exact: true },
+        { label: 'Calendario', to: '/estudiante/calendario', icon: 'calendario' },
     ],
 }

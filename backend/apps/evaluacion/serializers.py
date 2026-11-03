@@ -123,6 +123,8 @@ class RubricaSerializer(serializers.ModelSerializer):
             'tipo_display',
             'peso_total',
             'es_rubrica_proyecto',
+            'es_plantilla',
+            'nombre_plantilla',
             'id_proyecto',
             'proyecto_nombre',
             'id_docente',

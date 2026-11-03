@@ -73,6 +73,12 @@ class Usuario(AbstractBaseUser):
 
     class Meta:
         db_table = 'usuario'
+        # HU-045 — búsqueda global (varchar_pattern_ops: Postgres usa el índice en búsquedas por prefijo)
+        indexes = [
+            models.Index(fields=['nombre'], name='idx_usuario_nombre', opclasses=['varchar_pattern_ops']),
+            models.Index(fields=['apellido'], name='idx_usuario_apellido', opclasses=['varchar_pattern_ops']),
+            models.Index(fields=['codigo'], name='idx_usuario_codigo', opclasses=['varchar_pattern_ops']),
+        ]
 
     def __str__(self):
         return f'{self.nombre} {self.apellido} ({self.correo})'

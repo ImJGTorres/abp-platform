@@ -10,6 +10,37 @@ async function parseJSON(response) {
     }
 }
 
+// ─── Equipos y proyectos del estudiante / líder ───────────────
+// GET /api/mis-equipos/ → [{ equipo, proyecto, curso, fases: [{ actividades: [...] }] }]
+export const misEquiposApi = {
+    async listar() {
+        const response = await request('/api/mis-equipos/')
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+}
+
+// ─── Semáforo de rendimiento personal (HU-041) ────────────────
+// GET /api/reportes/semaforos/estudiante/?proyecto_id=<opcional>   (solo estudiante y líder, datos propios)
+// 200 {
+//   nivel: 'verde' | 'amarillo' | 'rojo',
+//   nota_promedio: 3.4,                        // escala 0-5
+//   porcentaje_actividades_incumplidas: 22.0,
+//   entregables_criticos: [{ titulo, fecha: 'AAAA-MM-DD', estado: 'vencida' | 'por_vencer' | 'rechazado', enlace }],
+//   recomendaciones: ['...'],
+// }
+// 403 si el proyecto_id no es de un equipo del usuario.
+export const semaforoApi = {
+    async personal(proyectoId) {
+        const qs = proyectoId ? `?proyecto_id=${encodeURIComponent(proyectoId)}` : ''
+        const response = await request(`/api/reportes/semaforos/estudiante/${qs}`)
+        const data = await parseJSON(response)
+        if (!response.ok) throw { status: response.status, data }
+        return data
+    },
+}
+
 // ─── Avances ──────────────────────────────────────────────────
 export const avancesApi = {
     async listarPorActividad(actividadId) {
