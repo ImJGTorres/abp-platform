@@ -55,3 +55,6 @@ logs/
 .kilo
 .claude
 docs/
+
+# Contexto local de Claude Code
+CLAUDE.md
