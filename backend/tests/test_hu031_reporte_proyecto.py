@@ -49,6 +49,7 @@ class TestReporteProyectoView:
                       'equipos', 'avance_por_estudiante'):
             assert campo in response.data, f"Falta campo: {campo}"
 
+    @patch('apps.reportes.views.puede_ver_reporte', new=lambda *args, **kwargs: True)  # la autorización se prueba en test_auditoria_autorizacion
     @patch('apps.reportes.services.reporte_proyecto')
     def test_docente_puede_acceder_al_reporte_proyecto(self, mock_srv):
         mock_srv.return_value = _reporte_proyecto_base(1)

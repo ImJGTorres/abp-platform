@@ -19,10 +19,10 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path, re_path
 # SimpleJWT views importadas para endpoints de refresh y logout (BE-04, BE-05)
-# TokenRefreshView: Permite obtener nuevo access token usando refresh token
-from rest_framework_simplejwt.views import TokenRefreshView, TokenBlacklistView
+from rest_framework_simplejwt.views import TokenBlacklistView
 from django.views.generic import TemplateView
 
+from apps.usuarios.refresh import RefreshActivoView
 from apps.usuarios.views import CambiarContrasenaView, LoginView, OlvidarContrasenaView, RecuperarContrasenaView
 from apps.roles.views import PermisosAgrupadosView
 from apps.reportes.views import BusquedaGlobalView, PendientesDashboardView
@@ -39,7 +39,7 @@ urlpatterns = [
     # Endpoint de refresh token (BE-04): POST /api/auth/refresh/
     # Recibe refresh token, retorna nuevo access token
     # Configuración en settings.py SIMPLE_JWT (ACCESS_TOKEN_LIFETIME)
-    path('api/auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('api/auth/refresh/', RefreshActivoView.as_view(), name='token_refresh'),
     
     # Endpoint de logout (BE-05): POST /api/auth/logout/
     # Recibe refresh token y lo agrega a blacklist

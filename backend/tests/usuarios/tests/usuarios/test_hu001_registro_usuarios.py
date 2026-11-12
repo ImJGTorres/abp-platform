@@ -137,9 +137,7 @@ def test_cp07_estudiante_no_puede_crear_usuario(estudiante_client):
     assert response.status_code == 403
 
 # CP-08: Registro en bitácora
-# BLOQUEADO hasta que HU-037 ST-03 y ST-04 estén completos
 
-@pytest.mark.skip(reason="Bloqueado: depende de HU-037 ST-03 y ST-04")
 @pytest.mark.django_db
 def test_cp08_creacion_registrada_en_bitacora(admin_client, admin_user):
     from apps.bitacora.models import BitacoraSistema  # se importa aquí para no romper si el módulo no existe aún

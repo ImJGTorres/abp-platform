@@ -6,6 +6,7 @@ Idempotente (get_or_create): se puede correr varias veces sin duplicar datos.
 Todo lo creado se marca con el prefijo '[DEMO HU-040]' para identificarlo
 fácilmente en la base compartida.
 """
+from apps.usuarios.seguridad_demo import agregar_argumento_forzar, exigir_entorno_de_desarrollo
 from datetime import date, timedelta
 
 from django.core.management.base import BaseCommand
@@ -20,7 +21,11 @@ class Command(BaseCommand):
     help = 'Crea (o reutiliza) curso, proyecto, equipo y eventos de calendario para la prueba de aceptación de HU-040.'
 
     @transaction.atomic
+    def add_arguments(self, parser):
+        agregar_argumento_forzar(parser)
+
     def handle(self, *args, **options):
+        exigir_entorno_de_desarrollo(options)
         from apps.configuracion.models import ParametroSistema, PeriodoAcademico
         from apps.cursos.models import Actividad, AvanceActividad, Curso, FaseProyecto, HitoProyecto, Proyecto
         from apps.equipos.models import Equipo, MiembroEquipo

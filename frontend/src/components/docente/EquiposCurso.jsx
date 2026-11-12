@@ -66,7 +66,7 @@ export default function EquiposCurso() {
                 })
             )
             setEquiposMap(map)
-        } catch (err) {
+        } catch {
             setError('No se pudo cargar la información de equipos.')
         } finally {
             setLoading(false)
@@ -131,7 +131,7 @@ export default function EquiposCurso() {
                 </div>
             ) : (
                 <div className="space-y-8">
-                    {proyectos.map((p, idxProy) => {
+                    {proyectos.map((p) => {
                         const equipos = equiposMap[p.id] ?? []
                         return (
                             <section key={p.id}>

@@ -140,6 +140,7 @@ export default function CoevaluacionesDocente() {
     const [filtroEvaluado, setFiltroEvaluado] = useState('todos')
 
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- mostrar el cargando al cambiar de proyecto
         setLoading(true)
         evaluacionesEstudiantesApi.listarCoevaluaciones(proyectoId)
             .then(data => setCoevaluaciones(data))

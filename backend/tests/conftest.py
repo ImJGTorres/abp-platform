@@ -10,6 +10,15 @@ from tests.factories import (
 )
 
 
+@pytest.fixture(autouse=True)
+def limpiar_cache():
+    """La caché (LocMem) vive todo el proceso: contadores de login y parámetros no deben filtrarse entre pruebas."""
+    from django.core.cache import cache
+    cache.clear()
+    yield
+    cache.clear()
+
+
 @pytest.fixture
 def api_client():
     return APIClient()

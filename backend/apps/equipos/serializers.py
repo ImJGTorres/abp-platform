@@ -18,6 +18,12 @@ class EquipoSerializer(serializers.ModelSerializer):
         model = Equipo
         fields = '__all__'
 
+    def validate_nombre(self, valor):
+        proyecto = self.context.get('proyecto')
+        if proyecto is not None and Equipo.objects.filter(nombre=valor, proyecto=proyecto).exists():
+            raise serializers.ValidationError('Ya existe un equipo con ese nombre en este proyecto.')
+        return valor
+
 
 class EquipoCreateSerializer(serializers.ModelSerializer):
     """Serializador para crear un equipo. La validación de cupo se delega al modelo."""

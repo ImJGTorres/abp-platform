@@ -81,7 +81,7 @@ function formatFecha(iso) {
 
 // ── Sub-componentes ───────────────────────────────────────────────────────────
 
-function StatCard({ label, value, color, bg }) {
+function StatCard({ label, value, color }) {
     return (
         <div className="bg-white border border-[#e1e3e4] rounded-2xl p-4 flex flex-col gap-1">
             <p className="text-[11px] font-semibold uppercase tracking-[0.7px] text-[#9ba7ae]">{label}</p>

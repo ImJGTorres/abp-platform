@@ -36,7 +36,7 @@ function IconChevronRight() {
     )
 }
 
-function SidebarContent({ collapsed, onCollapse, loggingOut, handleLogout, onNavClick, proyectoId, nombreProyecto, periodoNombre, cursoId, cursoNombre, navState, backTo, backLabel }) {
+function SidebarContent({ collapsed, onCollapse, loggingOut, handleLogout, onNavClick, proyectoId, nombreProyecto, periodoNombre, navState, backTo, backLabel }) {
     // Menú del proyecto agrupado según el flujo de trabajo del docente
     const base = `/docente/proyectos/${proyectoId}`
     const itemsProyecto = [
@@ -180,7 +180,7 @@ export default function ProyectoLayout() {
 
     async function handleLogout() {
         setLoggingOut(true)
-        try { await authApi.logout() } catch { }
+        try { await authApi.logout() } catch { /* best-effort: se ignora el fallo */ }
         finally {
             setLoggingOut(false)
             navigate('/login', { replace: true })

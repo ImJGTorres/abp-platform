@@ -122,10 +122,8 @@ def test_cp06_logout_invalida_refresh_token(api_client, usuario_activo):
 
 
 # CP-07: Login exitoso queda registrado en bitácora
-# BLOQUEADO hasta que HU-037 ST-03 y ST-04 estén completos
 
 
-@pytest.mark.skip(reason="Bloqueado: depende de HU-037 ST-03 y ST-04")
 @pytest.mark.django_db
 def test_cp07_login_registrado_en_bitacora(api_client, usuario_activo):
     from apps.bitacora.models import BitacoraSistema
@@ -138,7 +136,7 @@ def test_cp07_login_registrado_en_bitacora(api_client, usuario_activo):
     registro = BitacoraSistema.objects.filter(
         id_usuario=usuario_activo.id,
         accion="LOGIN",
-        modulo="auth",
+        modulo="autenticacion",
     ).last()
 
     assert registro is not None

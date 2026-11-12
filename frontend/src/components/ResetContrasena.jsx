@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { authApi } from '../services/api'
 
 // ─── Subcomponente: input de contraseña con toggle ────────────────────────────
@@ -17,6 +17,7 @@ function PasswordInput({ id, label, value, onChange, error, placeholder = '•�
                 <input
                     id={id}
                     type={ver ? 'text' : 'password'}
+                    autoComplete="new-password"
                     value={value}
                     onChange={onChange}
                     placeholder={placeholder}
@@ -130,11 +131,21 @@ function PantallaTokenInvalido({ navigate }) {
     )
 }
 
+function leerTokenDeLaUrl() {
+    const delFragmento = new URLSearchParams(window.location.hash.replace(/^#/, '')).get('token')
+    return delFragmento || new URLSearchParams(window.location.search).get('token')
+}
+
 // ─── Componente principal ─────────────────────────────────────────────────────
 export default function ResetContrasena() {
     const navigate = useNavigate()
-    const [searchParams] = useSearchParams()
-    const token = searchParams.get('token')
+    // Se lee una sola vez y se borra de la barra de direcciones (historial y capturas de pantalla)
+    const [token] = useState(() => leerTokenDeLaUrl())
+    useEffect(() => {
+        if (window.location.hash || window.location.search) {
+            window.history.replaceState(null, '', window.location.pathname)
+        }
+    }, [])
 
     const [form, setForm] = useState({ nueva: '', confirmar: '' })
     const [errores, setErrores] = useState({})

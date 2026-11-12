@@ -2,6 +2,8 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.bitacora.models import BitacoraSistema
+from apps.bitacora.utils import registrar_evento
 from apps.usuarios.authentication import UsuarioJWTAuthentication
 
 from .models import Anuncio
@@ -63,6 +65,13 @@ class MuroAnunciosView(APIView):
         anuncios = (Anuncio.objects.filter(id_proyecto=proyecto) if proyecto
                     else Anuncio.objects.filter(id_curso=curso, id_proyecto__isnull=True))
         anuncios = anuncios.select_related('id_autor').order_by('-fecha_publicacion', '-id')
+        registrar_evento(
+            request=request,
+            accion=BitacoraSistema.Accion.ACCESS,
+            modulo='anuncios',
+            descripcion=(f'Consulta muro del proyecto id={proyecto.id}' if proyecto
+                         else f'Consulta muro del curso id={curso.id}'),
+        )
         return Response(AnuncioSerializer(anuncios, many=True).data)
 
     def post(self, request, curso_id=None, proyecto_id=None):

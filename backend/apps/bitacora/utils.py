@@ -1,17 +1,27 @@
+import ipaddress
 import logging
+
+from django.conf import settings
 
 from .models import BitacoraSistema
 
 logger = logging.getLogger(__name__)
 
 
-def _get_ip(request):
-    """Extrae la IP del cliente desde la solicitud HTTP.
+def _ip_valida(valor):
+    try:
+        return str(ipaddress.ip_address((valor or '').strip()))
+    except ValueError:
+        return None
 
-    Prioriza HTTP_X_FORWARDED_FOR para entornos con proxy/load-balancer, tomando
-    la primera entrada (IP original del cliente). Si el header no existe o está
-    vacío, retorna REMOTE_ADDR. Puede retornar None si REMOTE_ADDR tampoco está
-    disponible (ej. en tests sin contexto de red real).
+
+def _get_ip(request):
+    """IP del cliente, a prueba de X-Forwarded-For falsificado.
+
+    El cliente puede mandar su propio X-Forwarded-For; cada proxy de confianza agrega la IP
+    que él ve al FINAL de la lista. Por eso se toma la entrada que está TRUSTED_PROXY_COUNT
+    posiciones desde el final (1 = un proxy, Render). Un valor que no sea IP se descarta y se
+    usa REMOTE_ADDR, así tampoco se rompe el INSERT de la bitácora (campo inet).
 
     Args:
         request: Objeto HttpRequest de Django.
@@ -21,8 +31,13 @@ def _get_ip(request):
     """
     forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
     if forwarded_for:
-        return forwarded_for.split(',')[0].strip()
-    return request.META.get('REMOTE_ADDR')
+        entradas = [e.strip() for e in forwarded_for.split(',') if e.strip()]
+        n = max(1, int(getattr(settings, 'TRUSTED_PROXY_COUNT', 1)))
+        if len(entradas) >= n:
+            ip = _ip_valida(entradas[-n])
+            if ip:
+                return ip
+    return _ip_valida(request.META.get('REMOTE_ADDR'))
 
 
 def registrar_evento(request, accion, modulo, descripcion=None):

@@ -51,7 +51,7 @@ function Avatar({ iniciales, colorIndex, size = 'sm' }) {
  * @param {Function} onClose - Callback al cerrar el modal.
  * @param {Function} [onAgregar] - Callback al pulsar "Asignar estudiante". Opcional.
  */
-export default function ModalDetalleEquipo({ titulo, subtitulo, colorIndex = 0, equipo, onClose, onAgregar }) {
+export default function ModalDetalleEquipo({ titulo, subtitulo, colorIndex = 0, equipo, onClose }) {
     const [tab, setTab] = useState('miembros')
     const color   = TEAM_COLORS[colorIndex % TEAM_COLORS.length]
     const miembros = equipo?.miembros ?? []

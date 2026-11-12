@@ -28,7 +28,7 @@ function Toast({ message, onClose }) {
   );
 }
 
-function ParamRow({ label, paramKey, value, type, onChange, min = null, max = null }) {
+function ParamRow({ label, value, type, onChange, min = null, max = null }) {
   const handleChange = (val) => {
     if (min !== null && type === "ENTERO") {
       const num = parseInt(val) || 0;

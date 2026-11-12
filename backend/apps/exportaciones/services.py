@@ -1,7 +1,10 @@
+import logging
 import os
 import uuid
 from django.conf import settings
 from django.utils import timezone
+
+logger = logging.getLogger(__name__)
 
 
 def _ruta_exportacion(formato):
@@ -32,7 +35,7 @@ def _obtener_datos(tipo_reporte, parametros):
             curso_id=parametros.get('curso_id'),
         )
     if tipo_reporte == 'tendencia':
-        return indicadores_tendencia(n_periodos=parametros.get('n_periodos', 4))
+        return indicadores_tendencia(n_periodos=max(2, min(int(parametros.get('n_periodos', 4)), 10)))
     if tipo_reporte == 'equipo':
         return reporte_equipo_estudiantes(parametros['equipo_id'])
     raise ValueError(f"tipo_reporte desconocido: {tipo_reporte}")
@@ -41,10 +44,10 @@ def _obtener_datos(tipo_reporte, parametros):
 def generar_exportacion(exportacion_id):
     from apps.exportaciones.models import Exportacion
     from apps.exportaciones.generadores.pdf import (
-        generar_pdf_proyecto, generar_pdf_estudiante, generar_pdf_indicadores
+        generar_pdf_proyecto, generar_pdf_estudiante, generar_pdf_indicadores, generar_pdf_equipo
     )
     from apps.exportaciones.generadores.excel import (
-        generar_excel_proyecto, generar_excel_estudiante, generar_excel_indicadores
+        generar_excel_proyecto, generar_excel_estudiante, generar_excel_indicadores, generar_excel_equipo
     )
 
     try:
@@ -65,7 +68,7 @@ def generar_exportacion(exportacion_id):
                 'estudiante': generar_pdf_estudiante,
                 'indicadores': generar_pdf_indicadores,
                 'tendencia': generar_pdf_indicadores,
-                'equipo': generar_pdf_estudiante,
+                'equipo': generar_pdf_equipo,
             }
             fn = generadores_pdf.get(exp.tipo_reporte)
             if fn is None:
@@ -77,7 +80,7 @@ def generar_exportacion(exportacion_id):
                 'estudiante': generar_excel_estudiante,
                 'indicadores': generar_excel_indicadores,
                 'tendencia': generar_excel_indicadores,
-                'equipo': generar_excel_estudiante,
+                'equipo': generar_excel_equipo,
             }
             fn = generadores_excel.get(exp.tipo_reporte)
             if fn is None:
@@ -89,7 +92,13 @@ def generar_exportacion(exportacion_id):
         exp.fecha_disponible = timezone.now()
         exp.save(update_fields=['ruta_archivo', 'estado', 'fecha_disponible'])
 
-    except Exception as e:
+    except ValueError as e:
+        # Mensajes propios de esta capa (sin datos internos): se muestran tal cual
         exp.estado = 'error'
         exp.mensaje_error = str(e)
+        exp.save(update_fields=['estado', 'mensaje_error'])
+    except Exception:
+        logger.exception('Error generando la exportación %s', exportacion_id)
+        exp.estado = 'error'
+        exp.mensaje_error = 'No se pudo generar el reporte. Intenta de nuevo.'
         exp.save(update_fields=['estado', 'mensaje_error'])

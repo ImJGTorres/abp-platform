@@ -1,5 +1,6 @@
 import logging
 import os
+from xml.sax.saxutils import escape
 from datetime import datetime
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, landscape
@@ -71,6 +72,10 @@ def _logo(path):
 def _encabezado_pagina(story, titulo, subtitulo=None):
     s = _estilos()
     nombre, programa, logo_path = _identidad()
+    # Paragraph interpreta marcado XML: nombres de proyectos, equipos y personas se escapan
+    nombre, programa = escape(str(nombre)), escape(str(programa))
+    titulo = escape(str(titulo))
+    subtitulo = escape(str(subtitulo)) if subtitulo else subtitulo
     logo = _logo(logo_path)
     if logo:
         membrete = Table(
@@ -318,6 +323,40 @@ def generar_pdf_indicadores(datos, ruta_destino):
         t = Table(p_rows, colWidths=[5*cm, 4*cm, 3*cm, 3*cm, 3*cm, 3*cm])
         t.setStyle(_estilo_tabla_base())
         story.append(t)
+
+    doc.build(story)
+    return ruta_destino
+
+
+def generar_pdf_equipo(datos, ruta_destino):
+    s = _estilos()
+    doc = SimpleDocTemplate(ruta_destino, pagesize=A4,
+                            leftMargin=2*cm, rightMargin=2*cm,
+                            topMargin=2*cm, bottomMargin=2*cm)
+    story = []
+    eq = datos.get('equipo', {})
+
+    _encabezado_pagina(story, 'Reporte de Equipo',
+                       subtitulo=f"{eq.get('nombre', '')} — {eq.get('proyecto_nombre', '')}")
+
+    story.append(Paragraph(f"Integrantes activos: {datos.get('total_miembros', 0)}", s['Normal2']))
+    story.append(Spacer(1, 0.3*cm))
+
+    filas = [['Integrante', 'Rol', 'Nota final', 'Avance (%)', 'Completadas', 'Vencidas', 'Entregables aprob.']]
+    for m in datos.get('miembros', []):
+        est = m.get('estudiante', {})
+        filas.append([
+            f"{est.get('nombre', '')} {est.get('apellido', '')}".strip()[:28],
+            est.get('rol_interno') or '-',
+            str(m.get('nota_final', '-')),
+            str(m.get('promedio_avance_pct', 0)),
+            str(m.get('actividades_completadas', 0)),
+            str(m.get('actividades_vencidas', 0)),
+            str(m.get('entregables_aprobados', 0)),
+        ])
+    t = Table(filas, colWidths=[4.2*cm, 2.3*cm, 1.8*cm, 1.9*cm, 2.2*cm, 1.8*cm, 2.8*cm])
+    t.setStyle(_estilo_tabla_base())
+    story.append(t)
 
     doc.build(story)
     return ruta_destino

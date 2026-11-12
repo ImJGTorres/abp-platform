@@ -13,6 +13,7 @@ class TestSolicitarExportacionView:
     def setup_method(self):
         self.factory = RequestFactory()
 
+    @patch('apps.exportaciones.views._excede_limite', new=lambda usuario: False)
     @patch('apps.exportaciones.views.generar_exportacion')
     @patch('apps.exportaciones.models.Exportacion.objects.create')
     def test_solicitar_pdf_retorna_201_con_id_y_estado(self, mock_create, mock_gen):
@@ -35,6 +36,7 @@ class TestSolicitarExportacionView:
         assert 'id' in response.data
         assert 'estado' in response.data
 
+    @patch('apps.exportaciones.views._excede_limite', new=lambda usuario: False)
     @patch('apps.exportaciones.views.generar_exportacion')
     @patch('apps.exportaciones.models.Exportacion.objects.create')
     def test_solicitar_excel_retorna_201(self, mock_create, mock_gen):

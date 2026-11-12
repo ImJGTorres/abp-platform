@@ -4,6 +4,7 @@ from rest_framework import serializers
 
 from .models import ArchivoAdjunto, Entregable, EntregableVersion, Notificacion
 from apps.equipos.models import MiembroEquipo
+from apps.usuarios.firmas import contenido_coincide
 
 
 class EntregableSerializer(serializers.ModelSerializer):
@@ -115,8 +116,8 @@ class ArchivoAdjuntoSerializer(serializers.ModelSerializer):
     class Meta:
         model = ArchivoAdjunto
         fields = [
-            'id', 'id_entregable', 'nombre_original', 'nombre_almacenado',
-            'ruta', 'tipo_mime', 'tamaño_bytes', 'version', 'fecha_subida',
+            'id', 'id_entregable', 'nombre_original',
+            'tipo_mime', 'tamaño_bytes', 'version', 'fecha_subida',
             'url_descarga'
         ]
         read_only_fields = fields
@@ -162,6 +163,9 @@ class SubirArchivoSerializer(serializers.Serializer):
             extensiones_permitidas = [e.strip().lower() for e in param.valor.split(',')]
         except Exception:
             extensiones_permitidas = ['pdf', 'docx', 'xlsx', 'png', 'jpg', 'jpeg']
+        # El parámetro es editable por el administrador: nunca se aceptan formatos fuera de la lista fija
+        # (p. ej. html o svg, que ejecutarían scripts si algún día se sirven desde el mismo dominio).
+        extensiones_permitidas = [e for e in extensiones_permitidas if e in MIME_EXTENSION_MAP]
 
         nombre = archivo.name
         ext = nombre.rsplit('.', 1)[-1].lower() if '.' in nombre else ''
@@ -175,6 +179,11 @@ class SubirArchivoSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 f"El archivo excede el tamaño máximo permitido ({max_size // (1024 * 1024)} MB)."
             )
+
+        cabecera = archivo.read(16)
+        archivo.seek(0)
+        if not contenido_coincide(ext, cabecera):
+            raise serializers.ValidationError('El contenido del archivo no corresponde a su extensión.')
 
         archivo._tipo_mime = MIME_EXTENSION_MAP.get(ext, archivo.content_type or 'application/octet-stream')
         return archivo

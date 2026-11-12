@@ -129,6 +129,7 @@ export default function AutoevaluacionesDocente() {
     const [error, setError] = useState(null)
 
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- mostrar el cargando al cambiar de proyecto
         setLoading(true)
         evaluacionesEstudiantesApi.listarAutoevaluaciones(proyectoId)
             .then(data => setAutoevaluaciones(data))

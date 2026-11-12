@@ -115,7 +115,6 @@ def test_ca03_docente_no_tiene_busqueda_global():
 
 
 @pytest.mark.django_db
-@pytest.mark.xfail(strict=True, reason='HAL-045-02: _calcular_promedio_grupo hace consultas por cada estudiante')
 def test_ca04_detalle_sin_filtros_no_crece_con_el_numero_de_estudiantes():
     """Las consultas del detalle no deberían depender de cuántos estudiantes hay en el sistema."""
     estudiante = UsuarioFactory(codigo='1152044')

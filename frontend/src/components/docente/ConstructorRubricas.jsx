@@ -251,7 +251,7 @@ export default function ConstructorRubricas() {
                 es_rubrica_proyecto: x.id === r.id ? actualizada.es_rubrica_proyecto : (designar ? false : x.es_rubrica_proyecto),
             })))
             if (rubricaVista?.id === r.id) setRubricaVista(actualizada)
-        } catch { }
+        } catch { /* best-effort: se ignora el fallo */ }
     }
 
     function abrirGuardarPlantilla(r) {

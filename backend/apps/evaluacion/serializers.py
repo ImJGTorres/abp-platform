@@ -3,8 +3,9 @@ from decimal import Decimal
 from django.db import transaction
 from rest_framework import serializers
 
-from apps.cursos.models import Actividad, Proyecto, ResultadoAprendizaje
-from apps.equipos.models import Equipo
+from apps.cursos.acceso import puede_gestionar_proyecto
+from apps.cursos.models import Actividad, CursoEstudiante, Proyecto, ResultadoAprendizaje
+from apps.equipos.models import Equipo, MiembroEquipo
 from apps.usuarios.models import Usuario
 from .models import (
     Autoevaluacion,
@@ -165,6 +166,12 @@ class RubricaCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Rubrica
         fields = ['nombre', 'descripcion', 'tipo', 'peso_total', 'id_proyecto', 'criterios']
+
+    def validate_id_proyecto(self, proyecto):
+        request = self.context.get('request')
+        if proyecto is not None and request is not None and not puede_gestionar_proyecto(request.user, proyecto):
+            raise serializers.ValidationError('No eres el docente de este proyecto.')
+        return proyecto
 
     def validate_criterios(self, value):
         if not value:
@@ -460,6 +467,10 @@ class EvaluacionCreateSerializer(serializers.ModelSerializer):
         rubrica = attrs['id_rubrica']
         calificaciones = attrs['calificaciones']
 
+        entregable = self.context.get('entregable')
+        if entregable is not None:
+            _validar_rubrica_del_proyecto(rubrica, entregable.id_actividad.id_fase.id_proyecto_id)
+
         criterios_rubrica = set(rubrica.criterios.values_list('id', flat=True))
         criterios_enviados = [c['id_criterio'].pk for c in calificaciones]
 
@@ -608,6 +619,18 @@ class RetroalimentacionCreateSerializer(serializers.ModelSerializer):
         estudiante = attrs.get('id_estudiante')
         actividad  = attrs.get('id_actividad')
 
+        proyecto = self.context.get('proyecto')
+        if proyecto is not None:
+            if equipo and equipo.proyecto_id != proyecto.pk:
+                raise serializers.ValidationError({'id_equipo': 'El equipo no pertenece a este proyecto.'})
+            if actividad and actividad.id_fase.id_proyecto_id != proyecto.pk:
+                raise serializers.ValidationError({'id_actividad': 'La actividad no pertenece a este proyecto.'})
+            if estudiante and not (
+                MiembroEquipo.objects.filter(usuario=estudiante, equipo__proyecto=proyecto).exists()
+                or CursoEstudiante.objects.filter(estudiante=estudiante, curso_id=proyecto.id_curso_id).exists()
+            ):
+                raise serializers.ValidationError({'id_estudiante': 'El estudiante no pertenece a este proyecto.'})
+
         if tipo == Retroalimentacion.Tipo.GRUPAL:
             if not equipo:
                 raise serializers.ValidationError(
@@ -641,6 +664,12 @@ class RetroalimentacionCreateSerializer(serializers.ModelSerializer):
 # ---------------------------------------------------------------------------
 # HU-26: Autoevaluación
 # ---------------------------------------------------------------------------
+
+def _validar_rubrica_del_proyecto(rubrica, proyecto_id):
+    """La rúbrica debe ser del proyecto (o general, sin proyecto); nunca de otro proyecto."""
+    if rubrica.id_proyecto_id not in (None, proyecto_id):
+        raise serializers.ValidationError({'id_rubrica': 'La rúbrica pertenece a otro proyecto.'})
+
 
 class DetalleAutoevaluacionSerializer(serializers.ModelSerializer):
     criterio_nombre = serializers.CharField(source="id_criterio.nombre", read_only=True)
@@ -1020,6 +1049,8 @@ class CoevaluacionCreateSerializer(serializers.ModelSerializer):
         detalles  = attrs["detalles"]
         periodo   = attrs["periodo_evaluacion"]
         proyecto  = self.context["proyecto"]
+
+        _validar_rubrica_del_proyecto(rubrica, proyecto.pk)
 
         # 1. Evaluador ≠ evaluado
         if evaluador.pk == evaluado.pk:

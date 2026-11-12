@@ -7,6 +7,7 @@ Idempotente (get_or_create). Todo lo creado se marca con '[DEMO HU-041]'.
 jesusgabrieltd@ufps.edu.co ya queda en 'rojo' con los datos reales/semilla
 existentes (ver HU-040); no se toca aquí.
 """
+from apps.usuarios.seguridad_demo import agregar_argumento_forzar, exigir_entorno_de_desarrollo
 from datetime import date, timedelta
 
 from django.core.management.base import BaseCommand
@@ -22,7 +23,11 @@ class Command(BaseCommand):
     help = 'Crea (o reutiliza) un estudiante en verde y un director demo para la prueba de aceptación de HU-041.'
 
     @transaction.atomic
+    def add_arguments(self, parser):
+        agregar_argumento_forzar(parser)
+
     def handle(self, *args, **options):
+        exigir_entorno_de_desarrollo(options)
         from apps.configuracion.models import ParametroSistema, PeriodoAcademico
         from apps.cursos.models import Actividad, AvanceActividad, Curso, FaseProyecto, Proyecto
         from apps.equipos.models import Equipo, MiembroEquipo

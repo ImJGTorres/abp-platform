@@ -97,7 +97,7 @@ export default function LineaTiempoAvances({ actividadId, refreshKey }) {
 
                                 <p className="text-[13px] text-[#4c616c] leading-relaxed">{avance.descripcion}</p>
 
-                                {avance.url_referencia && (
+                                {/^https?:\/\//i.test(avance.url_referencia || '') && (
                                     <a href={avance.url_referencia} target="_blank" rel="noopener noreferrer"
                                         className="inline-flex items-center gap-1.5 text-[12px] text-[#d32f2f] hover:text-[#ba1a1a] font-medium transition-colors mt-2">
                                         <IconLink />

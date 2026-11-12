@@ -1,3 +1,4 @@
+import hashlib
 import logging
 import os
 import re
@@ -5,7 +6,8 @@ import secrets
 from datetime import timedelta
 
 from django.conf import settings
-from django.contrib.auth.hashers import make_password
+from django.contrib.auth.hashers import check_password, make_password
+from django.contrib.auth.password_validation import validate_password
 from django.core.mail import send_mail
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
@@ -18,6 +20,14 @@ from rest_framework.parsers import MultiPartParser
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 
 from apps.usuarios.authentication import UsuarioJWTAuthentication
+from apps.usuarios.excel_seguro import ExcelInvalido, abrir_hoja, leer_filas
+from apps.usuarios.firmas import extension_de_imagen
+from apps.usuarios.sesiones import cerrar_todas_las_sesiones
+from apps.usuarios.bloqueo_login import (
+    limpiar_fallos_login,
+    login_bloqueado,
+    registrar_fallo_login,
+)
 from apps.usuarios.permissions import EsAdministrador
 from apps.usuarios.utils import generar_contrasena, enviar_contrasena_bienvenida
 from rest_framework.response import Response
@@ -26,7 +36,7 @@ from rest_framework_simplejwt.views import TokenBlacklistView
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.bitacora.models import BitacoraSistema
-from apps.bitacora.utils import registrar_evento
+from apps.bitacora.utils import _get_ip, registrar_evento
 from apps.roles.models import Rol
 from apps.usuarios.models import TokenRecuperacion, Usuario, UsuarioRol
 from apps.usuarios.serializers import (
@@ -38,6 +48,26 @@ from apps.usuarios.serializers import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+_HASH_FALSO = None
+
+
+def _gastar_tiempo_de_hash(contrasena):
+    """Hace el mismo trabajo de hash que un usuario real (evita revelar si el correo existe por tiempos)."""
+    global _HASH_FALSO
+    if _HASH_FALSO is None:
+        _HASH_FALSO = make_password('no-es-una-contrasena')
+    check_password(contrasena or '', _HASH_FALSO)
+
+
+def _sanear_para_log(texto):
+    """Una línea, acotada: lo escrito en el campo de correo puede ser cualquier cosa."""
+    return re.sub(r'[\r\n\t]+', ' ', str(texto))[:100]
+
+
+def _hash_token(token):
+    return hashlib.sha256(token.encode('utf-8')).hexdigest()
 
 
 class UsuarioProfileView(APIView):
@@ -77,14 +107,28 @@ class LoginView(APIView):
         """
         # Extrae credenciales del request JSON
         # .strip() elimina espacios en blanco al inicio/final del correo
-        correo    = request.data.get('correo', '').strip()
+        correo    = str(request.data.get('correo', '') or '').strip()
         contrasena = request.data.get('contrasena', '')
+        correo_log = _sanear_para_log(correo)
 
         # Valida que ambos campos existan
         if not correo or not contrasena:
             return Response(
                 {'detail': 'correo y contrasena son requeridos.'},
                 status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Protección contra fuerza bruta: demasiados fallos recientes → 429
+        if login_bloqueado(request, correo):
+            registrar_evento(
+                request=request,
+                accion=BitacoraSistema.Accion.ACCESS_DENIED,
+                modulo='autenticacion',
+                descripcion=f'Login bloqueado por exceso de intentos fallidos: {correo_log}',
+            )
+            return Response(
+                {'detail': 'Demasiados intentos fallidos. Intenta de nuevo en unos minutos.'},
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
             )
 
         # Busca usuario en la base de datos por correo
@@ -98,13 +142,17 @@ class LoginView(APIView):
         # recibida (en texto plano) contra el hash guardado en el campo 'password'.
         # Antes se llamaba a la función suelta check_password(contrasena, usuario.contrasena_hash).
         # Ahora el propio objeto sabe dónde está su hash, por eso se llama sobre la instancia.
+        if usuario is None:
+            # Igualar el tiempo de respuesta con el de un usuario existente
+            _gastar_tiempo_de_hash(contrasena)
         if usuario is None or not usuario.check_password(contrasena):
+            registrar_fallo_login(request, correo)
             # Registra intento fallido en bitácora para auditoría
             registrar_evento(
                 request=request,
                 accion=BitacoraSistema.Accion.ACCESS_DENIED,
                 modulo='autenticacion',
-                descripcion=f'Intento de login fallido para correo: {correo}',
+                descripcion=f'Intento de login fallido para correo: {correo_log}',
             )
             return Response(
                 {'detail': 'Credenciales inválidas.'},
@@ -118,16 +166,19 @@ class LoginView(APIView):
                 request=request,
                 accion=BitacoraSistema.Accion.ACCESS_DENIED,
                 modulo='autenticacion',
-                descripcion=f'Login denegado, usuario inactivo: {correo}',
+                descripcion=f'Login denegado, usuario inactivo: {correo_log}',
             )
             return Response(
                 {'detail': 'Usuario inactivo.'},
                 status=status.HTTP_401_UNAUTHORIZED,
             )
 
+        limpiar_fallos_login(request, correo)
+
         # Genera tokens JWT (BE-03)
         # RefreshToken: Clase de SimpleJWT que crea par access+refresh
-        refresh = RefreshToken()
+        # for_user registra el token en OutstandingToken: así se puede revocar al cambiar la contraseña
+        refresh = RefreshToken.for_user(usuario)
         
         # Personalización del payload del token (BE-03)
         # Agrega datos del usuario al token para evitar llamadas adicionales
@@ -293,8 +344,14 @@ class CambiarContrasenaView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        try:
+            validate_password(nueva_contrasena, usuario)
+        except ValidationError as exc:
+            return Response({'nueva_contrasena': exc.messages}, status=status.HTTP_400_BAD_REQUEST)
+
         usuario.set_password(nueva_contrasena)
         usuario.save()
+        cerrar_todas_las_sesiones(usuario)
 
         registrar_evento(
             request=request,
@@ -319,6 +376,8 @@ class OlvidarContrasenaView(APIView):
 
     _RATE_LIMIT_MAX     = 1
     _RATE_LIMIT_SECONDS = 60  # 1 minuto entre intentos
+    _IP_MAX             = 10  # solicitudes por IP...
+    _IP_VENTANA_SEGUNDOS = 15 * 60  # ...cada 15 minutos
 
     def post(self, request):
         from django.core.cache import cache
@@ -337,6 +396,17 @@ class OlvidarContrasenaView(APIView):
             return Response(_RESPUESTA_GENERICA, status=status.HTTP_200_OK)
         cache.set(cache_key, intentos + 1, timeout=self._RATE_LIMIT_SECONDS)
 
+        # Límite por IP: evita usar el endpoint para inundar de correos a varias víctimas
+        clave_ip = f'recuperacion_ip_{_get_ip(request) or "desconocida"}'
+        cache.add(clave_ip, 0, timeout=self._IP_VENTANA_SEGUNDOS)
+        try:
+            por_ip = cache.incr(clave_ip)
+        except ValueError:
+            cache.set(clave_ip, 1, timeout=self._IP_VENTANA_SEGUNDOS)
+            por_ip = 1
+        if por_ip > self._IP_MAX:
+            return Response(_RESPUESTA_GENERICA, status=status.HTTP_200_OK)
+
         try:
             usuario = Usuario.objects.get(correo=correo, estado=Usuario.Estado.ACTIVO)
         except Usuario.DoesNotExist:
@@ -347,14 +417,16 @@ class OlvidarContrasenaView(APIView):
         TokenRecuperacion.objects.filter(usuario=usuario, usado=False).update(usado=True)
 
         token_str = secrets.token_urlsafe(48)
+        # En la BD solo queda el hash: una lectura de la tabla no permite tomar la cuenta
         TokenRecuperacion.objects.create(
             usuario=usuario,
-            token=token_str,
+            token=_hash_token(token_str),
             expiracion=timezone.now() + timedelta(minutes=30),
         )
 
         frontend_url = env_config('FRONTEND_URL', default='http://localhost:5173')
-        enlace = f'{frontend_url}/recuperar-contrasena?token={token_str}'
+        # El token va en el fragmento (#): no se envía al servidor ni queda en logs ni en Referer
+        enlace = f'{frontend_url}/recuperar-contrasena#token={token_str}'
 
         try:
             send_mail(
@@ -410,7 +482,7 @@ class RecuperarContrasenaView(APIView):
         nueva_contrasena = serializer.validated_data['nueva_contrasena']
 
         try:
-            token_obj = TokenRecuperacion.objects.select_related('usuario').get(token=token_str)
+            token_obj = TokenRecuperacion.objects.select_related('usuario').get(token=_hash_token(token_str))
         except TokenRecuperacion.DoesNotExist:
             return Response(
                 {'detail': 'Token inválido o expirado.'},
@@ -424,8 +496,14 @@ class RecuperarContrasenaView(APIView):
             )
 
         usuario = token_obj.usuario
+        try:
+            validate_password(nueva_contrasena, usuario)
+        except ValidationError as exc:
+            return Response({'nueva_contrasena': exc.messages}, status=status.HTTP_400_BAD_REQUEST)
+
         usuario.set_password(nueva_contrasena)
         usuario.save()
+        cerrar_todas_las_sesiones(usuario)
 
         token_obj.usado = True
         token_obj.save()
@@ -467,16 +545,14 @@ class CargaMasivaEstudiantesView(APIView):
             )
 
         try:
-            from openpyxl import load_workbook
-            wb = load_workbook(archivo, read_only=True, data_only=True)
+            filas = leer_filas(abrir_hoja(archivo))
+        except ExcelInvalido as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception:
             return Response(
                 {'detail': 'No fue posible leer el archivo .xlsx.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-
-        ws = wb.active
-        filas = list(ws.iter_rows(values_only=True))
 
         if len(filas) < 2:
             return Response(
@@ -589,8 +665,9 @@ class CargaMasivaEstudiantesView(APIView):
                     is_staff=False,
                     is_superuser=False,
                 )
-            except Exception as exc:
-                errores.append({'fila': fila_num, 'correo': correo, 'motivo': f'error al crear: {exc}'})
+            except Exception:
+                logger.exception('Carga masiva: fila %s no se pudo crear', fila_num)
+                errores.append({'fila': fila_num, 'correo': correo, 'motivo': 'error al crear: no se pudo guardar el registro'})
                 omitidos += 1
                 continue
 
@@ -599,7 +676,7 @@ class CargaMasivaEstudiantesView(APIView):
                 if rol_obj:
                     UsuarioRol.objects.get_or_create(usuario=usuario, rol=rol_obj)
             except Exception:
-                pass
+                logger.exception('Error no crítico ignorado')
 
             try:
                 enviar_contrasena_bienvenida(nombre, correo, contrasena)
@@ -616,7 +693,7 @@ class CargaMasivaEstudiantesView(APIView):
                 descripcion=f'Carga masiva estudiantes: creados={creados}, omitidos={omitidos}, archivo={archivo.name}',
             )
         except Exception:
-            pass
+            logger.exception('Error no crítico ignorado')
 
         return Response(
             {'creados': creados, 'omitidos': omitidos, 'errores': errores},
@@ -652,16 +729,14 @@ class CargaMasivaDocentesView(APIView):
             )
 
         try:
-            from openpyxl import load_workbook
-            wb = load_workbook(archivo, read_only=True, data_only=True)
+            filas = leer_filas(abrir_hoja(archivo))
+        except ExcelInvalido as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception:
             return Response(
                 {'detail': 'No fue posible leer el archivo .xlsx.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-
-        ws = wb.active
-        filas = list(ws.iter_rows(values_only=True))
 
         if len(filas) < 2:
             return Response(
@@ -770,8 +845,9 @@ class CargaMasivaDocentesView(APIView):
                     is_staff=False,
                     is_superuser=False,
                 )
-            except Exception as exc:
-                errores.append({'fila': fila_num, 'correo': correo, 'motivo': f'error al crear: {exc}'})
+            except Exception:
+                logger.exception('Carga masiva: fila %s no se pudo crear', fila_num)
+                errores.append({'fila': fila_num, 'correo': correo, 'motivo': 'error al crear: no se pudo guardar el registro'})
                 omitidos += 1
                 continue
 
@@ -780,7 +856,7 @@ class CargaMasivaDocentesView(APIView):
                 if rol_obj:
                     UsuarioRol.objects.get_or_create(usuario=usuario, rol=rol_obj)
             except Exception:
-                pass
+                logger.exception('Error no crítico ignorado')
 
             try:
                 enviar_contrasena_bienvenida(nombre, correo, contrasena)
@@ -797,7 +873,7 @@ class CargaMasivaDocentesView(APIView):
                 descripcion=f'Carga masiva docentes: creados={creados}, omitidos={omitidos}, archivo={archivo.name}',
             )
         except Exception:
-            pass
+            logger.exception('Error no crítico ignorado')
 
         return Response(
             {'creados': creados, 'omitidos': omitidos, 'errores': errores},
@@ -832,6 +908,15 @@ class SubirFotoPerfilView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # El Content-Type lo declara el cliente: se verifica el contenido real
+        ext = extension_de_imagen(archivo.read(16))
+        archivo.seek(0)
+        if ext is None:
+            return Response(
+                {'detail': 'El archivo no es una imagen JPG, PNG, GIF o WebP válida.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         if archivo.size > self.TAMANO_MAX:
             return Response(
                 {'detail': 'La imagen no puede superar 5 MB.'},
@@ -839,10 +924,7 @@ class SubirFotoPerfilView(APIView):
             )
 
         usuario = request.user
-        ext = (archivo.name or 'foto').rsplit('.', 1)[-1].lower()
-        if ext not in ('jpg', 'jpeg', 'png', 'gif', 'webp'):
-            ext = 'jpg'
-        nombre_archivo = f'{usuario.id}_{int(timezone.now().timestamp())}.{ext}'
+        nombre_archivo = f'{usuario.id}_{secrets.token_hex(8)}.{ext}'
 
         carpeta = os.path.join(settings.MEDIA_ROOT, 'fotos_perfil')
         os.makedirs(carpeta, exist_ok=True)
@@ -851,9 +933,10 @@ class SubirFotoPerfilView(APIView):
         # Eliminar foto anterior si es un archivo local
         foto_anterior = usuario.foto_perfil or ''
         if 'fotos_perfil' in foto_anterior:
-            nombre_anterior = foto_anterior.rsplit('fotos_perfil/', 1)[-1].split('?')[0]
+            # Solo el nombre de archivo: nunca una ruta (evita borrar archivos fuera de la carpeta)
+            nombre_anterior = os.path.basename(foto_anterior.rsplit('fotos_perfil/', 1)[-1].split('?')[0])
             ruta_anterior = os.path.join(carpeta, nombre_anterior)
-            if os.path.isfile(ruta_anterior):
+            if nombre_anterior and os.path.isfile(ruta_anterior):
                 try:
                     os.remove(ruta_anterior)
                 except OSError:

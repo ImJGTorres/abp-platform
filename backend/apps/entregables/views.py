@@ -1,3 +1,4 @@
+import logging
 import uuid
 
 from django.core.files.base import ContentFile
@@ -13,7 +14,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.cursos.models import Actividad
+from apps.cursos.acceso import puede_gestionar_proyecto
+from apps.cursos.models import Actividad, Proyecto
 from apps.bitacora.models import BitacoraSistema
 from apps.equipos.models import MiembroEquipo
 from apps.usuarios.authentication import UsuarioJWTAuthentication
@@ -31,6 +33,8 @@ from .serializers import (
     ValidarEntregableSerializer,
 )
 from .services import crear_nueva_version
+
+logger = logging.getLogger(__name__)
 
 
 class EntregableListCreateView(generics.ListCreateAPIView):
@@ -103,7 +107,7 @@ class EntregableListCreateView(generics.ListCreateAPIView):
                     ip_origen=self.request.META.get('REMOTE_ADDR'),
                 )
             except Exception:
-                pass
+                logger.exception('Error no crítico ignorado')
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -152,7 +156,7 @@ class EnviarEntregableView(generics.UpdateAPIView):
                     ip_origen=request.META.get('REMOTE_ADDR'),
                 )
             except Exception:
-                pass
+                logger.exception('Error no crítico ignorado')
 
         # Notificar al docente del curso
         try:
@@ -173,7 +177,7 @@ class EnviarEntregableView(generics.UpdateAPIView):
                     },
                 )
         except Exception:
-            pass
+            logger.exception('Error no crítico ignorado')
 
         return Response(EntregableSerializer(entregable).data, status=status.HTTP_200_OK)
 
@@ -224,6 +228,9 @@ class ArchivoListCreateView(generics.GenericAPIView):
         if not es_miembro:
             raise PermissionDenied('No perteneces al equipo dueño de este entregable.')
 
+        if entregable.estado != 'borrador':
+            raise ValidationError('Solo se pueden adjuntar archivos a entregables en estado borrador.')
+
         serializer = SubirArchivoSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -258,7 +265,7 @@ class ArchivoListCreateView(generics.GenericAPIView):
                     ip_origen=request.META.get('REMOTE_ADDR'),
                 )
             except Exception:
-                pass
+                logger.exception('Error no crítico ignorado')
 
         return Response(ArchivoAdjuntoSerializer(adjunto, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
@@ -274,6 +281,17 @@ class ArchivoAdjuntoEliminarView(generics.DestroyAPIView):
             return Response({'error': 'Archivo no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
         entregable = archivo.id_entregable
+        usuario = request.user
+        es_miembro = MiembroEquipo.objects.filter(
+            usuario=usuario, equipo=entregable.id_equipo, estado='activo'
+        ).exists()
+        es_docente_del_curso = (
+            usuario.tipo_rol == 'docente'
+            and entregable.id_equipo.proyecto.id_curso.id_docente_id == usuario.pk
+        )
+        if not (es_miembro or es_docente_del_curso or usuario.tipo_rol == 'administrador'):
+            raise PermissionDenied('No tienes permiso para eliminar archivos de este entregable.')
+
         if entregable.estado != 'borrador':
             return Response(
                 {'error': 'Solo se pueden eliminar archivos de entregables en estado borrador.'},
@@ -299,7 +317,7 @@ class ArchivoAdjuntoEliminarView(generics.DestroyAPIView):
                     ip_origen=request.META.get('REMOTE_ADDR'),
                 )
             except Exception:
-                pass
+                logger.exception('Error no crítico ignorado')
 
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -502,6 +520,9 @@ class EntregableAprobarView(APIView):
         except Entregable.DoesNotExist:
             return Response({'error': 'Entregable no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
+        if not puede_gestionar_proyecto(usuario, entregable.id_actividad.id_fase.id_proyecto):
+            return Response({'error': 'No eres el docente de este proyecto.'}, status=status.HTTP_403_FORBIDDEN)
+
         if entregable.estado != 'enviado':
             return Response(
                 {'error': 'Solo se pueden aprobar entregables en estado enviado.'},
@@ -528,7 +549,7 @@ class EntregableAprobarView(APIView):
                     id_usuario=usuario,
                 )
             except Exception:
-                pass
+                logger.exception('Error no crítico ignorado')
 
         serializer = EntregableValidacionSerializer(entregable)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -551,6 +572,9 @@ class EntregableRechazarView(APIView):
             entregable = Entregable.objects.get(pk=entregable_id)
         except Entregable.DoesNotExist:
             return Response({'error': 'Entregable no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if not puede_gestionar_proyecto(usuario, entregable.id_actividad.id_fase.id_proyecto):
+            return Response({'error': 'No eres el docente de este proyecto.'}, status=status.HTTP_403_FORBIDDEN)
 
         if entregable.estado != 'enviado':
             return Response(
@@ -583,7 +607,7 @@ class EntregableRechazarView(APIView):
                     id_usuario=usuario,
                 )
             except Exception:
-                pass
+                logger.exception('Error no crítico ignorado')
 
         serializer = EntregableValidacionSerializer(entregable)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -601,6 +625,10 @@ class EntregablesPendientesView(APIView):
                 {'error': 'Solo los docentes o administradores pueden ver entregables pendientes.'},
                 status=status.HTTP_403_FORBIDDEN
             )
+
+        proyecto = get_object_or_404(Proyecto.objects.select_related('id_curso'), pk=proyecto_id)
+        if not puede_gestionar_proyecto(usuario, proyecto):
+            return Response({'error': 'No eres el docente de este proyecto.'}, status=status.HTTP_403_FORBIDDEN)
 
         # Filtrar entregables en estado 'enviado' que pertenezcan al proyecto
         # Cadena: entregable → actividad → fase_proyecto → proyecto

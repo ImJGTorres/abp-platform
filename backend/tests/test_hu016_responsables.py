@@ -231,7 +231,7 @@ def test_cp07_responsables_visualizan_actividades_asignadas(
 
 @pytest.mark.django_db
 def test_cp08_actividad_sin_equipo_asignado(cliente_lider, proyecto_con_fase):
-    """CP-08: Actividad sin equipo → 404 (get_object_or_404)"""
+    """CP-08: Actividad sin equipo → se auto-asigna el equipo del líder (200)"""
     _, fase = proyecto_con_fase
     
     actividad = Actividad.objects.create(
@@ -247,8 +247,9 @@ def test_cp08_actividad_sin_equipo_asignado(cliente_lider, proyecto_con_fase):
     
     response = cliente_lider.patch(url, payload, format='json')
     
-    # 404 porque get_object_or_404 no encuentra la actividad con el filtro del equipo
-    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert response.status_code == status.HTTP_200_OK
+    actividad.refresh_from_db()
+    assert actividad.id_equipo_asignado is not None
 
 
 @pytest.mark.django_db
