@@ -3,7 +3,7 @@ Si se pasa `allowedRoles`, también valida el rol del usuario.
 IMPORTANTE: esta comprobación es solo de interfaz. Lee el token y
 el rol desde localStorage, que el usuario puede modificar, así que únicamente
 oculta pantallas. El permiso real lo decide el backend en cada petición
-JWT + permisos de DRF); ningún dato sensible debe depender de esta ruta.
+(JWT + permisos de DRF); ningún dato sensible debe depender de esta ruta.
 */
 
 import { Navigate, Outlet } from 'react-router-dom'
