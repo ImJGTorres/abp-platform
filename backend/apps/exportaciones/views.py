@@ -1,14 +1,18 @@
 import os
+from datetime import timedelta
+
 from django.http import FileResponse
-from django.conf import settings
+from django.utils import timezone
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 
+from apps.reportes.acceso import puede_ver_reporte
 from apps.usuarios.authentication import UsuarioJWTAuthentication
 from .models import Exportacion
 from .services import generar_exportacion
 
+MAX_EXPORTACIONES_POR_HORA = 30
 TIPOS_VALIDOS = {'proyecto', 'estudiante', 'equipo', 'indicadores', 'tendencia'}
 FORMATOS_VALIDOS = {'pdf', 'excel'}
 PARAMS_REQUERIDOS = {
@@ -18,6 +22,14 @@ PARAMS_REQUERIDOS = {
     'indicadores': [],
     'tendencia': [],
 }
+
+
+def _excede_limite(usuario):
+    """Las exportaciones se generan dentro de la petición: se acota cuántas puede pedir un usuario."""
+    reciente = timezone.now() - timedelta(hours=1)
+    return Exportacion.objects.filter(
+        id_usuario=usuario, fecha_solicitud__gte=reciente
+    ).count() >= MAX_EXPORTACIONES_POR_HORA
 
 
 class SolicitarExportacionView(APIView):
@@ -43,12 +55,36 @@ class SolicitarExportacionView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        if not isinstance(parametros, dict):
+            return Response({'error': 'parametros debe ser un objeto.'}, status=status.HTTP_400_BAD_REQUEST)
+
         requeridos = PARAMS_REQUERIDOS[tipo]
         faltantes = [p for p in requeridos if p not in parametros]
         if faltantes:
             return Response(
                 {'error': f'Parámetros requeridos para {tipo}: {faltantes}'},
                 status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Los ids y n_periodos deben ser enteros; n_periodos se acota para no
+        # generar reportes arbitrariamente grandes dentro de la petición.
+        for clave in ('proyecto_id', 'estudiante_id', 'equipo_id', 'periodo_id', 'curso_id', 'n_periodos'):
+            if parametros.get(clave) is not None:
+                try:
+                    parametros[clave] = int(parametros[clave])
+                except (TypeError, ValueError):
+                    return Response({'error': f'{clave} debe ser un entero.'}, status=status.HTTP_400_BAD_REQUEST)
+        if 'n_periodos' in parametros:
+            parametros['n_periodos'] = max(2, min(parametros['n_periodos'], 10))
+
+        # Mismas reglas de acceso que la API de reportes
+        if not puede_ver_reporte(usuario, tipo, parametros):
+            return Response({'error': 'Sin permiso.'}, status=status.HTTP_403_FORBIDDEN)
+
+        if _excede_limite(usuario):
+            return Response(
+                {'error': 'Superaste el límite de exportaciones por hora. Intenta más tarde.'},
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
             )
 
         exp = Exportacion.objects.create(
@@ -93,8 +129,8 @@ class EstadoExportacionView(APIView):
         }
 
         if exp.estado == 'listo' and exp.ruta_archivo:
-            rel = os.path.relpath(exp.ruta_archivo, settings.MEDIA_ROOT)
-            respuesta['url_descarga'] = f"{settings.MEDIA_URL}{rel}"
+            # Siempre por la vista autenticada: /media/ no tiene control de acceso
+            respuesta['url_descarga'] = f'/api/exportar/{exp.id}/descargar/'
 
         return Response(respuesta, status=status.HTTP_200_OK)
 

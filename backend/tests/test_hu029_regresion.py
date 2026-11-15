@@ -306,7 +306,6 @@ def test_filtro_del_director_devuelve_los_rojos_de_un_curso_de_30(director, esce
 
 
 @pytest.mark.django_db
-@pytest.mark.xfail(strict=True, reason='Hallazgo PRB-09: bajo-rendimiento hace 6 consultas por estudiante (N+1)')
 def test_consultas_no_crecen_con_el_numero_de_estudiantes(director, escenario):
     _completar_curso(escenario, 10)
     con_10, _, _ = _consultas_bajo_rendimiento(director, escenario['curso'])

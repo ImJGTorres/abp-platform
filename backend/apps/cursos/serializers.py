@@ -711,6 +711,14 @@ def _validate_responsables_equipo(equipo, responsables):
         )
 
 
+def _validate_equipo_del_proyecto(equipo, fase):
+    """El equipo asignado a una actividad debe ser del mismo proyecto que la fase."""
+    if equipo is not None and fase is not None and equipo.proyecto_id != fase.id_proyecto_id:
+        raise serializers.ValidationError(
+            {'id_equipo_asignado': 'El equipo no pertenece al proyecto de esta fase.'}
+        )
+
+
 class ActividadCreateSerializer(serializers.ModelSerializer):
     id_equipo_asignado = serializers.PrimaryKeyRelatedField(
         queryset=Equipo.objects.all(),
@@ -730,6 +738,7 @@ class ActividadCreateSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         attrs = super().validate(attrs)
         _validate_fecha_limite_actividad(attrs, fase=self.context.get('fase'))
+        _validate_equipo_del_proyecto(attrs.get('id_equipo_asignado'), self.context.get('fase'))
         _validate_responsables_equipo(attrs.get('id_equipo_asignado'), attrs.get('responsables'))
         return attrs
 
@@ -764,6 +773,7 @@ class ActividadUpdateSerializer(serializers.ModelSerializer):
         attrs = super().validate(attrs)
         _validate_fecha_limite_actividad(attrs, instance=self.instance)
         equipo = attrs.get('id_equipo_asignado', getattr(self.instance, 'id_equipo_asignado', None))
+        _validate_equipo_del_proyecto(equipo, getattr(self.instance, 'id_fase', None))
         _validate_responsables_equipo(equipo, attrs.get('responsables'))
         return attrs
 

@@ -113,7 +113,7 @@ def test_cp02_dos_estudiantes_intentan_ser_lider(cliente_a, equipo_con_estudiant
     response = cliente_estudiante2.patch(url2, {'rol_interno': 'lider'}, format='json')
     
     assert response.status_code == status.HTTP_400_BAD_REQUEST
-    assert 'lider' in response.json()['detail'].lower() or 'rol' in response.json()['detail'].lower()
+    assert 'líder' in str(response.json()).lower()
 
 
 @pytest.mark.django_db

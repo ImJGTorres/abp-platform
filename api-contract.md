@@ -57,6 +57,18 @@
 
 ## Autenticación
 
+## Reglas transversales de seguridad
+- **Propiedad:** un docente solo opera sobre cursos, proyectos, equipos, entregables, rúbricas y reportes de **sus propios cursos** (otro docente → `403`). Administrador y director no tienen esa restricción (director es de solo consulta en equipos). Estudiante y líder solo ven lo suyo y lo de proyectos donde son miembros.
+- **Aplica a:** aprobar/rechazar entregables y entregables pendientes (`403`), reportes (`/api/reportes/*`) y exportaciones, rúbricas de un proyecto (lectura: participantes; escritura: docente dueño), `GET /api/proyectos/<id>/raps/` (participantes), autoevaluaciones/coevaluaciones/retroalimentaciones de un proyecto o estudiante, `bajo-rendimiento` (un docente solo ve sus estudiantes).
+- **Referencias cruzadas:** equipo, actividad, estudiante o rúbrica enviados en un body deben pertenecer al mismo proyecto (`400` si no).
+- **Contraseñas:** mínimo 8 caracteres y validadores de Django (no comunes, no solo numéricas, no parecidas al usuario). Al cambiar o recuperar la contraseña se revocan todos los refresh tokens del usuario.
+- **Recuperación:** el enlace del correo lleva el token en el fragmento (`/recuperar-contrasena#token=...`); en la BD solo se guarda su hash SHA-256. Máximo 10 solicitudes por IP cada 15 minutos.
+- **Límites generales:** 120 peticiones/min por IP (anónimos) y 1200/min por usuario (`429`); 30 exportaciones por usuario por hora; cargas masivas de Excel ≤ 2 MB y ≤ 2000 filas.
+- **Archivos:** adjuntos (`pdf, docx, xlsx, png, jpg, jpeg`) y foto de perfil se validan por el contenido real, no por extensión ni `Content-Type`. `foto_perfil` solo acepta la ruta que devuelve la subida de foto.
+- **Errores:** las respuestas no incluyen mensajes internos de excepciones.
+
+---
+
 ### `POST /api/auth/login/`
 **Permiso:** Público
 **Body:**
@@ -84,6 +96,7 @@
 **Errores:**
 - `401` — `{"error": "Correo o contraseña incorrectos."}`
 - `403` — `{"error": "Tu cuenta está desactivada."}`
+- `429` — `{"detail": "Demasiados intentos fallidos. Intenta de nuevo en unos minutos."}` tras 5 intentos fallidos con el mismo correo desde la misma IP, 20 con el mismo correo desde cualquier IP o 30 desde la misma IP, en 15 minutos; un login correcto reinicia el contador del par correo+IP
 
 ---
 
@@ -91,7 +104,7 @@
 **Permiso:** Público (requiere refresh token válido)
 **Body:** `{ "refresh": "<token>" }`
 **Respuesta `200`:** `{ "access": "<nuevo_token>" }`
-**Error `401`:** refresh expirado o inválido
+**Error `401`:** refresh expirado o inválido, o usuario desactivado
 
 ---
 
@@ -513,11 +526,11 @@ Al reemplazar el logotipo se borra el archivo anterior del disco. Guarda `id_usu
 ---
 
 ### `GET /api/cursos/<curso_id>/estudiantes/`
-**Permiso:** Docente del curso o administrador
+**Permiso:** Docente **dueño** del curso o administrador (docente de otro curso → `403`)
 **Respuesta `200`:** Lista de estudiantes inscritos
 
 ### `POST /api/cursos/<curso_id>/estudiantes/`
-**Permiso:** Docente del curso o administrador
+**Permiso:** Docente **dueño** del curso o administrador (docente de otro curso → `403`)
 **Body:** `{ "estudiante_id": 10 }`
 **Respuesta `201`:** Objeto inscripción creado
 
@@ -913,7 +926,7 @@ Al reemplazar el logotipo se borra el archivo anterior del disco. Guarda `id_usu
 ```
 
 ### `POST /api/proyectos/<proyecto_id>/equipos/`
-**Permiso:** Docente del proyecto o administrador
+**Permiso:** Docente dueño del curso del proyecto, director o administrador (otro usuario → `403`). Registra `CREATE` en bitácora.
 **Body:**
 ```json
 {
@@ -938,20 +951,21 @@ Al reemplazar el logotipo se borra el archivo anterior del disco. Guarda `id_usu
   "cantidad_entregables": 0
 }
 ```
-**Error `400`:** `cupo_maximo` supera `max_estudiantes_por_equipo` del sistema
+**Error `400`:** `cupo_maximo` supera `max_estudiantes_por_equipo` del sistema, o `{ "nombre": ["Ya existe un equipo con ese nombre en este proyecto."] }`
 
 ---
 
 ### `PUT /api/equipos/<equipo_id>/` · `PATCH /api/equipos/<equipo_id>/`
-**Permiso:** Docente del proyecto o administrador
+**Permiso:** Docente dueño del curso del proyecto, director o administrador (otro usuario → `403`)
 **Body:** `{ "nombre": "...", "descripcion": "...", "cupo_maximo": 5 }`
 **Respuesta `200`:** Objeto equipo actualizado
 
 ---
 
 ### `DELETE /api/equipos/<equipo_id>/disolver/`
-**Permiso:** Docente del proyecto o administrador
-**Respuesta `200`:** `{ "mensaje": "Equipo disuelto. N miembros retirados." }`
+**Permiso:** Docente dueño del curso del proyecto, director o administrador (otro usuario → `403`)
+**Respuesta `204`:** Sin body. El equipo queda `inactivo`, sus miembros `retirado` y sus actividades sin responsable.
+**Error `409`:** `{ "detail": "No se puede disolver un equipo con entregables registrados." }`
 
 ---
 
@@ -978,7 +992,7 @@ Al reemplazar el logotipo se borra el archivo anterior del disco. Guarda `id_usu
 ---
 
 ### `POST /api/equipos/<equipo_id>/asignar/`
-**Permiso:** Requiere autenticación. La vista solo aplica `IsAuthenticated`: todavía no valida que el usuario sea docente del proyecto o administrador, así que cualquier usuario autenticado puede asignar miembros.
+**Permiso:** Docente dueño del curso del proyecto, director o administrador (otro usuario → `403`). El cupo se valida con el equipo bloqueado, por lo que peticiones simultáneas no pueden superarlo.
 **Body:** `{ "usuarios": [10, 11, 12] }`
 **Respuesta `200`:** Asignación por usuario; los que no se pudieron asignar vuelven en `errores`:
 ```json
@@ -1002,8 +1016,8 @@ Un estudiante ya activo en el mismo equipo se omite sin generar error. Un estudi
 ---
 
 ### `DELETE /api/equipos/<equipo_id>/miembros/<usuario_id>/`
-**Permiso:** Docente del proyecto o administrador
-**Respuesta `204`:** Sin body (soft-delete, registro queda como `retirado`)
+**Permiso:** Docente dueño del curso del proyecto, director o administrador (otro usuario → `403`)
+**Respuesta `204`:** Sin body (soft-delete, registro queda como `retirado`). Las actividades del miembro en ese equipo quedan sin responsable (bitácora `actividad_sin_responsable`).
 
 ---
 
@@ -1016,14 +1030,14 @@ Un estudiante ya activo en el mismo equipo se omite sin generar error. Un estudi
 ---
 
 ### `PATCH /api/miembros/<miembro_id>/`
-**Permiso:** Docente del proyecto o administrador
+**Permiso:** Docente dueño del curso del proyecto, director o administrador (otro usuario, incluidos estudiantes → `403`). Designar `lider` sincroniza `Usuario.tipo_rol = lider_equipo`.
 **Body:** `{ "rol_interno": "tester", "descripcion_responsabilidades": "..." }`
 **Respuesta `200`:** Miembro actualizado
 
 ---
 
 ### `POST /api/equipos/<equipo_id>/miembros/mover/`
-**Permiso:** Docente del proyecto o administrador
+**Permiso:** Docente dueño del curso del proyecto, director o administrador (otro usuario → `403`)
 **Body:** `{ "usuario_id": 10, "equipo_destino_id": 2 }`
 **Respuesta `200`:**
 ```json
@@ -1034,7 +1048,7 @@ Un estudiante ya activo en el mismo equipo se omite sin generar error. Un estudi
   "equipo_destino_id": 2
 }
 ```
-**Error `409`:** equipo destino lleno
+**Error `400`:** equipo destino lleno (`El equipo destino ha alcanzado su cupo máximo de N integrantes.`)
 
 ---
 
@@ -1174,8 +1188,12 @@ Un estudiante ya activo en el mismo equipo se omite sin generar error. Un estudi
 ---
 
 ### `DELETE /api/archivos/<archivo_id>/`
-**Permiso:** Usuario que subió el archivo, docente o administrador
+**Permiso:** Miembro activo del equipo del entregable, docente dueño del curso o administrador (otro usuario → `403`). Solo con el entregable en `borrador` (`400` en otro caso).
 **Respuesta `204`:** Sin body
+
+---
+
+> **Almacenamiento de archivos (pendiente):** los archivos subidos (adjuntos, fotos, exportaciones) se guardan en `MEDIA_ROOT` local, que en Render no es persistente. Para producción falta un almacenamiento externo (p. ej. Supabase Storage) y la entrega con autorización.
 
 ---
 
@@ -1977,7 +1995,7 @@ Encola un correo `anuncio` en `cola_correo` para cada integrante (miembros activ
 ## Exportaciones
 
 ### `POST /api/exportar/reporte/`
-**Permiso:** Director, docente o administrador
+**Permiso:** Mismas reglas que la API de reportes (otro usuario → `403 { "error": "Sin permiso." }`): `proyecto` y `equipo` → director, docente o administrador; `estudiante` → director, docente, administrador o el propio estudiante; `indicadores` y `tendencia` → director o administrador.
 **Body:**
 ```json
 {
@@ -1990,12 +2008,13 @@ Encola un correo `anuncio` en `cola_correo` para cada integrante (miembros activ
 ```
 **`tipo_reporte` válidos:** `proyecto | estudiante | equipo | indicadores | tendencia`
 **`formato` válidos:** `pdf | excel`
-**Respuesta `202`:**
+**Parámetros:** los ids (`proyecto_id`, `estudiante_id`, `equipo_id`, `periodo_id`, `curso_id`) y `n_periodos` deben ser enteros (`400` si no); `n_periodos` se acota a 2–10.
+**Respuesta `201`:** la exportación se genera dentro de la petición.
 ```json
 {
-  "exportacion_id": 7,
-  "estado": "generando",
-  "mensaje": "La exportación se está procesando."
+  "id": 7,
+  "estado": "listo",
+  "mensaje_error": null
 }
 ```
 

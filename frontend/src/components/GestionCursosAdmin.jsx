@@ -207,7 +207,7 @@ function ModalEliminar({ curso, onConfirm, onCancel }) {
 
 // ── Modal importar estudiantes ────────────────────────────────────────────────
 
-function ModalImportarEstudiantes({ curso, onCerrar, onImportado }) {
+function ModalImportarEstudiantes({ curso, onCerrar }) {
     const [archivo, setArchivo] = useState(null)
     const [importando, setImportando] = useState(false)
     const [resultado, setResultado] = useState(null)

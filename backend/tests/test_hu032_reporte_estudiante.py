@@ -74,6 +74,7 @@ class TestReporteEstudianteView:
     def setup_method(self):
         self.factory = RequestFactory()
 
+    @patch('apps.reportes.views.puede_ver_reporte', new=lambda *args, **kwargs: True)  # la autorización se prueba en test_auditoria_autorizacion
     @patch('apps.reportes.services.reporte_estudiante_proyecto')
     def test_docente_obtiene_reporte_con_nota_y_desempeno(self, mock_srv):
         mock_srv.return_value = {
@@ -96,6 +97,7 @@ class TestReporteEstudianteView:
         assert 'nota_final' in response.data
         assert 'desempeno' in response.data
 
+    @patch('apps.reportes.views.puede_ver_reporte', new=lambda *args, **kwargs: True)  # la autorización se prueba en test_auditoria_autorizacion
     @patch('apps.reportes.services.reporte_estudiante_proyecto')
     def test_docente_puede_ver_reporte_de_cualquier_estudiante(self, mock_srv):
         mock_srv.return_value = {
@@ -111,6 +113,7 @@ class TestReporteEstudianteView:
 
         assert response.status_code == 200
 
+    @patch('apps.reportes.views.puede_ver_reporte', new=lambda *args, **kwargs: True)  # la autorización se prueba en test_auditoria_autorizacion
     @patch('apps.reportes.services.reporte_estudiante_proyecto')
     def test_estudiante_puede_ver_su_propio_reporte(self, mock_srv):
         mock_srv.return_value = {
@@ -142,6 +145,7 @@ class TestReporteEstudianteView:
 
         assert response.status_code == 403
 
+    @patch('apps.reportes.views.puede_ver_reporte', new=lambda *args, **kwargs: True)  # la autorización se prueba en test_auditoria_autorizacion
     @patch('apps.reportes.services.reporte_estudiante_proyecto')
     def test_estudiante_inexistente_retorna_404(self, mock_srv):
         mock_srv.return_value = None

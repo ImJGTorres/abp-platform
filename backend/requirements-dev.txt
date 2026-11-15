@@ -1,0 +1,5 @@
+# Pruebas y desarrollo (no se instalan en producción): pip install -r requirements-dev.txt
+-r requirements.txt
+pytest==8.1.1
+pytest-django==4.8.0
+factory-boy==3.3.0

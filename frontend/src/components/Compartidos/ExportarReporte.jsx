@@ -51,7 +51,7 @@ function IconError() {
 export default function ExportarReporte({ tipo_reporte, parametros = {}, className = '' }) {
     const [formato, setFormato] = useState('pdf')
     const [estado, setEstado] = useState('idle') // idle | generando | listo | error
-    const [exportId, setExportId] = useState(null)
+    const [, setExportId] = useState(null)
     const [errorMsg, setErrorMsg] = useState(null)
 
     async function handleExportar() {

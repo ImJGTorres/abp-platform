@@ -71,11 +71,22 @@ INSTALLED_APPS = [
 # Todas las vistas que requieran autenticación usarán tokens JWT
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        # Resuelve el token al modelo Usuario y rechaza usuarios inactivos
+        'apps.usuarios.authentication.UsuarioJWTAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
     ),
+    # Tope general por IP (anónimos) y por usuario; el login y la recuperación de contraseña
+    # tienen además sus propios límites. Tasas holgadas: el frontend consulta alertas cada 30 s.
+    'DEFAULT_THROTTLE_CLASSES': (
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ),
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': config('THROTTLE_ANON', default='120/min'),
+        'user': config('THROTTLE_USER', default='1200/min'),
+    },
 }
 
 # Import timedelta para configurar tiempos de expiración (BE-01)
@@ -115,6 +126,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'config.csp.CSPMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -187,9 +199,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/4.2/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'es-co'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'America/Bogota'
 
 USE_I18N = True
 
@@ -217,7 +229,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
 CSRF_TRUSTED_ORIGINS = [
-    "https://abp-platform.onrender.com",
+    o.strip() for o in config('CSRF_TRUSTED_ORIGINS', default='https://abp-platform.onrender.com').split(',') if o.strip()
 ]
 
 
@@ -254,8 +266,8 @@ CACHES = {
     }
 }
 
-# CORS: Permitir todos los orígenes (necesario para pruebas E2E con Cypress)
-CORS_ALLOW_ALL_ORIGINS = True
+# CORS: todos los orígenes solo en desarrollo (Cypress/E2E); en producción rige CORS_ALLOWED_ORIGINS
+CORS_ALLOW_ALL_ORIGINS = config('CORS_ALLOW_ALL_ORIGINS', default=DEBUG, cast=bool)
 CORS_EXPOSE_HEADERS = ['Content-Disposition']
 
 # =============================================================================
@@ -292,3 +304,33 @@ MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024
 
 # Subdirectorio para archivos adjuntos de entregables
 ENTREGABLES_UPLOAD_DIR = 'entregables/archivos/'
+
+
+# =============================================================================
+# SEGURIDAD
+# =============================================================================
+
+# Login: bloqueo temporal tras demasiados intentos fallidos (ver apps/usuarios/bloqueo_login.py)
+LOGIN_MAX_INTENTOS_PAR = config('LOGIN_MAX_INTENTOS_PAR', default=5, cast=int)        # mismo correo desde la misma IP
+LOGIN_MAX_INTENTOS_CORREO = config('LOGIN_MAX_INTENTOS_CORREO', default=20, cast=int)  # mismo correo, cualquier IP
+LOGIN_MAX_INTENTOS_IP = config('LOGIN_MAX_INTENTOS_IP', default=30, cast=int)
+LOGIN_VENTANA_SEGUNDOS = config('LOGIN_VENTANA_SEGUNDOS', default=15 * 60, cast=int)
+
+# HTTPS: Render termina TLS en su proxy, por eso se confía en X-Forwarded-Proto.
+# En desarrollo (DEBUG=True) no se fuerza nada; cada opción se puede sobrescribir por entorno.
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+# Cantidad de proxies de confianza delante de Django (Render = 1): define qué entrada de
+# X-Forwarded-For se toma como IP del cliente (ver apps/bitacora/utils.py).
+TRUSTED_PROXY_COUNT = config('TRUSTED_PROXY_COUNT', default=1, cast=int)
+SECURE_SSL_REDIRECT = config('SECURE_SSL_REDIRECT', default=not DEBUG, cast=bool)
+SESSION_COOKIE_SECURE = config('SESSION_COOKIE_SECURE', default=not DEBUG, cast=bool)
+CSRF_COOKIE_SECURE = config('CSRF_COOKIE_SECURE', default=not DEBUG, cast=bool)
+SECURE_HSTS_SECONDS = config('SECURE_HSTS_SECONDS', default=0 if DEBUG else 31536000, cast=int)
+SECURE_HSTS_INCLUDE_SUBDOMAINS = config('SECURE_HSTS_INCLUDE_SUBDOMAINS', default=False, cast=bool)
+SECURE_HSTS_PRELOAD = False
+SECURE_REFERRER_POLICY = 'same-origin'  # el token de recuperación no debe filtrarse por Referer
+
+# Content-Security-Policy (config/csp.py): activa fuera de desarrollo. Si la API se sirve
+# desde otro origen que el frontend, agregar ese origen en CSP_CONNECT_SRC_EXTRA (separados por coma).
+CSP_ENABLED = config('CSP_ENABLED', default=not DEBUG, cast=bool)
+CSP_CONNECT_SRC_EXTRA = [o.strip() for o in config('CSP_CONNECT_SRC_EXTRA', default='').split(',') if o.strip()]

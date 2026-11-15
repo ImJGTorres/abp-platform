@@ -1,3 +1,4 @@
+import logging
 from collections import defaultdict
 
 from django.core.exceptions import ValidationError
@@ -19,6 +20,8 @@ from .serializers import (
     IdentidadInstitucionalSerializer, ParametroSistemaSerializer, PeriodoAcademicoSerializer,
 )
 from apps.cursos.models import Curso
+
+logger = logging.getLogger(__name__)
 
 
 class ConfiguracionView(APIView):
@@ -261,7 +264,7 @@ class PeriodoAcademicoViewSet(viewsets.ModelViewSet):
                         descripcion=f"Período académico creado: {serializer.instance.nombre}"
                     )
                 except Exception:
-                    pass
+                    logger.exception('Error no crítico ignorado')
 
                 headers = self.get_success_headers(serializer.data)
                 return Response(
@@ -318,7 +321,7 @@ class PeriodoAcademicoViewSet(viewsets.ModelViewSet):
                         descripcion=f"Período académico actualizado: {serializer.instance.nombre}"
                     )
                 except Exception:
-                    pass
+                    logger.exception('Error no crítico ignorado')
 
                 return Response(serializer.data)
         else:
@@ -332,7 +335,7 @@ class PeriodoAcademicoViewSet(viewsets.ModelViewSet):
                     descripcion=f"Período académico actualizado: {serializer.instance.nombre}"
                 )
             except Exception:
-                pass
+                logger.exception('Error no crítico ignorado')
 
             return Response(serializer.data)
 
@@ -366,6 +369,6 @@ class PeriodoAcademicoViewSet(viewsets.ModelViewSet):
                 descripcion=f"Período académico eliminado: {nombre}"
             )
         except Exception:
-            pass
+            logger.exception('Error no crítico ignorado')
 
         return Response(status=status.HTTP_204_NO_CONTENT)

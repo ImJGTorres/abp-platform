@@ -1,9 +1,7 @@
-import io
 import logging
 
-from django.contrib.postgres.aggregates import ArrayAgg
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.db import IntegrityError, transaction
+from django.db import transaction
 from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404
 
@@ -16,21 +14,19 @@ from rest_framework.views import APIView
 from apps.bitacora.models import BitacoraSistema
 from apps.bitacora.utils import registrar_evento
 from apps.cursos.models import Actividad, Proyecto
+from apps.entregables.models import Entregable
 from apps.usuarios.authentication import UsuarioJWTAuthentication
 from apps.usuarios.models import Usuario
-from apps.usuarios.permissions import EsDocente
 from .models import Equipo, MiembroEquipo
+from .permisos import exigir_gestion_proyecto
+from .servicios import liberar_actividades_de_miembro
 from .serializers import (
     ActualizarRolSerializer,
     EditarEquipoSerializer,
-    EquipoCreateSerializer,
     EquipoDetalleSerializer,
-    EquipoListSerializer,
     EquipoSerializer,
-    EquipoUpdateSerializer,
     EstudianteDisponibleSerializer,
     MiembroEquipoSerializer,
-    UsuarioResumenSerializer,
 )
 
 logger = logging.getLogger(__name__)
@@ -76,75 +72,12 @@ class EquiposPorProyectoView(APIView):
         except Proyecto.DoesNotExist:
             return Response({'detail': 'Proyecto no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
-        serializer = EquipoSerializer(data=request.data, context={'request': request})
+        exigir_gestion_proyecto(request.user, proyecto)
+
+        serializer = EquipoSerializer(data=request.data, context={'request': request, 'proyecto': proyecto})
         if serializer.is_valid():
             try:
                 equipo = serializer.save(proyecto=proyecto)
-            except DjangoValidationError as exc:
-                raise ValidationError(exc.message_dict if hasattr(exc, 'message_dict') else {'detail': exc.messages})
-            equipo_con_miembros = Equipo.objects.prefetch_related('miembros__usuario').get(pk=equipo.pk)
-            return Response(EquipoDetalleSerializer(equipo_con_miembros).data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-class ProyectoEquiposView(APIView):
-    """
-    GET  /api/proyectos/<proyecto_id>/equipos/
-    POST /api/proyectos/<proyecto_id>/equipos/
-    Vista con permisos de docente. GET lista equipos (filtra por rol del usuario).
-    POST crea un equipo (solo docentes) y registra la creación en bitácora (BE04).
-    """
-    authentication_classes = [UsuarioJWTAuthentication]
-    permission_classes = [EsDocente]
-
-    def get(self, request, proyecto_id):
-        try:
-            proyecto = Proyecto.objects.get(id=proyecto_id)
-        except Proyecto.DoesNotExist:
-            return Response({"detail": "Proyecto no encontrado."}, status=status.HTTP_404_NOT_FOUND)
-
-        user = request.user
-        es_docente_o_director = user.tipo_rol in [
-            Usuario.TipoRol.DOCENTE,
-            Usuario.TipoRol.DIRECTOR,
-            Usuario.TipoRol.ADMINISTRADOR,
-        ]
-
-        if es_docente_o_director:
-            equipos = Equipo.objects.filter(proyecto=proyecto)
-        else:
-            membresia = MiembroEquipo.objects.filter(
-                usuario=user, equipo__proyecto=proyecto, estado='activo'
-            ).first()
-            equipos = Equipo.objects.filter(id=membresia.equipo.id) if membresia else Equipo.objects.none()
-
-        serializer = EquipoListSerializer(equipos, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-    def post(self, request, proyecto_id):
-        """Crea un equipo y registra la operación en bitácora (BE04).
-
-        Args:
-            request: Solicitud HTTP con datos del equipo (nombre, capacidad_maxima).
-            proyecto_id: ID del proyecto al que pertenecerá el equipo.
-
-        Returns:
-            201 con datos del equipo creado, o 400/404 si hay errores de validación.
-        """
-        try:
-            proyecto = Proyecto.objects.get(id=proyecto_id)
-        except Proyecto.DoesNotExist:
-            return Response({"detail": "Proyecto no encontrado."}, status=status.HTTP_404_NOT_FOUND)
-
-        serializer = EquipoCreateSerializer(data=request.data, context={'proyecto': proyecto})
-        if serializer.is_valid():
-            try:
-                equipo = serializer.save()
-            except IntegrityError:
-                return Response(
-                    {"detail": "Ya existe un equipo con ese nombre en este proyecto."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
             except DjangoValidationError as exc:
                 raise ValidationError(exc.message_dict if hasattr(exc, 'message_dict') else {'detail': exc.messages})
             registrar_evento(
@@ -153,7 +86,8 @@ class ProyectoEquiposView(APIView):
                 modulo='equipos',
                 descripcion=f"Crear equipo '{equipo.nombre}' en proyecto {proyecto.nombre}",
             )
-            return Response(EquipoSerializer(equipo).data, status=status.HTTP_201_CREATED)
+            equipo_con_miembros = Equipo.objects.prefetch_related('miembros__usuario').get(pk=equipo.pk)
+            return Response(EquipoDetalleSerializer(equipo_con_miembros).data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -223,9 +157,11 @@ class EstudiantesEquipoView(APIView):
 class AsignarEstudiantesView(APIView):
     """
     POST /api/equipos/<equipo_id>/asignar/
-    Asignación masiva de estudiantes a un equipo.
+    Asignación masiva de estudiantes a un equipo (docente dueño, director o administrador).
     Valida por cada estudiante: existencia, rol, ya asignado, pertenencia a otro
     equipo del mismo proyecto y cupo disponible. Registra en bitácora.
+    El equipo se bloquea durante la operación para que el cupo no se pueda superar
+    con peticiones simultáneas.
     """
     permission_classes = [IsAuthenticated]
 
@@ -234,9 +170,11 @@ class AsignarEstudiantesView(APIView):
         Al asignar estudiantes, se registra cada asignación en bitácora.
         """
         try:
-            equipo = Equipo.objects.get(pk=equipo_id)
+            equipo = Equipo.objects.select_related('proyecto__id_curso').get(pk=equipo_id)
         except Equipo.DoesNotExist:
             return Response({'detail': 'Equipo no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        exigir_gestion_proyecto(request.user, equipo.proyecto)
 
         usuario_ids = request.data.get('usuarios', [])
         if not usuario_ids:
@@ -245,43 +183,51 @@ class AsignarEstudiantesView(APIView):
         asignados = 0
         errores = []
 
-        for uid in usuario_ids:
-            try:
-                usuario = Usuario.objects.get(pk=uid, tipo_rol__in=('estudiante', 'lider_equipo'))
-            except Usuario.DoesNotExist:
-                errores.append({'usuario_id': uid, 'error': 'Estudiante no encontrado.'})
-                continue
+        with transaction.atomic():
+            # Bloqueo de fila: serializa las asignaciones concurrentes al mismo equipo.
+            equipo = Equipo.objects.select_for_update().get(pk=equipo.pk)
 
-            # Verificar que no tenga membresía activa en este equipo
-            if MiembroEquipo.objects.filter(equipo=equipo, usuario=usuario, estado='activo').exists():
-                continue  # Ya está en el equipo, no duplicar
+            for uid in usuario_ids:
+                try:
+                    usuario = Usuario.objects.get(pk=uid, tipo_rol__in=('estudiante', 'lider_equipo'))
+                except (Usuario.DoesNotExist, ValueError, TypeError):
+                    errores.append({'usuario_id': uid, 'error': 'Estudiante no encontrado.'})
+                    continue
 
-            # Validar que no pertenezca a otro equipo del mismo proyecto
-            if MiembroEquipo.objects.filter(
-                equipo__proyecto=equipo.proyecto, usuario=usuario, estado='activo'
-            ).exists():
-                errores.append({'usuario_id': uid, 'error': 'Ya pertenece a otro equipo de este proyecto.'})
-                continue
+                # Verificar que no tenga membresía activa en este equipo
+                if MiembroEquipo.objects.filter(equipo=equipo, usuario=usuario, estado='activo').exists():
+                    continue  # Ya está en el equipo, no duplicar
 
-            # Validar cupo
-            miembros_activos = MiembroEquipo.objects.filter(equipo=equipo, estado='activo').count()
-            if miembros_activos >= equipo.cupo_maximo:
-                errores.append({'usuario_id': uid, 'error': 'El equipo ha alcanzado su cupo máximo.'})
-                continue
+                # Validar que no pertenezca a otro equipo del mismo proyecto
+                if MiembroEquipo.objects.filter(
+                    equipo__proyecto=equipo.proyecto, usuario=usuario, estado='activo'
+                ).exists():
+                    errores.append({'usuario_id': uid, 'error': 'Ya pertenece a otro equipo de este proyecto.'})
+                    continue
 
-            # Crear o reactivar membresía (update_or_create evita duplicados por unique_together)
-            MiembroEquipo.objects.update_or_create(
-                equipo=equipo,
-                usuario=usuario,
-                defaults={'estado': 'activo'},
-            )
-            registrar_evento(
-                request=request,
-                accion=BitacoraSistema.Accion.CREATE,
-                modulo='miembros_equipo',
-                descripcion=f'Estudiante {usuario.id} asignado al equipo {equipo.id}',
-            )
-            asignados += 1
+                # Validar cupo (con el equipo bloqueado, el conteo es confiable)
+                miembros_activos = MiembroEquipo.objects.filter(equipo=equipo, estado='activo').count()
+                if miembros_activos >= equipo.cupo_maximo:
+                    errores.append({'usuario_id': uid, 'error': 'El equipo ha alcanzado su cupo máximo.'})
+                    continue
+
+                # Crear o reactivar membresía (update_or_create evita duplicados por unique_together)
+                try:
+                    MiembroEquipo.objects.update_or_create(
+                        equipo=equipo,
+                        usuario=usuario,
+                        defaults={'estado': 'activo'},
+                    )
+                except DjangoValidationError as exc:
+                    errores.append({'usuario_id': uid, 'error': ' '.join(exc.messages)})
+                    continue
+                registrar_evento(
+                    request=request,
+                    accion=BitacoraSistema.Accion.CREATE,
+                    modulo='miembros_equipo',
+                    descripcion=f'Estudiante {usuario.id} asignado al equipo {equipo.id}',
+                )
+                asignados += 1
 
         return Response({'asignados': asignados, 'errores': errores}, status=status.HTTP_200_OK)
 
@@ -293,12 +239,24 @@ class RetirarMiembroView(generics.GenericAPIView):
     en lugar de eliminar el registro, preservando el historial.
     """
     authentication_classes = [UsuarioJWTAuthentication]
+    permission_classes = [IsAuthenticated]
 
     def delete(self, request, equipo_id, usuario_id):
-        miembro = get_object_or_404(MiembroEquipo, equipo_id=equipo_id, usuario_id=usuario_id, estado='activo')
-        # Soft-delete: marcar como retirado preserva el historial
+        miembro = get_object_or_404(
+            MiembroEquipo.objects.select_related('equipo__proyecto__id_curso'),
+            equipo_id=equipo_id, usuario_id=usuario_id, estado='activo',
+        )
+        exigir_gestion_proyecto(request.user, miembro.equipo.proyecto)
+        # Soft-delete: marcar como retirado preserva el historial. La señal post_save
+        # deja sin responsable las actividades del miembro (ver signals.py).
         miembro.estado = 'retirado'
         miembro.save()
+        registrar_evento(
+            request=request,
+            accion=BitacoraSistema.Accion.UPDATE,
+            modulo='equipos',
+            descripcion=f"Usuario id={usuario_id} retirado del equipo '{miembro.equipo.nombre}'.",
+        )
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -333,88 +291,24 @@ class ActualizarRolView(generics.UpdateAPIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-# ---------------------------------------------------------------------------
-# Estudiantes del curso
-# ---------------------------------------------------------------------------
-
-class EstudiantesCursoView(APIView):
-    """GET /api/cursos/<curso_id>/estudiantes/?proyecto_id=<int>"""
-    authentication_classes = [UsuarioJWTAuthentication]
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request, curso_id):
-        proyecto_id = request.query_params.get('proyecto_id')
-
-        if proyecto_id:
-            proyecto = get_object_or_404(Proyecto, pk=proyecto_id, id_curso_id=curso_id)
-            ya_asignados = MiembroEquipo.objects.filter(
-                equipo__proyecto=proyecto, estado='activo'
-            ).values_list('usuario_id', flat=True)
-            estudiantes = Usuario.objects.filter(
-                tipo_rol__in=('estudiante', 'lider_equipo'), estado='activo'
-            ).exclude(id__in=ya_asignados).order_by('nombre', 'apellido')
-            return Response(UsuarioResumenSerializer(estudiantes, many=True).data)
-
-        # Agrupa membresías activas por usuario en una sola consulta usando ArrayAgg.
-        # Evita el patrón N+1 de iterar y hacer joins en Python.
-        asignaciones = (
-            MiembroEquipo.objects
-            .filter(equipo__proyecto__id_curso_id=curso_id, estado='activo')
-            .values(
-                'usuario_id',
-                'equipo_id',
-                'equipo__nombre',
-                'equipo__proyecto_id',
-                'equipo__proyecto__nombre',
-            )
-        )
-        usuario_equipos = {}
-        for a in asignaciones:
-            uid = a['usuario_id']
-            if uid not in usuario_equipos:
-                usuario_equipos[uid] = []
-            usuario_equipos[uid].append({
-                'equipo_id':       a['equipo_id'],
-                'equipo_nombre':   a['equipo__nombre'],
-                'proyecto_id':     a['equipo__proyecto_id'],
-                'proyecto_nombre': a['equipo__proyecto__nombre'],
-            })
-
-        todos = Usuario.objects.filter(
-            tipo_rol__in=('estudiante', 'lider_equipo'), estado='activo'
-        ).order_by('nombre', 'apellido')
-        disponibles, en_equipo = [], []
-
-        for est in todos:
-            data = {
-                'id':                est.id,
-                'nombre':            est.nombre,
-                'apellido':          est.apellido,
-                'correo':            est.correo,
-                'codigo': est.codigo or '',
-            }
-            if est.id in usuario_equipos:
-                data['equipos'] = usuario_equipos[est.id]
-                en_equipo.append(data)
-            else:
-                disponibles.append(data)
-
-        return Response({'disponibles': disponibles, 'en_equipo': en_equipo})
-
 class ActualizarRolMiembroView(APIView):
     """
     PATCH /api/miembros/<miembro_id>/
     Actualiza el rol_interno de un MiembroEquipo.
     Si el nuevo rol es 'lider', elimina el rol del lider anterior del mismo equipo.
     Enviar rol_interno vacío ("") para quitar el rol.
+    Solo el docente dueño del curso, el director o el administrador pueden cambiarlo.
+    Designar líder sincroniza Usuario.tipo_rol ('lider_equipo'), que el resto del
+    sistema usa para los permisos del líder.
     """
     permission_classes = [IsAuthenticated]
 
     def patch(self, request, miembro_id):
         miembro = get_object_or_404(
-            MiembroEquipo.objects.select_related('usuario', 'equipo__proyecto'),
+            MiembroEquipo.objects.select_related('usuario', 'equipo__proyecto__id_curso'),
             pk=miembro_id, estado='activo',
         )
+        exigir_gestion_proyecto(request.user, miembro.equipo.proyecto)
         nuevo_rol = request.data.get('rol_interno', '')
 
         roles_validos = {'lider', 'desarrollador', 'analista', 'disenador', 'tester', ''}
@@ -451,36 +345,19 @@ class ActualizarRolMiembroView(APIView):
 
         return Response({'id': miembro.id, 'rol_interno': miembro.rol_interno})
 
-# Kept for backwards compatibility — use EstudiantesCursoView instead.
-class EstudiantesDisponiblesView(generics.ListAPIView):
-    """GET /api/cursos/<curso_id>/estudiantes/?proyecto_id=<int> (backwards compat)"""
-    authentication_classes = [UsuarioJWTAuthentication]
-    serializer_class = UsuarioResumenSerializer
-
-    def get_queryset(self):
-        curso_id = self.kwargs['curso_id']
-        proyecto_id = self.request.query_params.get('proyecto_id')
-        if proyecto_id:
-            proyecto = get_object_or_404(Proyecto, pk=proyecto_id, id_curso_id=curso_id)
-            ya_asignados = MiembroEquipo.objects.filter(
-                equipo__proyecto=proyecto, estado='activo'
-            ).values_list('usuario_id', flat=True)
-            return Usuario.objects.filter(tipo_rol__in=('estudiante', 'lider_equipo'), estado='activo').exclude(id__in=ya_asignados)
-        # No proyecto_id provided: return all active students in the course
-        return Usuario.objects.filter(tipo_rol__in=('estudiante', 'lider_equipo'), estado='activo')
-
-
 # PUT/PATCH /api/equipos/<equipo_id>/
 # Edita nombre, descripción y cupo máximo de un equipo.
 # Valida unicidad de nombre dentro del proyecto y que el nuevo cupo no sea menor a miembros activos.
 class EditarEquipoView(generics.UpdateAPIView):
     authentication_classes = [UsuarioJWTAuthentication]
+    permission_classes = [IsAuthenticated]
     serializer_class = EditarEquipoSerializer
-    queryset = Equipo.objects.all()
+    queryset = Equipo.objects.select_related('proyecto__id_curso')
     lookup_url_kwarg = 'equipo_id'
     http_method_names = ['put', 'patch']
 
     def perform_update(self, serializer):
+        exigir_gestion_proyecto(self.request.user, serializer.instance.proyecto)
         try:
             equipo = serializer.save()
         except DjangoValidationError as exc:
@@ -506,6 +383,7 @@ class EditarEquipoView(generics.UpdateAPIView):
 # - Registra el movimiento en bitácora.
 class MoverMiembroView(generics.GenericAPIView):
     authentication_classes = [UsuarioJWTAuthentication]
+    permission_classes = [IsAuthenticated]
 
     def post(self, request, equipo_id):
         usuario_id = request.data.get('usuario_id')
@@ -517,8 +395,10 @@ class MoverMiembroView(generics.GenericAPIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        equipo_origen = get_object_or_404(Equipo, pk=equipo_id)
+        equipo_origen = get_object_or_404(Equipo.objects.select_related('proyecto__id_curso'), pk=equipo_id)
         equipo_destino = get_object_or_404(Equipo, pk=equipo_destino_id)
+
+        exigir_gestion_proyecto(request.user, equipo_origen.proyecto)
 
         # Validar que ambos equipos pertenezcan al mismo proyecto
         if equipo_origen.proyecto_id != equipo_destino.proyecto_id:
@@ -535,19 +415,20 @@ class MoverMiembroView(generics.GenericAPIView):
             estado='activo',
         )
 
-        # Validar cupo disponible en el equipo destino
-        miembros_destino = MiembroEquipo.objects.filter(
-            equipo=equipo_destino,
-            estado='activo',
-        ).count()
-        if miembros_destino >= equipo_destino.cupo_maximo:
-            return Response(
-                {"detail": f"El equipo destino ha alcanzado su cupo máximo de {equipo_destino.cupo_maximo} integrantes."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        # Operación atómica: ambos cambios (retiro y asignación) confirman o revierten juntos
+        # Operación atómica: el retiro y la asignación confirman o revierten juntos.
+        # El equipo destino se bloquea para validar el cupo sin carreras.
         with transaction.atomic():
+            equipo_destino = Equipo.objects.select_for_update().get(pk=equipo_destino.pk)
+            miembros_destino = MiembroEquipo.objects.filter(
+                equipo=equipo_destino,
+                estado='activo',
+            ).count()
+            if miembros_destino >= equipo_destino.cupo_maximo:
+                return Response(
+                    {"detail": f"El equipo destino ha alcanzado su cupo máximo de {equipo_destino.cupo_maximo} integrantes."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
             # Marcar membresía origen como retirada (preserva historial)
             miembro.estado = 'retirado'
             miembro.save()
@@ -574,44 +455,38 @@ class MoverMiembroView(generics.GenericAPIView):
 
 
 # DELETE /api/equipos/<equipo_id>/disolver/
-# Permite eliminar un equipo, pero con restricciones de integridad:
-#
-# TODO: Validar que el equipo no tenga entregables ni actividades asociadas antes
-#       de permitir la disolución. Esta validación está pendiente porque depende
-#       de la app de entregables (apps.entregables), que debe estar completamente
-#       implementada para poder consultar Entregable.objects.filter(equipo=equipo).
-#       Cuando esté disponible, retornar HTTP 409 Conflict si existen entregables
-#       o actividades vinculadas al equipo.
-#
-# 2. La operación es un soft-delete: marca el equipo como 'inactivo' y
-#    retira a todos sus miembros activos (cambiando su estado a 'retirado')
-#    preservando el historial.
-# 3. Se ejecuta en una transacción atómica para garantizar consistencia.
-# 4. Registra la disolución en bitácora.
-# Retorna 204 No Content si tiene éxito, 409 Conflict si no puede disolverse.
+# Soft-delete de un equipo, con restricciones de integridad:
+# 1. Responde 409 si el equipo tiene entregables registrados.
+# 2. Marca el equipo como 'inactivo' y retira a todos sus miembros activos
+#    (cambia su estado a 'retirado'), preservando el historial; las actividades
+#    de esos miembros quedan sin responsable.
+# 3. Se ejecuta en una transacción atómica y registra la disolución en bitácora.
+# Retorna 204 No Content si tiene éxito.
 class DisolverEquipoView(generics.GenericAPIView):
     authentication_classes = [UsuarioJWTAuthentication]
+    permission_classes = [IsAuthenticated]
 
     def delete(self, request, equipo_id):
-        equipo = get_object_or_404(Equipo, pk=equipo_id)
+        equipo = get_object_or_404(Equipo.objects.select_related('proyecto__id_curso'), pk=equipo_id)
+        exigir_gestion_proyecto(request.user, equipo.proyecto)
 
-        # Bloqueo por entregables — verificar solo si el modelo existe.
-        # Cuando se implemente la app de entregables, descomentar:
-        # from apps.entregables.models import Entregable
-        # if Entregable.objects.filter(equipo=equipo).exists():
-        #     return Response(
-        #         {"detail": "No se puede disolver un equipo con entregables registrados."},
-        #         status=status.HTTP_409_CONFLICT,
-        #     )
+        if Entregable.objects.filter(id_equipo=equipo).exists():
+            return Response(
+                {"detail": "No se puede disolver un equipo con entregables registrados."},
+                status=status.HTTP_409_CONFLICT,
+            )
 
         # Operación atómica: el retiro de miembros y la desactivación del equipo
         # confirman juntos o se revierten si algo falla.
         with transaction.atomic():
-            # Retirar todos los miembros activos (preserva historial)
-            MiembroEquipo.objects.filter(
-                equipo=equipo,
-                estado='activo',
-            ).update(estado='retirado')
+            ids_miembros = list(
+                MiembroEquipo.objects.filter(equipo=equipo, estado='activo')
+                .values_list('usuario_id', flat=True)
+            )
+            # update() no dispara post_save: se liberan las actividades de forma explícita
+            MiembroEquipo.objects.filter(equipo=equipo, estado='activo').update(estado='retirado')
+            for uid in ids_miembros:
+                liberar_actividades_de_miembro(equipo, uid, request=request)
 
             # Marcar el equipo como inactivo (soft-delete, no .delete())
             equipo.estado = 'inactivo'

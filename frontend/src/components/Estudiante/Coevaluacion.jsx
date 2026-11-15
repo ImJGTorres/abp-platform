@@ -229,7 +229,7 @@ export default function Coevaluacion() {
                 ? (Array.isArray(coevData.value) ? coevData.value : (coevData.value.results ?? []))
                 : []
             setMisCoev(coevs)
-        } catch { }
+        } catch { /* best-effort: se ignora el fallo */ }
         finally { setLoading(false) }
     }
 

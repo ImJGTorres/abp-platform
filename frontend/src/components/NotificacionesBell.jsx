@@ -82,7 +82,7 @@ export default function NotificacionesBell() {
         try {
             await notificacionesApi.marcarLeida(id)
             setNotificaciones(prev => prev.map(n => n.id === id ? { ...n, leida: true } : n))
-        } catch { }
+        } catch { /* best-effort: se ignora el fallo */ }
     }
 
     async function marcarTodasLeidas() {
@@ -90,7 +90,7 @@ export default function NotificacionesBell() {
         try {
             await notificacionesApi.marcarTodasLeidas()
             setNotificaciones(prev => prev.map(n => ({ ...n, leida: true })))
-        } catch { }
+        } catch { /* best-effort: se ignora el fallo */ }
         finally { setCargando(false) }
     }
 

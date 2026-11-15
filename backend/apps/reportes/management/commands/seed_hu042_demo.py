@@ -7,6 +7,7 @@ ya tiene 3 proyectos reales con niveles distintos (2 rojo, 1 verde), suficiente 
 probar el panel, el filtro por color y la navegación al detalle. Solo le asigna una
 contraseña conocida para poder iniciar sesión en Cypress.
 """
+from apps.usuarios.seguridad_demo import agregar_argumento_forzar, exigir_entorno_de_desarrollo
 from django.core.management.base import BaseCommand
 
 CORREO_DOCENTE = 'demo.docente.hu040@ufps.edu.co'
@@ -16,7 +17,11 @@ PASSWORD = 'Test1234'
 class Command(BaseCommand):
     help = 'Asigna una contraseña conocida al docente demo para la prueba de aceptación de HU-042.'
 
+    def add_arguments(self, parser):
+        agregar_argumento_forzar(parser)
+
     def handle(self, *args, **options):
+        exigir_entorno_de_desarrollo(options)
         from apps.reportes.semaforo import semaforos_docente
         from apps.usuarios.models import Usuario
 

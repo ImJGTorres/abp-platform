@@ -25,7 +25,7 @@ class ParametroSistemaPatchTestCase(TestCase):
         self.client = APIClient()
         
     def _autenticar(self):
-        self.client.login(username='admin@test.com', password='test123')
+        self.client.force_authenticate(user=self.usuario)
         
     def test_patch_actualizacion_exitosa(self):
         self._autenticar()

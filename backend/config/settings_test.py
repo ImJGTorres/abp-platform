@@ -5,3 +5,7 @@ from config.settings import *  # noqa: F401, F403
 PASSWORD_HASHERS = [
     'django.contrib.auth.hashers.MD5PasswordHasher',
 ]
+
+# El cliente de pruebas usa http: no se fuerza HTTPS en la suite.
+SECURE_SSL_REDIRECT = False
+SECURE_HSTS_SECONDS = 0

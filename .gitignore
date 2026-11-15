@@ -21,7 +21,6 @@ frontend/node_modules/
 frontend/dist/
 frontend/.pnpm-store/
 frontend/.env
-frontend/.env.example
 frontend/.env.local
 frontend/.env.production
 

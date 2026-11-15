@@ -8,8 +8,14 @@ from apps.bitacora.models import BitacoraSistema
 from apps.bitacora.utils import registrar_evento
 from apps.usuarios.authentication import UsuarioJWTAuthentication
 
+from .acceso import (
+    ROLES_DIRECTOR,
+    docente_es_dueno_de_curso,
+    docente_es_dueno_de_proyecto,
+    puede_ver_reporte,
+)
 from .semaforo import NIVELES_SEMAFORO, semaforo_estudiante, semaforos_docente
-from .services import calcular_rendimiento_estudiante, get_estudiantes_bajo_rendimiento
+from .services import calcular_rendimiento_estudiante, calcular_rendimientos, get_estudiantes_bajo_rendimiento
 
 logger = logging.getLogger(__name__)
 
@@ -47,12 +53,22 @@ class BajoRendimientoView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # Un docente solo ve estudiantes de sus propios cursos
+        docente = usuario if usuario.tipo_rol == 'docente' else None
+        if docente is not None and (
+            (curso_id and not docente_es_dueno_de_curso(docente, curso_id))
+            or (proyecto_id and not docente_es_dueno_de_proyecto(docente, proyecto_id))
+        ):
+            return Response({'error': 'No tienes permiso para acceder a este reporte.'},
+                            status=status.HTTP_403_FORBIDDEN)
+
         try:
             estudiantes = get_estudiantes_bajo_rendimiento(
                 curso_id=curso_id,
                 proyecto_id=proyecto_id,
                 periodo_id=periodo_id,
                 solo_riesgo=solo_riesgo and not nivel,
+                docente_id=docente.pk if docente else None,
             )
             if nivel:
                 estudiantes = [e for e in estudiantes if e['nivel_semaforo'] == nivel]
@@ -90,13 +106,13 @@ class RendimientoEstudianteView(APIView):
         usuario = request.user
         rol = usuario.tipo_rol
 
-        if rol == 'estudiante' and usuario.id != estudiante_id:
+        if rol in ('estudiante', 'lider_equipo') and usuario.id != estudiante_id:
             return Response(
                 {'error': 'Solo puedes consultar tu propio rendimiento.'},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        if rol not in ('director', 'docente', 'administrador', 'estudiante'):
+        if rol not in ('director', 'docente', 'administrador', 'estudiante', 'lider_equipo'):
             return Response({'error': 'Acceso denegado.'}, status=status.HTTP_403_FORBIDDEN)
 
         try:
@@ -112,6 +128,14 @@ class RendimientoEstudianteView(APIView):
             proyecto_id = int(proyecto_id) if proyecto_id else None
         except ValueError:
             return Response({'error': 'Filtros inválidos.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if rol == 'docente':
+            permitido = puede_ver_reporte(
+                usuario, 'estudiante', {'estudiante_id': estudiante_id, 'proyecto_id': proyecto_id})
+            if curso_id and not docente_es_dueno_de_curso(usuario, curso_id):
+                permitido = False
+            if not permitido:
+                return Response({'error': 'Acceso denegado.'}, status=status.HTTP_403_FORBIDDEN)
 
         try:
             indicadores = calcular_rendimiento_estudiante(
@@ -148,7 +172,6 @@ class RendimientoEstudianteView(APIView):
 
 # ── HU-031: Reportes por proyecto ────────────────────────────────────────────
 
-ROLES_DIRECTOR = ('director', 'docente', 'administrador')
 
 
 class ReporteProyectoView(APIView):
@@ -157,7 +180,7 @@ class ReporteProyectoView(APIView):
 
     def get(self, request, proyecto_id):
         usuario = request.user
-        if usuario.tipo_rol not in ROLES_DIRECTOR:
+        if not puede_ver_reporte(usuario, 'proyecto', {'proyecto_id': proyecto_id}):
             return Response({'error': 'Sin permiso.'}, status=status.HTTP_403_FORBIDDEN)
 
         from apps.reportes.services import reporte_proyecto
@@ -178,7 +201,7 @@ class ReporteProyectoView(APIView):
                 descripcion=f"Consulta reporte proyecto id={proyecto_id}",
             )
         except Exception:
-            pass
+            logger.exception('Error no crítico ignorado')
 
         return Response(data, status=status.HTTP_200_OK)
 
@@ -189,7 +212,7 @@ class ReporteCursoView(APIView):
 
     def get(self, request, curso_id):
         usuario = request.user
-        if usuario.tipo_rol not in ROLES_DIRECTOR:
+        if not puede_ver_reporte(usuario, 'curso', {'curso_id': curso_id}):
             return Response({'error': 'Sin permiso.'}, status=status.HTTP_403_FORBIDDEN)
 
         from apps.reportes.services import reporte_curso
@@ -210,7 +233,7 @@ class ReporteCursoView(APIView):
                 descripcion=f"Consulta reporte curso id={curso_id}",
             )
         except Exception:
-            pass
+            logger.exception('Error no crítico ignorado')
 
         return Response(data, status=status.HTTP_200_OK)
 
@@ -226,9 +249,9 @@ class ReporteEstudianteProyectoView(APIView):
         rol = usuario.tipo_rol
         uid = usuario.id
 
-        if rol == 'estudiante' and uid != estudiante_id:
+        if rol in ('estudiante', 'lider_equipo') and uid != estudiante_id:
             return Response({'error': 'Solo puedes ver tu propio reporte.'}, status=status.HTTP_403_FORBIDDEN)
-        if rol not in ('director', 'docente', 'administrador', 'estudiante'):
+        if not puede_ver_reporte(usuario, 'estudiante', {'estudiante_id': estudiante_id, 'proyecto_id': proyecto_id}):
             return Response({'error': 'Sin permiso.'}, status=status.HTTP_403_FORBIDDEN)
 
         from apps.reportes.services import reporte_estudiante_proyecto
@@ -249,7 +272,7 @@ class ReporteEstudianteProyectoView(APIView):
                 descripcion=f"Consulta reporte estudiante id={estudiante_id} proyecto id={proyecto_id}",
             )
         except Exception:
-            pass
+            logger.exception('Error no crítico ignorado')
 
         return Response(data, status=status.HTTP_200_OK)
 
@@ -260,7 +283,7 @@ class ReporteEquipoEstudiantesView(APIView):
 
     def get(self, request, equipo_id):
         usuario = request.user
-        if usuario.tipo_rol not in ROLES_DIRECTOR:
+        if not puede_ver_reporte(usuario, 'equipo', {'equipo_id': equipo_id}):
             return Response({'error': 'Sin permiso.'}, status=status.HTTP_403_FORBIDDEN)
 
         from apps.reportes.services import reporte_equipo_estudiantes
@@ -281,7 +304,7 @@ class ReporteEquipoEstudiantesView(APIView):
                 descripcion=f"Consulta reporte equipo id={equipo_id}",
             )
         except Exception:
-            pass
+            logger.exception('Error no crítico ignorado')
 
         return Response(data, status=status.HTTP_200_OK)
 
@@ -321,7 +344,7 @@ class IndicadoresDashboardView(APIView):
                 descripcion=f"Consulta dashboard indicadores. periodo={periodo_id} curso={curso_id}",
             )
         except Exception:
-            pass
+            logger.exception('Error no crítico ignorado')
 
         return Response(data, status=status.HTTP_200_OK)
 
@@ -356,7 +379,7 @@ class IndicadoresTendenciaView(APIView):
                 descripcion=f"Consulta tendencia indicadores n={n}",
             )
         except Exception:
-            pass
+            logger.exception('Error no crítico ignorado')
 
         return Response(data, status=status.HTTP_200_OK)
 
@@ -381,12 +404,11 @@ def _calcular_promedio_grupo(curso_id=None, proyecto_id=None):
     if not estudiantes_qs.exists():
         return {'nota_promedio': 0, 'pct_actividades_incumplidas': 0}
 
-    notas = []
-    pcts = []
-    for est in estudiantes_qs:
-        ind = calcular_rendimiento_estudiante(est.id, proyecto_id=proyecto_id, curso_id=curso_id)
-        notas.append(ind['nota_promedio'])
-        pcts.append(ind['porcentaje_actividades_incumplidas'])
+    rendimientos = calcular_rendimientos(
+        list(estudiantes_qs.values_list('id', flat=True)), proyecto_id=proyecto_id, curso_id=curso_id
+    ).values()
+    notas = [ind['nota_promedio'] for ind in rendimientos]
+    pcts = [ind['porcentaje_actividades_incumplidas'] for ind in rendimientos]
 
     return {
         'nota_promedio': round(sum(notas) / len(notas), 2),

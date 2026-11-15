@@ -147,10 +147,6 @@ def test_proyecto_publicado_no_aparece_en_el_muro_del_curso(curso):
 # ── Bitácora al listar el muro ───────────────────────────────────────────────
 
 @pytest.mark.django_db
-@pytest.mark.xfail(
-    strict=True,
-    reason='Hallazgo PRB-10: GET del muro de anuncios no registra ACCESS en la bitácora',
-)
 def test_listar_el_muro_queda_en_bitacora(curso):
     _cliente(curso.id_docente).get(_url_curso(curso))
     assert BitacoraSistema.objects.filter(

@@ -1,4 +1,3 @@
-import io
 import logging
 
 from django.db import connection, transaction
@@ -22,6 +21,8 @@ from apps.usuarios.models import Usuario
 from apps.usuarios.serializers import UsuarioSerializer
 from apps.usuarios.authentication import UsuarioJWTAuthentication
 from .models import Actividad, AvanceActividad, Curso, CursoEstudiante, FaseProyecto, HitoProyecto, ObjetivoProyecto, Proyecto, ResultadoAprendizaje, VistaProgresoFase, VistaProgresoProyecto
+from apps.usuarios.excel_seguro import ExcelInvalido, abrir_hoja, leer_filas
+from .acceso import puede_ver_proyecto
 from .permissions import EsAdministrador, EsDocente, EsDocenteOAdministrador, EsLiderEquipo
 from .serializers import (
     ActividadAsignarResponsableSerializer,
@@ -319,9 +320,9 @@ class CursoCargaMasivaView(APIView):
             return Response({'detail': 'El archivo debe ser formato .xlsx.'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            import openpyxl
-            wb = openpyxl.load_workbook(io.BytesIO(archivo.read()), data_only=True)
-            ws = wb.active
+            filas_excel = leer_filas(abrir_hoja(archivo), min_row=2)
+        except ExcelInvalido as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception:
             return Response({'detail': 'No se pudo leer el archivo Excel.'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -334,7 +335,7 @@ class CursoCargaMasivaView(APIView):
         errores = []
 
         # Columna 0 = Materia (código), columna 1 = Nombre; omitir filas donde col 0 es None
-        for i, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
+        for i, row in enumerate(filas_excel, start=2):
             if not any(row) or row[0] is None:
                 continue
 
@@ -361,8 +362,9 @@ class CursoCargaMasivaView(APIView):
                     estado=Curso.Estado.ACTIVO,
                 )
                 creados += 1
-            except Exception as exc:
-                errores.append({'fila': i, 'codigo': codigo, 'motivo': f'error al crear: {exc}'})
+            except Exception:
+                logger.exception('Carga masiva de cursos: fila %s no se pudo crear', i)
+                errores.append({'fila': i, 'codigo': codigo, 'motivo': 'error al crear: no se pudo guardar el registro'})
                 omitidos += 1
 
         try:
@@ -373,7 +375,7 @@ class CursoCargaMasivaView(APIView):
                 descripcion=f'Carga masiva de cursos: {creados} creados, {omitidos} omitidos',
             )
         except Exception:
-            pass
+            logger.exception('Error no crítico ignorado')
 
         return Response({'creados': creados, 'omitidos': omitidos, 'errores': errores}, status=status.HTTP_201_CREATED)
 
@@ -415,9 +417,9 @@ class CursoMatriculaExcelView(APIView):
             return Response({'detail': 'El archivo debe ser formato .xlsx.'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            import openpyxl
-            wb = openpyxl.load_workbook(io.BytesIO(archivo.read()), data_only=True)
-            ws = wb.active
+            all_rows = leer_filas(abrir_hoja(archivo))
+        except ExcelInvalido as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception:
             return Response({'detail': 'No se pudo leer el archivo Excel.'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -428,7 +430,6 @@ class CursoMatriculaExcelView(APIView):
             return unicodedata.normalize('NFD', s).encode('ascii', 'ignore').decode('ascii')
 
         # Buscar la fila de encabezados de estudiantes (la que tiene 'Código' en col 0)
-        all_rows = list(ws.iter_rows(values_only=True))
         header_row_idx = None
         for idx, row in enumerate(all_rows):
             if row and _norm(row[0]) == 'codigo':
@@ -486,8 +487,9 @@ class CursoMatriculaExcelView(APIView):
                     CursoEstudiante.objects.create(curso=curso, estudiante=usuario, estado='activo')
                     matriculados += 1
 
-        except Exception as e:
-            return Response({'detail': f'Error procesando el archivo: {e}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except Exception:
+            logger.exception('Carga masiva de matrícula: error procesando el archivo')
+            return Response({'detail': 'Error procesando el archivo.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         try:
             registrar_evento(
@@ -500,7 +502,7 @@ class CursoMatriculaExcelView(APIView):
                 ),
             )
         except Exception:
-            pass
+            logger.exception('Error no crítico ignorado')
 
         return Response({
             'matriculados': matriculados,
@@ -857,7 +859,11 @@ class CursoEstudianteView(APIView):
     permission_classes = [EsDocenteOAdministrador]
 
     def _get_curso(self, curso_id):
-        return get_object_or_404(Curso, pk=curso_id)
+        curso = get_object_or_404(Curso, pk=curso_id)
+        user = self.request.user
+        if user.tipo_rol != 'administrador' and curso.id_docente_id != user.pk:
+            raise PermissionDenied('No eres el docente propietario de este curso.')
+        return curso
 
     def get(self, request, curso_id):
         curso = self._get_curso(curso_id)
@@ -929,7 +935,7 @@ class CursoEstudianteView(APIView):
                 descripcion=f'Estudiante ID={estudiante.id} inscrito en curso ID={curso.id}',
             )
         except Exception:
-            pass
+            logger.exception('Error no crítico ignorado')
 
         return Response(
             {'detail': 'Estudiante inscrito correctamente.'},
@@ -956,6 +962,8 @@ class RapListCreateView(APIView):
 
     def get(self, request, id_proyecto):
         proyecto = self._get_proyecto(id_proyecto)
+        if not puede_ver_proyecto(request.user, proyecto):
+            raise PermissionDenied('No tienes acceso a este proyecto.')
         raps = ResultadoAprendizaje.objects.filter(proyecto=proyecto)
         return Response(RapSerializer(raps, many=True).data)
 

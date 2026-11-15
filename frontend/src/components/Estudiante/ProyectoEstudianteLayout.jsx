@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Outlet, useNavigate, Link, useParams, useLocation, useMatch } from 'react-router-dom'
+import { Outlet, useNavigate, Link, useParams, useLocation } from 'react-router-dom'
 import { authApi, session } from '../../services/api'
 import { estudianteProyectosApi, coevaluacionApi } from '../../services/estudianteApi'
 import BarraSuperior from '../Compartidos/BarraSuperior'
@@ -240,7 +240,7 @@ export default function ProyectoEstudianteLayout() {
             if (p.equipo?.miembros) {
                 await cargarCompaneros(p)
             }
-        } catch { }
+        } catch { /* best-effort: se ignora el fallo */ }
     }
 
     // Recibe el objeto proyecto completo (con equipo.miembros ya cargados)
@@ -275,12 +275,12 @@ export default function ProyectoEstudianteLayout() {
             setCompaneros(conEstado)
             const primero = conEstado.find(c => !c.yaEvaluado) ?? conEstado[0]
             if (primero) setSelectedEvaluadoId(primero.id)
-        } catch { }
+        } catch { /* best-effort: se ignora el fallo */ }
     }
 
     async function handleLogout() {
         setLoggingOut(true)
-        try { await authApi.logout() } catch { }
+        try { await authApi.logout() } catch { /* best-effort: se ignora el fallo */ }
         finally {
             setLoggingOut(false)
             navigate('/login', { replace: true })

@@ -67,26 +67,26 @@ class BitacoraReadOnlyTests(APITestCase):
     
     # Tests para el endpoint de detalle /api/bitacora/<id>/
     
-    def test_get_detail_returns_405(self):
-        """Verifica que GET en detalle retorna 405 Method Not Allowed."""
+    def test_get_detail_returns_404(self):
+        """Verifica que GET en detalle retorna 404: no existe ruta de detalle."""
         self._authenticate()
         response = self.client.get(f'/api/bitacora/{self.bitacora.id}/')
-        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
     
-    def test_put_detail_returns_405(self):
+    def test_put_detail_returns_404(self):
         """Verifica que PUT en detalle retorna 405 Method Not Allowed."""
         self._authenticate()
         response = self.client.put(f'/api/bitacora/{self.bitacora.id}/')
-        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
     
-    def test_patch_detail_returns_405(self):
+    def test_patch_detail_returns_404(self):
         """Verifica que PATCH en detalle retorna 405 Method Not Allowed."""
         self._authenticate()
         response = self.client.patch(f'/api/bitacora/{self.bitacora.id}/')
-        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
     
-    def test_delete_detail_returns_405(self):
+    def test_delete_detail_returns_404(self):
         """Verifica que DELETE en detalle retorna 405 Method Not Allowed."""
         self._authenticate()
         response = self.client.delete(f'/api/bitacora/{self.bitacora.id}/')
-        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)

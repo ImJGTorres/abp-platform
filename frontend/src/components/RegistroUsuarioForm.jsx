@@ -76,6 +76,7 @@ export default function RegistroUsuarioForm() {
 
                 <Field label="Contraseña" name="contrasena"
                     type={verContrasena ? "text" : "password"}
+                    autoComplete="new-password"
                     placeholder="Mínimo 8 caracteres"
                     value={form.contrasena} onChange={handleChange} error={erroresCampo.contrasena}
                     rightElement={
@@ -84,6 +85,7 @@ export default function RegistroUsuarioForm() {
 
                 <Field label="Confirmar contraseña" name="confirmarContrasena"
                     type={verConfirmar ? "text" : "password"}
+                    autoComplete="new-password"
                     placeholder="Repite la contraseña"
                     value={form.confirmarContrasena} onChange={handleChange}
                     error={erroresCampo.confirmarContrasena}

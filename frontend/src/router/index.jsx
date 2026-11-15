@@ -1,74 +1,75 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import PrivateRoute from './PrivateRoute'
-import AdminLayout from '../components/AdminLayout'
-import AdminPlaceholder from '../components/AdminPlaceholder'
-import LoginForm from '../components/LoginForm'
-import RegistroUsuarioForm from '../components/RegistroUsuarioForm'
-import CargaMasivaEstudiantes from '../components/CargaMasivaEstudiantes'
-import GestionUsuarios from '../components/GestionUsuarios'
-import GestionCursosAdmin from '../components/GestionCursosAdmin'
-import ConfiguracionParametros from '../components/ConfiguracionParametros'
-import GestionPeriodos from '../components/GestionPeriodos'
-import GestionRoles from '../components/GestionRoles'
-import BitacorasAuditoria from '../components/BitacorasAuditoria'
-import ProfileEdit from '../components/ProfileEdit'
-import OlvidarContrasena from '../components/OlvidarContrasena'
-import ResetContrasena from '../components/ResetContrasena'
+const AdminLayout = lazy(() => import('../components/AdminLayout'))
+const AdminPlaceholder = lazy(() => import('../components/AdminPlaceholder'))
+const LoginForm = lazy(() => import('../components/LoginForm'))
+const RegistroUsuarioForm = lazy(() => import('../components/RegistroUsuarioForm'))
+const CargaMasivaEstudiantes = lazy(() => import('../components/CargaMasivaEstudiantes'))
+const GestionUsuarios = lazy(() => import('../components/GestionUsuarios'))
+const GestionCursosAdmin = lazy(() => import('../components/GestionCursosAdmin'))
+const ConfiguracionParametros = lazy(() => import('../components/ConfiguracionParametros'))
+const GestionPeriodos = lazy(() => import('../components/GestionPeriodos'))
+const GestionRoles = lazy(() => import('../components/GestionRoles'))
+const BitacorasAuditoria = lazy(() => import('../components/BitacorasAuditoria'))
+const ProfileEdit = lazy(() => import('../components/ProfileEdit'))
+const OlvidarContrasena = lazy(() => import('../components/OlvidarContrasena'))
+const ResetContrasena = lazy(() => import('../components/ResetContrasena'))
 
-import DocenteLayout from '../components/docente/DocenteLayout'
-import GestionCursos from '../components/docente/GestionCursos'
-import DetalleCurso from '../components/docente/DetalleCurso'
-import GestionEquipos from '../components/docente/GestionEquipos'
-import AsignarEstudiantes from '../components/docente/AsignarEstudiantes'
-import EstudiantesCurso from '../components/docente/EstudiantesCurso'
-import ObjetivosProyecto from '../components/docente/ObjetivosProyecto'
-import RAPsProyecto from '../components/docente/RAPsProyecto'
-import ProyectoLayout from '../components/docente/ProyectoLayout'
-import CronogramaProyecto from '../components/docente/CronogramaProyecto'
-import PerfilesRolesProyecto from '../components/docente/PerfilesRolesProyecto'
-import ReorganizarEquipos from '../components/docente/ReorganizarEquipos'
-import EquiposCurso from '../components/docente/EquiposCurso'
-import GestionFases from '../components/docente/GestionFases'
-import GestionActividades from '../components/docente/GestionActividades'
-import PanelRevisionEntregables from '../components/docente/PanelRevisionEntregables'
-import ActividadLayout from '../components/docente/ActividadLayout'
-import DetalleActividad from '../components/docente/DetalleActividad'
-import ConstructorRubricas from '../components/docente/ConstructorRubricas'
-import HistorialEvaluaciones from '../components/docente/HistorialEvaluaciones'
-import EstudiantesRiesgo from '../components/docente/EstudiantesRiesgo'
-import PerfilRendimientoEstudiante from '../components/docente/PerfilRendimientoEstudiante'
-import MonitoreoProyecto from '../components/docente/MonitoreoProyecto'
-import PanelSemaforosDocente from '../components/docente/PanelSemaforosDocente'
-import BancoRubricas from '../components/docente/BancoRubricas'
-import AutoevaluacionesDocente from '../components/docente/AutoevaluacionesDocente'
-import CoevaluacionesDocente from '../components/docente/CoevaluacionesDocente'
+const DocenteLayout = lazy(() => import('../components/docente/DocenteLayout'))
+const GestionCursos = lazy(() => import('../components/docente/GestionCursos'))
+const DetalleCurso = lazy(() => import('../components/docente/DetalleCurso'))
+const GestionEquipos = lazy(() => import('../components/docente/GestionEquipos'))
+const AsignarEstudiantes = lazy(() => import('../components/docente/AsignarEstudiantes'))
+const EstudiantesCurso = lazy(() => import('../components/docente/EstudiantesCurso'))
+const ObjetivosProyecto = lazy(() => import('../components/docente/ObjetivosProyecto'))
+const RAPsProyecto = lazy(() => import('../components/docente/RAPsProyecto'))
+const ProyectoLayout = lazy(() => import('../components/docente/ProyectoLayout'))
+const CronogramaProyecto = lazy(() => import('../components/docente/CronogramaProyecto'))
+const PerfilesRolesProyecto = lazy(() => import('../components/docente/PerfilesRolesProyecto'))
+const ReorganizarEquipos = lazy(() => import('../components/docente/ReorganizarEquipos'))
+const EquiposCurso = lazy(() => import('../components/docente/EquiposCurso'))
+const GestionFases = lazy(() => import('../components/docente/GestionFases'))
+const GestionActividades = lazy(() => import('../components/docente/GestionActividades'))
+const PanelRevisionEntregables = lazy(() => import('../components/docente/PanelRevisionEntregables'))
+const ActividadLayout = lazy(() => import('../components/docente/ActividadLayout'))
+const DetalleActividad = lazy(() => import('../components/docente/DetalleActividad'))
+const ConstructorRubricas = lazy(() => import('../components/docente/ConstructorRubricas'))
+const HistorialEvaluaciones = lazy(() => import('../components/docente/HistorialEvaluaciones'))
+const EstudiantesRiesgo = lazy(() => import('../components/docente/EstudiantesRiesgo'))
+const PerfilRendimientoEstudiante = lazy(() => import('../components/docente/PerfilRendimientoEstudiante'))
+const MonitoreoProyecto = lazy(() => import('../components/docente/MonitoreoProyecto'))
+const PanelSemaforosDocente = lazy(() => import('../components/docente/PanelSemaforosDocente'))
+const BancoRubricas = lazy(() => import('../components/docente/BancoRubricas'))
+const AutoevaluacionesDocente = lazy(() => import('../components/docente/AutoevaluacionesDocente'))
+const CoevaluacionesDocente = lazy(() => import('../components/docente/CoevaluacionesDocente'))
 
-import EstudianteLayout from '../components/Estudiante/EstudianteLayout'
-import DashboardEstudiante from '../components/Estudiante/DashboardEstudiante'
-import MisProyectos from '../components/Estudiante/MisProyectos'
-import EntregablesActividad from '../components/Estudiante/EntregablesActividad'
-import ProyectoEstudianteLayout from '../components/Estudiante/ProyectoEstudianteLayout'
-import Autoevaluacion from '../components/Estudiante/Autoevaluacion'
-import Coevaluacion from '../components/Estudiante/Coevaluacion'
+const EstudianteLayout = lazy(() => import('../components/Estudiante/EstudianteLayout'))
+const DashboardEstudiante = lazy(() => import('../components/Estudiante/DashboardEstudiante'))
+const MisProyectos = lazy(() => import('../components/Estudiante/MisProyectos'))
+const EntregablesActividad = lazy(() => import('../components/Estudiante/EntregablesActividad'))
+const ProyectoEstudianteLayout = lazy(() => import('../components/Estudiante/ProyectoEstudianteLayout'))
+const Autoevaluacion = lazy(() => import('../components/Estudiante/Autoevaluacion'))
+const Coevaluacion = lazy(() => import('../components/Estudiante/Coevaluacion'))
 
-import LiderLayout from '../components/LiderEquipo/LiderLayout'
-import DashboardLider from '../components/LiderEquipo/DashboardLider'
-import DistribucionTrabajo from '../components/LiderEquipo/DistribucionTrabajo'
-import AsignarResponsables from '../components/LiderEquipo/AsignarResponsables'
+const LiderLayout = lazy(() => import('../components/LiderEquipo/LiderLayout'))
+const DashboardLider = lazy(() => import('../components/LiderEquipo/DashboardLider'))
+const DistribucionTrabajo = lazy(() => import('../components/LiderEquipo/DistribucionTrabajo'))
+const AsignarResponsables = lazy(() => import('../components/LiderEquipo/AsignarResponsables'))
 
-import DetalleProyectoEstudiante from '../components/Estudiante/DetalleProyectoEstudiante'
-import HistorialEvaluacionesEstudiante from '../components/Estudiante/HistorialEvaluacionesEstudiante'
-import TableroKanban from '../components/Compartidos/TableroKanban'
-import CalendarioPage from '../components/Compartidos/CalendarioPage'
-import DashboardProgreso from '../components/Estudiante/DashboardProgreso'
+const DetalleProyectoEstudiante = lazy(() => import('../components/Estudiante/DetalleProyectoEstudiante'))
+const HistorialEvaluacionesEstudiante = lazy(() => import('../components/Estudiante/HistorialEvaluacionesEstudiante'))
+const TableroKanban = lazy(() => import('../components/Compartidos/TableroKanban'))
+const CalendarioPage = lazy(() => import('../components/Compartidos/CalendarioPage'))
+const DashboardProgreso = lazy(() => import('../components/Estudiante/DashboardProgreso'))
 
-import DirectorLayout from '../components/director/DirectorLayout'
-import DashboardDirector from '../components/director/DashboardDirector'
-import ListaReportes from '../components/director/ListaReportes'
-import ReporteProyecto from '../components/director/ReporteProyecto'
-import EstudiantesRiesgoDirector from '../components/director/EstudiantesRiesgoDirector'
-import ResultadosBusqueda from '../components/Compartidos/ResultadosBusqueda'
-import IdentidadInstitucional from '../components/IdentidadInstitucional'
+const DirectorLayout = lazy(() => import('../components/director/DirectorLayout'))
+const DashboardDirector = lazy(() => import('../components/director/DashboardDirector'))
+const ListaReportes = lazy(() => import('../components/director/ListaReportes'))
+const ReporteProyecto = lazy(() => import('../components/director/ReporteProyecto'))
+const EstudiantesRiesgoDirector = lazy(() => import('../components/director/EstudiantesRiesgoDirector'))
+const ResultadosBusqueda = lazy(() => import('../components/Compartidos/ResultadosBusqueda'))
+const IdentidadInstitucional = lazy(() => import('../components/IdentidadInstitucional'))
 
 // Redirige conservando location.state (origen de navegación, nombres para migas)
 function RedirigirConEstado({ to }) {
@@ -103,6 +104,7 @@ function PaginaRegistro() {
 export default function AppRouter() {
   return (
     <BrowserRouter>
+      <Suspense fallback={<div className="p-6 text-sm text-gray-500">Cargando…</div>}>
       <Routes>
 
         {/* PÚBLICA */}
@@ -233,6 +235,7 @@ export default function AppRouter() {
         <Route path="*" element={<Navigate to="/login" replace />} />
 
       </Routes>
+      </Suspense>
     </BrowserRouter>
   )
 }
