@@ -63,7 +63,8 @@ def _sin_guardar(plantilla, usuario=None):
 
 # ── SCRUM-538: proveedor ─────────────────────────────────────────────────────
 
-def test_frontend_url_configurada():
+def test_anymail_instalado_y_frontend_url_configurada():
+    assert 'anymail' in settings.INSTALLED_APPS
     assert settings.FRONTEND_URL and not settings.FRONTEND_URL.endswith('/')
 
 
