@@ -44,7 +44,6 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'corsheaders',
     'rest_framework',
-    'anymail',  # HU-043: envío por SendGrid en producción (django-anymail[sendgrid])
     # SimpleJWT: Librería para autenticación JWT (BE-01)
     # Provee views ready-to-use para login, refresh y logout
     'rest_framework_simplejwt',
@@ -274,8 +273,9 @@ CORS_EXPOSE_HEADERS = ['Content-Disposition']
 # CONFIGURACIÓN DE CORREO ELECTRÓNICO (HU-043)
 # =============================================================================
 # Local:      EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend (se imprime en consola)
-# Producción: EMAIL_BACKEND=anymail.backends.sendgrid.EmailBackend + SENDGRID_API_KEY
-#             y DEFAULT_FROM_EMAIL con un remitente verificado en SendGrid.
+# Producción: EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend con Brevo
+#             (EMAIL_HOST=smtp-relay.brevo.com, puerto 587, login y clave SMTP de Brevo)
+#             y DEFAULT_FROM_EMAIL con un remitente verificado en Brevo.
 # Ver backend/.env.example y la sección "Variables de entorno" del README.
 EMAIL_BACKEND      = config('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
 EMAIL_HOST         = config('EMAIL_HOST',         default='smtp.gmail.com')
@@ -285,10 +285,6 @@ EMAIL_HOST_USER    = config('EMAIL_HOST_USER',    default='')
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='ABP Platform <noreply@ufps.edu.co>')
 EMAIL_TIMEOUT      = config('EMAIL_TIMEOUT',      default=10, cast=int)
-
-SENDGRID_API_KEY = config('SENDGRID_API_KEY', default='')
-if SENDGRID_API_KEY:
-    ANYMAIL = {'SENDGRID_API_KEY': SENDGRID_API_KEY}
 
 # URL pública del frontend: los correos la usan para el logo (/media/...) y los enlaces.
 FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:5173').rstrip('/')
