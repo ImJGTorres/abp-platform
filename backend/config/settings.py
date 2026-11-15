@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'corsheaders',
     'rest_framework',
+    'anymail',  # HU-043: envío por la API HTTP de Brevo en producción (django-anymail[brevo])
     # SimpleJWT: Librería para autenticación JWT (BE-01)
     # Provee views ready-to-use para login, refresh y logout
     'rest_framework_simplejwt',
@@ -273,9 +274,9 @@ CORS_EXPOSE_HEADERS = ['Content-Disposition']
 # CONFIGURACIÓN DE CORREO ELECTRÓNICO (HU-043)
 # =============================================================================
 # Local:      EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend (se imprime en consola)
-# Producción: EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend con Brevo
-#             (EMAIL_HOST=smtp-relay.brevo.com, puerto 587, login y clave SMTP de Brevo)
+# Producción: EMAIL_BACKEND=anymail.backends.brevo.EmailBackend + BREVO_API_KEY (clave xkeysib-...)
 #             y DEFAULT_FROM_EMAIL con un remitente verificado en Brevo.
+#             Se usa la API HTTP (puerto 443) porque Render gratuito bloquea el SMTP saliente.
 # Ver backend/.env.example y la sección "Variables de entorno" del README.
 EMAIL_BACKEND      = config('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
 EMAIL_HOST         = config('EMAIL_HOST',         default='smtp.gmail.com')
@@ -285,6 +286,13 @@ EMAIL_HOST_USER    = config('EMAIL_HOST_USER',    default='')
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='ABP Platform <noreply@ufps.edu.co>')
 EMAIL_TIMEOUT      = config('EMAIL_TIMEOUT',      default=10, cast=int)
+
+BREVO_API_KEY = config('BREVO_API_KEY', default='')
+if BREVO_API_KEY:
+    ANYMAIL = {
+        'BREVO_API_KEY': BREVO_API_KEY,
+        'REQUESTS_TIMEOUT': (EMAIL_TIMEOUT, EMAIL_TIMEOUT),
+    }
 
 # URL pública del frontend: los correos la usan para el logo (/media/...) y los enlaces.
 FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:5173').rstrip('/')

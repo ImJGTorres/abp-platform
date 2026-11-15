@@ -8,4 +8,5 @@ gunicorn==22.0.0
 whitenoise==6.7.0
 dj-database-url==2.1.0
 openpyxl==3.1.2
+django-anymail[brevo]==10.3
 reportlab>=4.0.0
