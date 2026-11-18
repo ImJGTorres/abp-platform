@@ -138,7 +138,7 @@ export default function RegistroUsuarioForm() {
 }
 
 
-function Field({ label, name, type = "text", placeholder, value, onChange, error, rightElement }) {
+function Field({ label, name, type = "text", placeholder, value, onChange, error, rightElement, autoComplete }) {
     return (
         <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -147,7 +147,7 @@ function Field({ label, name, type = "text", placeholder, value, onChange, error
             <div className="relative">
                 <input
                     type={type} name={name} value={value} onChange={onChange}
-                    placeholder={placeholder}
+                    placeholder={placeholder} autoComplete={autoComplete}
                     className={`w-full h-9 rounded-md border px-3 text-sm text-gray-900 placeholder-gray-400 transition-shadow
                     focus:outline-none focus:ring-2 focus:ring-red-500
                     ${rightElement ? "pr-9" : ""}

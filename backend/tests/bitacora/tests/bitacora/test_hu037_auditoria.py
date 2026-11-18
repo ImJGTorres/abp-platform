@@ -93,8 +93,8 @@ def evento_base(db):
 def test_registrar_evento_crea_registro(evento_base):
     """Verifica que registrar_evento() guarda en la BD"""
     from apps.bitacora.models import BitacoraSistema
-    assert BitacoraSistema.objects.exists()
-    evento = BitacoraSistema.objects.first()
+    assert BitacoraSistema.objects.filter(descripcion='Test de acceso').exists()
+    evento = BitacoraSistema.objects.filter(descripcion='Test de acceso').latest('id')
     assert evento.accion == 'ACCESS'
     assert evento.modulo == 'configuracion'
 
@@ -103,7 +103,7 @@ def test_registrar_evento_crea_registro(evento_base):
 def test_bitacora_rechaza_update(evento_base):
     """Verifica que el modelo rechaza UPDATE (append-only)"""
     from apps.bitacora.models import BitacoraSistema
-    evento = BitacoraSistema.objects.first()
+    evento = BitacoraSistema.objects.filter(descripcion='Test de acceso').latest('id')
     with pytest.raises(TypeError, match=".*no se permite modificar.*"):
         evento.descripcion = "Intento de cambio"
         evento.save()
@@ -113,7 +113,7 @@ def test_bitacora_rechaza_update(evento_base):
 def test_bitacora_rechaza_delete(evento_base):
     """Verifica que el modelo rechaza DELETE (append-only)"""
     from apps.bitacora.models import BitacoraSistema
-    evento = BitacoraSistema.objects.first()
+    evento = BitacoraSistema.objects.filter(descripcion='Test de acceso').latest('id')
     with pytest.raises(TypeError, match=".*no se permite DELETE.*"):
         evento.delete()
 
