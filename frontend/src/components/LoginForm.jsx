@@ -57,6 +57,12 @@ export default function LoginForm() {
                 return
             }
 
+            // Bloqueo por intentos fallidos (NUE-10): el backend dice cuánto esperar
+            if (err?.status === 429) {
+                setError(err?.data?.detail || 'Demasiados intentos fallidos. Intenta de nuevo en unos minutos.')
+                return
+            }
+
             setError('Error inesperado. Intenta de nuevo.')
 
         } finally {
