@@ -47,14 +47,17 @@ def test_nue10_un_login_correcto_reinicia_el_contador():
 @pytest.mark.django_db
 def test_nue11_refresh_de_usuario_desactivado_es_rechazado():
     usuario = UsuarioFactory()
-    refresh = RefreshToken()
-    refresh['user_id'] = usuario.id
     url = reverse('token_refresh')
-    assert APIClient().post(url, {'refresh': str(refresh)}, format='json').status_code == 200
+    activo = RefreshToken.for_user(usuario)
+    assert APIClient().post(url, {'refresh': str(activo)}, format='json').status_code == 200
 
+    # Refresh nuevo, nunca usado: con ROTATE_REFRESH_TOKENS + BLACKLIST_AFTER_ROTATION reutilizar el
+    # anterior fallaría por la lista negra y la prueba pasaría aunque no se validara el estado
+    # (falso positivo detectado en el Sprint 7, HAL-S7-09).
+    sin_usar = RefreshToken.for_user(usuario)
     usuario.estado = Usuario.Estado.INACTIVO
     usuario.save()
-    assert APIClient().post(url, {'refresh': str(refresh)}, format='json').status_code == 401
+    assert APIClient().post(url, {'refresh': str(sin_usar)}, format='json').status_code == 401
 
 
 @pytest.mark.django_db

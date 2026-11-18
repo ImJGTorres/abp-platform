@@ -13,6 +13,7 @@ from rest_framework.views import APIView
 
 from apps.bitacora.models import BitacoraSistema
 from apps.bitacora.utils import registrar_evento
+from apps.cursos.acceso import puede_ver_proyecto
 from apps.cursos.models import Actividad, Proyecto
 from apps.entregables.models import Entregable
 from apps.usuarios.authentication import UsuarioJWTAuthentication
@@ -50,6 +51,10 @@ class EquiposPorProyectoView(APIView):
             proyecto = Proyecto.objects.select_related('id_curso').get(pk=proyecto_id)
         except Proyecto.DoesNotExist:
             return Response({'detail': 'Proyecto no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Los equipos traen nombre y correo de cada miembro: solo los participantes del proyecto
+        if not puede_ver_proyecto(request.user, proyecto):
+            raise PermissionDenied('No tienes acceso a los equipos de este proyecto.')
 
         equipos_qs = Equipo.objects.filter(proyecto=proyecto).prefetch_related('miembros__usuario')
         equipos_data = EquipoDetalleSerializer(equipos_qs, many=True).data
@@ -113,6 +118,8 @@ class EstudiantesEquipoView(APIView):
             return Response({'detail': 'Equipo no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
         proyecto = equipo.proyecto
+        # Lista todos los estudiantes activos con su correo: es una pantalla del gestor (asignar)
+        exigir_gestion_proyecto(request.user, proyecto)
 
         # BD01 — Filtrar solo miembros activos para determinar pertenencia actual
         ids_en_equipo = set(
@@ -265,6 +272,9 @@ class ActualizarRolView(generics.UpdateAPIView):
     PATCH /api/equipos/<equipo_id>/miembros/<usuario_id>/rol/
     Actualiza el rol interno y descripción de responsabilidades de un miembro.
     Validación: solo el propio usuario puede modificar su rol.
+    Validación (NUE-02): el rol 'lider' no se lo asigna (ni se lo quita) el propio estudiante;
+    lo hace el docente dueño, el director o el administrador por PATCH /api/miembros/<id>/,
+    que además sincroniza tipo_rol.
     Validación (serializer): solo un miembro puede tener rol 'lider' por equipo.
     """
     authentication_classes = [UsuarioJWTAuthentication]
@@ -285,6 +295,12 @@ class ActualizarRolView(generics.UpdateAPIView):
         # BE04 — Solo el usuario dueño de la membresía puede actualizar su rol
         if request.user.id != miembro.usuario_id:
             return Response({'detail': 'Solo puedes actualizar tu propio rol.'}, status=status.HTTP_403_FORBIDDEN)
+        nuevo_rol = request.data.get('rol_interno')
+        if nuevo_rol == 'lider' or (miembro.rol_interno == 'lider' and nuevo_rol not in (None, 'lider')):
+            return Response(
+                {'detail': 'El rol de líder solo lo asigna el docente del curso.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         serializer = self.get_serializer(miembro, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()

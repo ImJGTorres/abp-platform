@@ -11,7 +11,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.bitacora.models import BitacoraSistema
-from apps.bitacora.utils import registrar_evento
+from apps.bitacora.utils import _get_ip, registrar_evento
 from apps.configuracion.models import PeriodoAcademico
 from apps.cursos.acceso import puede_gestionar_proyecto, puede_ver_proyecto
 from apps.cursos.models import Proyecto
@@ -149,7 +149,7 @@ class RubricaDetailView(generics.RetrieveUpdateDestroyAPIView):
                 accion=BitacoraSistema.Accion.UPDATE,
                 modulo='rubricas',
                 descripcion=f'Editó rúbrica id={rubrica.pk}',
-                ip_origen=request.META.get('REMOTE_ADDR'),
+                ip_origen=_get_ip(request),
             )
         except Exception:
             logger.exception('Error no crítico ignorado')
@@ -347,7 +347,7 @@ class ProyectoRubricaListCreateView(APIView):
                 accion=BitacoraSistema.Accion.CREATE,
                 modulo='rubricas',
                 descripcion=f'Creó rúbrica id={rubrica.pk} en proyecto id={proyecto_id}',
-                ip_origen=request.META.get('REMOTE_ADDR'),
+                ip_origen=_get_ip(request),
             )
         except Exception:
             logger.exception('Error no crítico ignorado')
@@ -837,7 +837,7 @@ class AutoevaluacionListCreateView(APIView):
                 accion=BitacoraSistema.Accion.CREATE,
                 modulo='autoevaluacion',
                 descripcion=f'Creó autoevaluación id={autoevaluacion.pk} en proyecto id={id_proyecto}',
-                ip_origen=request.META.get('REMOTE_ADDR'),
+                ip_origen=_get_ip(request),
             )
         except Exception:
             logger.exception('Error no crítico ignorado')
@@ -1173,7 +1173,7 @@ class CoevaluacionListCreateView(APIView):
                     f'Creó coevaluación id={coevaluacion.pk} '
                     f'en proyecto id={id_proyecto}'
                 ),
-                ip_origen=request.META.get('REMOTE_ADDR'),
+                ip_origen=_get_ip(request),
             )
         except Exception:
             logger.exception('Error no crítico ignorado')

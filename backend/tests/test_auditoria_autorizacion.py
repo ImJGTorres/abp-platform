@@ -165,13 +165,14 @@ def test_nue06_cupo_no_se_supera_con_peticiones_simultaneas(django_db_setup, dja
     datos a mano sobre la base de pruebas.
     """
     with django_db_blocker.unblock():
-        ParametroSistema.objects.get_or_create(
+        parametro, parametro_creado = ParametroSistema.objects.get_or_create(
             clave='max_estudiantes_por_equipo',
             defaults={'valor': '10', 'categoria': ParametroSistema.Categoria.GENERAL,
                       'tipo_dato': ParametroSistema.TipoDato.INTEGER},
         )
         dueno = DocenteFactory()
         curso = CursoFactory(id_docente=dueno, usuario_creo=dueno)
+        periodo = curso.id_periodo_academico
         proyecto = Proyecto.objects.create(
             nombre='P', id_curso=curso, fecha_inicio=date(2026, 2, 1),
             fecha_fin_estimada=date(2026, 5, 31), estado=Proyecto.Estado.EN_EJECUCION,
@@ -199,7 +200,15 @@ def test_nue06_cupo_no_se_supera_con_peticiones_simultaneas(django_db_setup, dja
             equipo.delete()
             proyecto.delete()
             curso.delete()
-            Usuario.objects.filter(pk__in=[e.pk for e in estudiantes] + [dueno.pk]).delete()
+            # Lo que crean CursoFactory (periodo y su docente) y el parámetro también quedan
+            # confirmados en la BD: si no se borran rompen las corridas siguientes con --reuse-db
+            # (correos y nombres de periodo repetidos, parámetro duplicado). HAL-S7-11.
+            creador_periodo = periodo.usuario_creo_id
+            periodo.delete()
+            Usuario.objects.filter(
+                pk__in=[e.pk for e in estudiantes] + [dueno.pk, creador_periodo]).delete()
+            if parametro_creado:
+                parametro.delete()
 
     assert activos == 2
     assert 500 not in resultados
