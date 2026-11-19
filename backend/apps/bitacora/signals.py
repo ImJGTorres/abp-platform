@@ -46,7 +46,7 @@ def post_save_signal(sender, instance, created, **kwargs):
                 old_instance = sender.objects.get(pk=instance.pk)
                 valores_anteriores = _get_values_from_instance(old_instance)
             except sender.DoesNotExist:
-                pass
+                logger.debug('Sin versión anterior de %s pk=%s: no se registran valores anteriores.', sender.__name__, instance.pk)
             descripcion = f'{modulo.capitalize()} actualizado (valores anteriores no disponibles)'
         else:
             descripcion = f'{modulo.capitalize()} creado'
@@ -87,22 +87,22 @@ def setup_signals():
     try:
         models_to_track.append(apps.get_model('usuarios', 'Usuario'))
     except LookupError:
-        pass
+        logger.debug('Modelo %s.%s no instalado: no se audita.', 'usuarios', 'Usuario')
     
     try:
         models_to_track.append(apps.get_model('roles', 'Rol'))
     except LookupError:
-        pass
+        logger.debug('Modelo %s.%s no instalado: no se audita.', 'roles', 'Rol')
     
     try:
         models_to_track.append(apps.get_model('configuracion', 'PeriodoAcademico'))
     except LookupError:
-        pass
+        logger.debug('Modelo %s.%s no instalado: no se audita.', 'configuracion', 'PeriodoAcademico')
     
     try:
         models_to_track.append(apps.get_model('cursos', 'Curso'))
     except LookupError:
-        pass
+        logger.debug('Modelo %s.%s no instalado: no se audita.', 'cursos', 'Curso')
     
     for model in models_to_track:
         signals.post_save.connect(post_save_signal, sender=model)

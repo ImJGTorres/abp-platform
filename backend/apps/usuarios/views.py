@@ -940,7 +940,7 @@ class SubirFotoPerfilView(APIView):
                 try:
                     os.remove(ruta_anterior)
                 except OSError:
-                    pass
+                    logger.warning('No se pudo borrar la foto anterior %s', ruta_anterior, exc_info=True)
 
         with open(ruta_disco, 'wb') as f:
             for chunk in archivo.chunks():
