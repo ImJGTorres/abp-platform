@@ -7,7 +7,7 @@
 // La llegada real en staging (SendGrid) se evidencia aparte; aquí se prueba el encolado
 // inmediato + la frecuencia del scheduler, que acotan el tiempo de entrega (RNF28: < 15 min).
 
-const URL_LOGIN = 'http://localhost:5173/static/login'
+const URL_LOGIN = 'http://localhost:5173/login'
 const PASSWORD = 'Test1234'
 const DOCENTE = 'demo.docente.hu043@example.com'
 const ESTUDIANTE = 'demo.est1.hu043@example.com'

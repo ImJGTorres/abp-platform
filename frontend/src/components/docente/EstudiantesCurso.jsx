@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { estudiantesApi, cursosApi, equiposApi } from '../../services/docenteApi'
 import MigasDePan from '../Compartidos/MigasDePan'
+import { avisarSiProhibido, mensajeDeError } from '../../utils/errorHandler'
 
 const AVATAR_COLORS = ['#d32f2f', '#1976d2', '#388e3c', '#7b1fa2', '#f57c00', '#0097a7', '#5d4037', '#37474f']
 
@@ -64,7 +65,9 @@ function ModalAsignar({ estudiantesIds, proyectos, cursoId, onClose, onExito }) 
             const result = await equiposApi.asignarEstudiantes(targetEquipoId, estudiantesIds)
             onExito(result.asignados ?? estudiantesIds.length, result.errores ?? [])
         } catch (err) {
-            setErrMsg(err?.data?.detail ?? 'Error al asignar estudiantes.')
+            if (!avisarSiProhibido(err)) {
+                setErrMsg(mensajeDeError(err, 'Error al asignar estudiantes.'))
+            }
         } finally {
             setAsignando(false)
         }

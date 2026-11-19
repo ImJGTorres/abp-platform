@@ -87,7 +87,6 @@ function PeriodoForm({ periodo, onSave, onCancel }) {
   const [fechaInicio, setFechaInicio] = useState(periodo?.fecha_inicio || "");
   const [fechaFin,    setFechaFin]    = useState(periodo?.fecha_fin    || "");
   const [estado,      setEstado]      = useState(periodo?.estado       || "activo");
-  const [cursos,      setCursos]      = useState(periodo?.cursos       ?? 0);
 
   const dateError =
     fechaInicio && fechaFin && fechaFin <= fechaInicio
@@ -109,7 +108,6 @@ function PeriodoForm({ periodo, onSave, onCancel }) {
       fecha_inicio: fechaInicio,
       fecha_fin:    fechaFin,
       estado,
-      cursos: Number(cursos),
     });
   };
 
@@ -169,29 +167,18 @@ function PeriodoForm({ periodo, onSave, onCancel }) {
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className={labelCls}>Estado</label>
-          <select
-            value={estado}
-            onChange={(e) => setEstado(e.target.value)}
-            className={inputCls + " bg-white"}
-          >
-            {estadoOptions.map((opt) => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className={labelCls}>Cursos Asociados</label>
-          <input
-            type="number"
-            min="1"
-            value={cursos}
-            onChange={(e) => setCursos(e.target.value)}
-            className={inputCls}
-          />
-        </div>
+      {/* Los cursos asociados los calcula el backend (total_cursos); no se editan aquí. */}
+      <div>
+        <label className={labelCls}>Estado</label>
+        <select
+          value={estado}
+          onChange={(e) => setEstado(e.target.value)}
+          className={inputCls + " bg-white"}
+        >
+          {estadoOptions.map((opt) => (
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          ))}
+        </select>
       </div>
 
       <div className="flex gap-3 justify-end pt-2">
@@ -436,7 +423,7 @@ export default function GestionPeriodos() {
                     </span>
                   </td>
                   <td className="px-5 py-4 text-sm text-blue-600 underline cursor-pointer">
-                    {p.cursos} cursos
+                    {p.total_cursos ?? 0} cursos
                   </td>
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-2">

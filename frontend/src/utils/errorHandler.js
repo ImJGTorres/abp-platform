@@ -6,6 +6,37 @@
  *   - Términos técnicos estándar de la industria (API, cache, token, handler): inglés.
  */
 
+import toast from 'react-hot-toast'
+
+const MENSAJE_SIN_PERMISO = 'No tienes permiso para realizar esta acción.'
+
+/**
+ * Mensaje legible de un error de la API: detail (DRF), error, o el texto por defecto.
+ *
+ * @param {object} error - Error capturado en catch ({ status, data }).
+ * @param {string} porDefecto - Texto si el backend no envió un mensaje.
+ * @returns {string}
+ */
+export function mensajeDeError(error, porDefecto) {
+  const data = error?.data
+  if (typeof data === 'string' && data) return data
+  return data?.detail || data?.error || porDefecto
+}
+
+/**
+ * Si la API respondió 403, muestra un toast con el mensaje del backend y retorna true.
+ * El permiso real lo decide el backend; esto solo informa al usuario por qué no se hizo.
+ *
+ * @param {object} error - Error capturado en catch ({ status, data }).
+ * @returns {boolean} true si era un 403 (ya avisado), false en otro caso.
+ */
+export function avisarSiProhibido(error) {
+  if (error?.status !== 403) return false
+  // id fijo: si varias peticiones fallan a la vez, se muestra un solo toast
+  toast.error(mensajeDeError(error, MENSAJE_SIN_PERMISO), { id: 'api-403' })
+  return true
+}
+
 /**
  * Extrae y normaliza errores de una respuesta de la API.
  *

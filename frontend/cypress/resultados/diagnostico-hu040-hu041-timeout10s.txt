@@ -1,0 +1,131 @@
+
+Warning: The allowCypressEnv configuration option is enabled. This allows any browser code to read values from Cypress.env(). This is insecure and will be removed in a future major version.
+
+1. Replace Cypress.env() calls with cy.env() (for sensitive values) or Cypress.expose() (for public configuration)
+2. Set allowCypressEnv: false in your Cypress configuration to disable Cypress.env()
+
+Learn more: https://on.cypress.io/cypress-env-migration
+
+
+====================================================================================================
+
+  (Run Starting)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Cypress:        15.13.1                                                                        │
+  │ Browser:        Electron 138 (headless)                                                        │
+  │ Node Version:   v22.19.0 (C:\software\Node\node.exe)                                           │
+  │ Specs:          2 found (hu040-calendario.cy.js, hu041-semaforo.cy.js)                         │
+  │ Searched:       C:\Users\N\Proyectos\ABP\abp-platform\frontend\cypress\e2e\hu040-calendario.cy │
+  │                 .js, C:\Users\N\Proyectos\ABP\abp-platform\frontend\cypress\e2e\hu041-semaforo │
+  │                 .cy.js                                                                         │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+  Running:  hu040-calendario.cy.js                                                          (1 of 2)
+
+
+  √ CA-01 - El calendario muestra fechas de 2 cursos con código de colores por urgencia (9776ms)
+  √ CA-03 - El detalle de un evento muestra avance, equipo y enlace directo (8374ms)
+  √ CA-02 - La notificación de recordatorio llega sin que el usuario la busque (10123ms)
+
+  3 passing (28s)
+
+
+  (Results)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Tests:        3                                                                                │
+  │ Passing:      3                                                                                │
+  │ Failing:      0                                                                                │
+  │ Pending:      0                                                                                │
+  │ Skipped:      0                                                                                │
+  │ Screenshots:  3                                                                                │
+  │ Video:        false                                                                            │
+  │ Duration:     28 seconds                                                                       │
+  │ Spec Ran:     hu040-calendario.cy.js                                                           │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+  (Screenshots)
+
+  -  C:\Users\N\Proyectos\ABP\abp-platform\frontend\cypress\screenshots\hu040-calenda     (1280x720)
+     rio.cy.js\hu040-ca01-calendario-multi-curso.png                                                
+  -  C:\Users\N\Proyectos\ABP\abp-platform\frontend\cypress\screenshots\hu040-calenda     (1280x720)
+     rio.cy.js\hu040-ca03-detalle-evento.png                                                        
+  -  C:\Users\N\Proyectos\ABP\abp-platform\frontend\cypress\screenshots\hu040-calenda     (1280x720)
+     rio.cy.js\hu040-ca02-campanita-recordatorio.png                                                
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+  Running:  hu041-semaforo.cy.js                                                            (2 of 2)
+
+
+  √ CA-01 - Estudiante al día ve el semáforo en Verde con resumen óptimo (13418ms)
+  1) CA-02 - Estudiante con atrasos ve Amarillo/Rojo con críticos y recomendaciones reales
+  2) CA-03 - El color del semáforo coincide con el que ve el director para el mismo estudiante
+
+  1 passing (54s)
+  2 failing
+
+  1) CA-02 - Estudiante con atrasos ve Amarillo/Rojo con críticos y recomendaciones reales:
+     AssertionError: Timed out retrying after 10000ms: expected '<p.text-[10.5px].mt-1.text-[#9ba7ae]>' to be 'visible'
+
+This element `<p.text-[10.5px].mt-1.text-[#9ba7ae]>` is not visible because its content is being clipped by one of its parent elements, which has a CSS property of overflow: `hidden`, `clip`, `scroll` or `auto`
+      at Context.eval (webpack://frontend/./cypress/e2e/hu041-semaforo.cy.js:43:32)
+
+  2) CA-03 - El color del semáforo coincide con el que ve el director para el mismo estudiante:
+     AssertionError: Timed out retrying after 10000ms: Expected to find content: 'Riesgo crítico' within the element: <tr#fila-estudiante-38.transition-colors.hover:bg-[#fafafa]> but never did.
+      at Context.eval (webpack://frontend/./cypress/e2e/hu041-semaforo.cy.js:67:34)
+      at withinFn (http://localhost:5173/__cypress/runner/cypress_runner.js:135978:8)
+      at <unknown> (http://localhost:5173/__cypress/runner/cypress_runner.js:136059:16)
+      at __WEBPACK_DEFAULT_EXPORT__ (http://localhost:5173/__cypress/runner/cypress_runner.js:133906:10)
+      at Context.within (http://localhost:5173/__cypress/runner/cypress_runner.js:136045:67)
+      at wrapped (http://localhost:5173/__cypress/runner/cypress_runner.js:146308:19)
+
+
+
+
+  (Results)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Tests:        3                                                                                │
+  │ Passing:      1                                                                                │
+  │ Failing:      2                                                                                │
+  │ Pending:      0                                                                                │
+  │ Skipped:      0                                                                                │
+  │ Screenshots:  3                                                                                │
+  │ Video:        false                                                                            │
+  │ Duration:     53 seconds                                                                       │
+  │ Spec Ran:     hu041-semaforo.cy.js                                                             │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+  (Screenshots)
+
+  -  C:\Users\N\Proyectos\ABP\abp-platform\frontend\cypress\screenshots\hu041-semafor     (1280x720)
+     o.cy.js\hu041-ca01-semaforo-verde.png                                                          
+  -  C:\Users\N\Proyectos\ABP\abp-platform\frontend\cypress\screenshots\hu041-semafor     (1280x720)
+     o.cy.js\CA-02 - Estudiante con atrasos ve AmarilloRojo con críticos y recomendac               
+     iones reales (failed).png                                                                      
+  -  C:\Users\N\Proyectos\ABP\abp-platform\frontend\cypress\screenshots\hu041-semafor     (1280x720)
+     o.cy.js\CA-03 - El color del semáforo coincide con el que ve el director para el               
+      mismo estudiante (failed).png                                                                 
+
+
+====================================================================================================
+
+  (Run Finished)
+
+
+       Spec                                              Tests  Passing  Failing  Pending  Skipped  
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ ✔  hu040-calendario.cy.js                   00:28        3        3        -        -        - │
+  ├────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ ✖  hu041-semaforo.cy.js                     00:53        3        1        2        -        - │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+    ✖  1 of 2 failed (50%)                      01:22        6        4        2        -        -  
+

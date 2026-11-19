@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { equiposApi, estudiantesApi, cursosApi } from '../../services/docenteApi'
 import MigasDePan from '../Compartidos/MigasDePan'
+import { avisarSiProhibido, mensajeDeError } from '../../utils/errorHandler'
 
 const AVATAR_COLORS = ['#d32f2f', '#1976d2', '#388e3c', '#7b1fa2', '#f57c00', '#0097a7', '#5d4037', '#37474f']
 const TEAM_COLORS   = ['#1976d2', '#388e3c', '#f57c00', '#7b1fa2', '#d32f2f', '#0097a7']
@@ -273,7 +274,13 @@ export default function ReorganizarEquipos() {
             }
             await cargarDatos()
         } catch (err) {
-            setError(err?.data?.detail ?? "Error al procesar el movimiento.")
+            if (avisarSiProhibido(err)) {
+                // Un movimiento son hasta dos peticiones (retirar + asignar): si la segunda
+                // se rechazó, se recarga para mostrar el estado real de los equipos.
+                await cargarDatos()
+            } else {
+                setError(mensajeDeError(err, "Error al procesar el movimiento."))
+            }
         } finally {
             setMoviendo(false)
         }

@@ -3,14 +3,7 @@
 // Datos de prueba: backend/apps/calendario/management/commands/seed_hu040_demo.py
 // (correr antes de esta suite: python manage.py seed_hu040_demo)
 
-// NOTA: vite.config.js tiene base:'/static/', así que el dev server local solo sirve
-// bajo ese prefijo (http://localhost:5173/static/...). El router tiene una ruta catch-all
-// ('*' -> /login) que intercepta cualquier cy.visit() a una ruta de la app bajo /static/,
-// porque no coincide con el path real (p.ej. '/static/estudiante/calendario' no matchea
-// '/estudiante/calendario'). Por eso solo se hace cy.visit() UNA VEZ, a /static/login; el
-// resto de la navegación es por clic en la UI (navegación del lado del cliente, sin
-// recarga, por lo que no pasa por esa limitación).
-const URL_LOGIN = 'http://localhost:5173/static/login'
+const URL_LOGIN = 'http://localhost:5173/login'
 
 function loginYClicCalendario() {
   // El menú lateral usa 'hidden lg:flex' (Tailwind, breakpoint 1024px); con el
