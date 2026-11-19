@@ -101,7 +101,7 @@ class NivelDesempeno(models.Model):
                 name='unique_nivel_por_criterio',
             ),
             models.CheckConstraint(
-                check=models.Q(nivel__gte=1) & models.Q(nivel__lte=4),
+                condition=models.Q(nivel__gte=1) & models.Q(nivel__lte=4),
                 name='nivel_entre_1_y_4',
             ),
         ]
@@ -245,7 +245,7 @@ class Retroalimentacion(models.Model):
         constraints = [
             # grupal  → id_equipo no nulo
             models.CheckConstraint(
-                check=(
+                condition=(
                     models.Q(tipo='grupal',     id_equipo__isnull=False) |
                     models.Q(tipo='individual', id_estudiante__isnull=False) |
                     models.Q(tipo='actividad',  id_actividad__isnull=False)
@@ -398,7 +398,7 @@ class Coevaluacion(models.Model):
                 name='unique_coevaluacion_por_periodo',
             ),
             models.CheckConstraint(
-                check=~models.Q(id_evaluador=models.F('id_evaluado')),
+                condition=~models.Q(id_evaluador=models.F('id_evaluado')),
                 name='evaluador_distinto_de_evaluado',
             ),
         ]
