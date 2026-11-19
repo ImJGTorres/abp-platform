@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useParams, useLocation } from 'react-router-dom'
 import { equiposApi } from '../../services/docenteApi'
+import toast from 'react-hot-toast'
 import MigasDePan from '../Compartidos/MigasDePan'
+import { avisarSiProhibido, mensajeDeError } from '../../utils/errorHandler'
 import { migasProyecto } from '../../utils/migasDocente'
 
 const AVATAR_COLORS = ['#d32f2f', '#1976d2', '#388e3c', '#7b1fa2', '#f57c00', '#0097a7', '#5d4037', '#37474f']
@@ -91,7 +93,10 @@ export default function PerfilesRolesProyecto() {
             }))
             setMiembroSel(prev => ({ ...prev, rol_interno: updated.rol_interno }))
         } catch (err) {
-            alert(err?.data?.detail ?? 'Error al actualizar el rol.')
+            // 403: toast con el mensaje del backend; otros errores también por toast (antes alert())
+            if (!avisarSiProhibido(err)) {
+                toast.error(mensajeDeError(err, 'Error al actualizar el rol.'))
+            }
         } finally {
             setGuardandoRol(false)
         }
