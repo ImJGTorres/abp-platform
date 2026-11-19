@@ -319,7 +319,7 @@ class ActividadDependencia(models.Model):
                 name='unique_dependencia_actividad',
             ),
             models.CheckConstraint(
-                check=~models.Q(id_actividad=models.F('id_actividad_predecesor')),
+                condition=~models.Q(id_actividad=models.F('id_actividad_predecesor')),
                 name='no_autoref_dependencia',
             ),
         ]
@@ -361,7 +361,7 @@ class AvanceActividad(models.Model):
         ordering = ['-fecha_registro']
         constraints = [
             models.CheckConstraint(
-                check=models.Q(porcentaje_completado__gte=0) & models.Q(porcentaje_completado__lte=100),
+                condition=models.Q(porcentaje_completado__gte=0) & models.Q(porcentaje_completado__lte=100),
                 name='avance_porcentaje_0_100',
             )
         ]

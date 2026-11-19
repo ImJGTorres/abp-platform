@@ -37,7 +37,7 @@ class Anuncio(models.Model):
         ordering = ['-fecha_publicacion']
         constraints = [
             models.CheckConstraint(
-                check=models.Q(id_curso__isnull=False) | models.Q(id_proyecto__isnull=False),
+                condition=models.Q(id_curso__isnull=False) | models.Q(id_proyecto__isnull=False),
                 name='anuncio_curso_o_proyecto',
             )
         ]
