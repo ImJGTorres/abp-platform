@@ -2,9 +2,10 @@
 // SCRUM-550 (HU-041) — Semáforo de rendimiento personal del estudiante.
 // Datos de prueba: backend/apps/reportes/management/commands/seed_hu041_demo.py
 // (correr antes de esta suite: python manage.py seed_hu041_demo)
-// jesusgabrieltd@ufps.edu.co ya queda en 'rojo' con los datos reales existentes (HU-040).
+// El seed crea un estudiante verde y uno rojo propios de la demo, para no depender de
+// datos reales que cambian con el uso.
 
-const URL_LOGIN = 'http://localhost:5173/static/login'
+const URL_LOGIN = 'http://localhost:5173/login'
 
 function login(correo, contrasena) {
   // El menú lateral usa 'hidden lg:flex' (Tailwind, breakpoint 1024px); con el
@@ -36,7 +37,7 @@ it('CA-01 - Estudiante al día ve el semáforo en Verde con resumen óptimo', ()
 
 // Escenario 2 — Semáforo en Amarillo/Rojo con críticos y recomendaciones
 it('CA-02 - Estudiante con atrasos ve Amarillo/Rojo con críticos y recomendaciones reales', () => {
-  login('jesusgabrieltd@ufps.edu.co', 'Test1234')
+  login('estudiante.rojo.hu041@ufps.edu.co', 'Test1234')
   cy.url().should('include', '/estudiante')
 
   cy.contains('h2', 'Semáforo de rendimiento').should('be.visible')
@@ -63,7 +64,7 @@ it('CA-03 - El color del semáforo coincide con el que ve el director para el mi
   cy.contains('button', 'Todos').click()
 
   // La tabla de riesgo puede tardar más que el timeout por defecto (latencia de Supabase).
-  cy.contains('tr', 'Jesus Gabriel Torres', { timeout: 15000 }).scrollIntoView().within(() => {
+  cy.contains('tr', 'Ramiro Estudiante Rojo', { timeout: 15000 }).scrollIntoView().within(() => {
     cy.contains('Riesgo crítico').should('be.visible')
   })
   cy.contains('tr', 'Valeria Estudiante Verde', { timeout: 15000 }).scrollIntoView().within(() => {

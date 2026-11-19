@@ -1,0 +1,356 @@
+
+Warning: The allowCypressEnv configuration option is enabled. This allows any browser code to read values from Cypress.env(). This is insecure and will be removed in a future major version.
+
+1. Replace Cypress.env() calls with cy.env() (for sensitive values) or Cypress.expose() (for public configuration)
+2. Set allowCypressEnv: false in your Cypress configuration to disable Cypress.env()
+
+Learn more: https://on.cypress.io/cypress-env-migration
+
+
+====================================================================================================
+
+  (Run Starting)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Cypress:        15.13.1                                                                        │
+  │ Browser:        Electron 138 (headless)                                                        │
+  │ Node Version:   v22.19.0 (C:\software\Node\node.exe)                                           │
+  │ Specs:          9 found (hu001-registro.cy.js, hu002-login.cy.js, hu003-roles.cy.js, hu036-per │
+  │                 iodos.cy.js, hu040-calendario.cy.js, hu041-semaforo.cy.js, hu042-panel-docente │
+  │                 .cy.js, hu043-correos.cy.js, parametros.cy.js)                                 │
+  │ Searched:       cypress/e2e/**/*.cy.{js,jsx}                                                   │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+  Running:  hu001-registro.cy.js                                                            (1 of 9)
+
+
+  √ CP-01 - Registro exitoso muestra confirmación (24231ms)
+  √ CP-02 - Correo duplicado muestra error sin limpiar formulario (13375ms)
+  √ CP-03 - Sin sesión de administrador redirige a login (394ms)
+
+  3 passing (46s)
+
+
+  (Results)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Tests:        3                                                                                │
+  │ Passing:      3                                                                                │
+  │ Failing:      0                                                                                │
+  │ Pending:      0                                                                                │
+  │ Skipped:      0                                                                                │
+  │ Screenshots:  0                                                                                │
+  │ Video:        false                                                                            │
+  │ Duration:     46 seconds                                                                       │
+  │ Spec Ran:     hu001-registro.cy.js                                                             │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+  Running:  hu002-login.cy.js                                                               (2 of 9)
+
+
+  √ CP-08a - Administrador redirige a /admin (21612ms)
+  √ CP-08b - Docente redirige a /docente (6579ms)
+  √ CP-08c - Estudiante redirige a /estudiante (5694ms)
+  √ CP-08d - Director redirige a /director (6626ms)
+  √ CP-08e - Líder de equipo redirige a /lider (6352ms)
+  √ CP-09 - Credenciales incorrectas muestran error en pantalla (2575ms)
+  √ CP-10 - Token inválido redirige a /login (753ms)
+
+  7 passing (51s)
+
+
+  (Results)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Tests:        7                                                                                │
+  │ Passing:      7                                                                                │
+  │ Failing:      0                                                                                │
+  │ Pending:      0                                                                                │
+  │ Skipped:      0                                                                                │
+  │ Screenshots:  0                                                                                │
+  │ Video:        false                                                                            │
+  │ Duration:     50 seconds                                                                       │
+  │ Spec Ran:     hu002-login.cy.js                                                                │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+  Running:  hu003-roles.cy.js                                                               (3 of 9)
+
+
+  √ CP-01 - Administrador puede crear un rol correctamente (38844ms)
+  √ CP-02 - Administrador puede editar un rol correctamente (8970ms)
+  √ CP-03 - Los permisos se asignan correctamente por rol (14042ms)
+  √ CP-04 - No se puede eliminar un rol con usuarios activos (5435ms)
+  √ CP-05 - Se puede eliminar un rol sin usuarios asignados (9172ms)
+  √ CP-06 - Docente no puede acceder a /admin/roles (7206ms)
+  √ CP-07 - Estudiante no puede acceder a /docente (8167ms)
+  √ CP-08 - Backend retorna 403 a docente (2827ms)
+
+  8 passing (2m)
+
+
+  (Results)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Tests:        8                                                                                │
+  │ Passing:      8                                                                                │
+  │ Failing:      0                                                                                │
+  │ Pending:      0                                                                                │
+  │ Skipped:      0                                                                                │
+  │ Screenshots:  0                                                                                │
+  │ Video:        false                                                                            │
+  │ Duration:     1 minute, 45 seconds                                                             │
+  │ Spec Ran:     hu003-roles.cy.js                                                                │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+  Running:  hu036-periodos.cy.js                                                            (4 of 9)
+
+
+  HU-036 - Gestión de Períodos Académicos
+    √ CA-01: Crear nuevo periodo académico (34672ms)
+    √ CA-02: Editar periodo existente (10390ms)
+    √ CA-03: Eliminar periodo sin cursos (9979ms)
+    √ CA-03b: No se puede eliminar un periodo con cursos (4286ms)
+    √ CA-04: Validación - fecha fin menor a fecha inicio (4306ms)
+    √ CA-04b: Validación - formato del nombre YYYY-N (5642ms)
+    √ Verificar estructura de la tabla de periodos (2973ms)
+    √ Verificar estados de periodos en la UI (3063ms)
+    √ Verificar cancelación en modal de creación (3669ms)
+    √ Verificar cancelación en modal de eliminación (2887ms)
+
+
+  10 passing (1m)
+
+
+  (Results)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Tests:        10                                                                               │
+  │ Passing:      10                                                                               │
+  │ Failing:      0                                                                                │
+  │ Pending:      0                                                                                │
+  │ Skipped:      0                                                                                │
+  │ Screenshots:  0                                                                                │
+  │ Video:        false                                                                            │
+  │ Duration:     1 minute, 24 seconds                                                             │
+  │ Spec Ran:     hu036-periodos.cy.js                                                             │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+  Running:  hu040-calendario.cy.js                                                          (5 of 9)
+
+
+  √ CA-01 - El calendario muestra fechas de 2 cursos con código de colores por urgencia (8778ms)
+  √ CA-03 - El detalle de un evento muestra avance, equipo y enlace directo (12707ms)
+  √ CA-02 - La notificación de recordatorio llega sin que el usuario la busque (8463ms)
+
+  3 passing (30s)
+
+
+  (Results)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Tests:        3                                                                                │
+  │ Passing:      3                                                                                │
+  │ Failing:      0                                                                                │
+  │ Pending:      0                                                                                │
+  │ Skipped:      0                                                                                │
+  │ Screenshots:  3                                                                                │
+  │ Video:        false                                                                            │
+  │ Duration:     30 seconds                                                                       │
+  │ Spec Ran:     hu040-calendario.cy.js                                                           │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+  (Screenshots)
+
+  -  C:\Users\N\Proyectos\ABP\abp-platform\frontend\cypress\screenshots\hu040-calenda     (1280x720)
+     rio.cy.js\hu040-ca01-calendario-multi-curso (1).png                                            
+  -  C:\Users\N\Proyectos\ABP\abp-platform\frontend\cypress\screenshots\hu040-calenda     (1280x720)
+     rio.cy.js\hu040-ca03-detalle-evento (1).png                                                    
+  -  C:\Users\N\Proyectos\ABP\abp-platform\frontend\cypress\screenshots\hu040-calenda     (1280x720)
+     rio.cy.js\hu040-ca02-campanita-recordatorio (1).png                                            
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+  Running:  hu041-semaforo.cy.js                                                            (6 of 9)
+
+
+  √ CA-01 - Estudiante al día ve el semáforo en Verde con resumen óptimo (11348ms)
+  √ CA-02 - Estudiante con atrasos ve Amarillo/Rojo con críticos y recomendaciones reales (13362ms)
+  √ CA-03 - El color del semáforo coincide con el que ve el director para el mismo estudiante (11630ms)
+
+  3 passing (37s)
+
+
+  (Results)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Tests:        3                                                                                │
+  │ Passing:      3                                                                                │
+  │ Failing:      0                                                                                │
+  │ Pending:      0                                                                                │
+  │ Skipped:      0                                                                                │
+  │ Screenshots:  3                                                                                │
+  │ Video:        false                                                                            │
+  │ Duration:     36 seconds                                                                       │
+  │ Spec Ran:     hu041-semaforo.cy.js                                                             │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+  (Screenshots)
+
+  -  C:\Users\N\Proyectos\ABP\abp-platform\frontend\cypress\screenshots\hu041-semafor     (1280x720)
+     o.cy.js\hu041-ca01-semaforo-verde (1).png                                                      
+  -  C:\Users\N\Proyectos\ABP\abp-platform\frontend\cypress\screenshots\hu041-semafor     (1280x720)
+     o.cy.js\hu041-ca02-semaforo-rojo-criticos (1).png                                              
+  -  C:\Users\N\Proyectos\ABP\abp-platform\frontend\cypress\screenshots\hu041-semafor     (1280x720)
+     o.cy.js\hu041-ca03-coincide-con-director (1).png                                               
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+  Running:  hu042-panel-docente.cy.js                                                       (7 of 9)
+
+
+  √ CA-01 - El docente ve una tarjeta por proyecto con su color y % de avance (11510ms)
+  √ CA-02 - El filtro Rojo lista únicamente los proyectos con retrasos críticos (9968ms)
+  √ CA-03 - El clic en una tarjeta navega directamente al detalle del proyecto (15087ms)
+
+  3 passing (37s)
+
+
+  (Results)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Tests:        3                                                                                │
+  │ Passing:      3                                                                                │
+  │ Failing:      0                                                                                │
+  │ Pending:      0                                                                                │
+  │ Skipped:      0                                                                                │
+  │ Screenshots:  3                                                                                │
+  │ Video:        false                                                                            │
+  │ Duration:     36 seconds                                                                       │
+  │ Spec Ran:     hu042-panel-docente.cy.js                                                        │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+  (Screenshots)
+
+  -  C:\Users\N\Proyectos\ABP\abp-platform\frontend\cypress\screenshots\hu042-panel-d     (1280x720)
+     ocente.cy.js\hu042-ca01-panel-tarjetas-por-proyecto (1).png                                    
+  -  C:\Users\N\Proyectos\ABP\abp-platform\frontend\cypress\screenshots\hu042-panel-d     (1280x720)
+     ocente.cy.js\hu042-ca02-filtro-rojo (1).png                                                    
+  -  C:\Users\N\Proyectos\ABP\abp-platform\frontend\cypress\screenshots\hu042-panel-d     (1280x720)
+     ocente.cy.js\hu042-ca03-navega-al-detalle (1).png                                              
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+  Running:  hu043-correos.cy.js                                                             (8 of 9)
+
+
+  √ CA-01 - Al publicar un anuncio, cada integrante recibe en cola un correo con membrete a tiempo (37526ms)
+  √ CA-02 - Al publicar una calificación, cada integrante recibe en cola un correo con membrete y la nota (12557ms)
+  √ CA-03 - La campanita no repite el aviso que ya se envió por correo (11323ms)
+
+  3 passing (1m)
+
+
+  (Results)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Tests:        3                                                                                │
+  │ Passing:      3                                                                                │
+  │ Failing:      0                                                                                │
+  │ Pending:      0                                                                                │
+  │ Skipped:      0                                                                                │
+  │ Screenshots:  2                                                                                │
+  │ Video:        false                                                                            │
+  │ Duration:     1 minute, 1 second                                                               │
+  │ Spec Ran:     hu043-correos.cy.js                                                              │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+  (Screenshots)
+
+  -  C:\Users\N\Proyectos\ABP\abp-platform\frontend\cypress\screenshots\hu043-correos     (1280x720)
+     .cy.js\hu043-ca01-anuncio-publicado (1).png                                                    
+  -  C:\Users\N\Proyectos\ABP\abp-platform\frontend\cypress\screenshots\hu043-correos     (1280x720)
+     .cy.js\hu043-ca03-campanita-sin-duplicados (1).png                                             
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+  Running:  parametros.cy.js                                                                (9 of 9)
+
+
+  HU-035 - Configuración de Parámetros
+    √ CA-01: Administrador modifica un parámetro de texto y el sistema lo aplica (46829ms)
+    √ CA-01: Modificar un umbral del semáforo (entero) (10031ms)
+    √ CA-02: Validación en frontend - un porcentaje no puede superar 100 (4394ms)
+    √ CA-02: Validación en frontend - una nota no puede superar 5 (3406ms)
+    √ CA-02: Validación en backend - el valor es obligatorio (1170ms)
+    √ CA-03: Un usuario que no es administrador no puede cambiar parámetros (4465ms)
+    √ Verificar que existen las secciones de parámetros (4579ms)
+
+
+  7 passing (2m)
+
+
+  (Results)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Tests:        7                                                                                │
+  │ Passing:      7                                                                                │
+  │ Failing:      0                                                                                │
+  │ Pending:      0                                                                                │
+  │ Skipped:      0                                                                                │
+  │ Screenshots:  0                                                                                │
+  │ Video:        false                                                                            │
+  │ Duration:     1 minute, 33 seconds                                                             │
+  │ Spec Ran:     parametros.cy.js                                                                 │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+====================================================================================================
+
+  (Run Finished)
+
+
+       Spec                                              Tests  Passing  Failing  Pending  Skipped  
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ ✔  hu001-registro.cy.js                     00:46        3        3        -        -        - │
+  ├────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ ✔  hu002-login.cy.js                        00:50        7        7        -        -        - │
+  ├────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ ✔  hu003-roles.cy.js                        01:45        8        8        -        -        - │
+  ├────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ ✔  hu036-periodos.cy.js                     01:24       10       10        -        -        - │
+  ├────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ ✔  hu040-calendario.cy.js                   00:30        3        3        -        -        - │
+  ├────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ ✔  hu041-semaforo.cy.js                     00:36        3        3        -        -        - │
+  ├────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ ✔  hu042-panel-docente.cy.js                00:36        3        3        -        -        - │
+  ├────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ ✔  hu043-correos.cy.js                      01:01        3        3        -        -        - │
+  ├────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ ✔  parametros.cy.js                         01:33        7        7        -        -        - │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+    ✔  All specs passed!                        09:05       47       47        -        -        -  
+
