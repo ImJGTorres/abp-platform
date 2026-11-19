@@ -232,7 +232,7 @@ export default function HistorialEvaluacionesEstudiante() {
 
             setItems(revisados)
             setResumen({ aprobados: nAprobados, rechazados: nRechazados, nota: promedio })
-        } catch (err) {
+        } catch {
             setError('No se pudo cargar el historial.')
         } finally {
             setLoading(false)

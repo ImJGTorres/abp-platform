@@ -42,7 +42,7 @@ class PeriodoAcademico(models.Model):
         db_table = 'periodo_academico'
         constraints = [
             models.CheckConstraint(
-                check=models.Q(fecha_fin__gt=models.F('fecha_inicio')),
+                condition=models.Q(fecha_fin__gt=models.F('fecha_inicio')),
                 name='fecha_fin_posterior_fecha_inicio',
             )
         ]

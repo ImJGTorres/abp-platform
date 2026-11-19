@@ -161,11 +161,6 @@ function ModalProyecto({ cursoId, proyecto, onGuardar, onCancelar }) {
     )
 }
 
-function formatFecha(fecha) {
-    if (!fecha) return '—'
-    const d = new Date(fecha + 'T00:00:00')
-    return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })
-}
 
 export default function DetalleCurso() {
     const { id } = useParams()

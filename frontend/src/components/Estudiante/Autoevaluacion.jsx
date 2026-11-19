@@ -179,7 +179,7 @@ export default function Autoevaluacion() {
     const [reflexion,    setReflexion]    = useState('')
     const [guardando,    setGuardando]    = useState(false)
     const [error,        setError]        = useState('')
-    const [exito,        setExito]        = useState(false)
+    const [,             setExito]        = useState(false)
 
     useEffect(() => {
         if (proyectoId) cargar()
@@ -223,7 +223,7 @@ export default function Autoevaluacion() {
             } else if (rubs.length > 0) {
                 setRubricaSel(rubs[0])
             }
-        } catch { }
+        } catch { /* best-effort: se ignora el fallo */ }
         finally { setLoading(false) }
     }
 

@@ -129,20 +129,6 @@ export default function AlertasBell({ pollingMinutos = 5, incluirNotificaciones 
     const noLeidas = items.filter(i => !i.leida).length
 
     useEffect(() => {
-        cargar()
-        const ms = pollingMinutos * 60 * 1000
-        const interval = setInterval(cargar, ms)
-        return () => clearInterval(interval)
-    }, [pollingMinutos, incluirNotificaciones])
-
-    // Notificaciones de entregables se actualizan más seguido (30s)
-    useEffect(() => {
-        if (!incluirNotificaciones) return
-        const interval = setInterval(cargarNotificaciones, 30000)
-        return () => clearInterval(interval)
-    }, [incluirNotificaciones])
-
-    useEffect(() => {
         function handleClick(e) {
             if (panelRef.current && !panelRef.current.contains(e.target)) setOpen(false)
         }
@@ -158,7 +144,7 @@ export default function AlertasBell({ pollingMinutos = 5, incluirNotificaciones 
                 const sinNotifs = prev.filter(i => i._src !== 'notif')
                 return ordenar([...sinNotifs, ...notifs])
             })
-        } catch { }
+        } catch { /* best-effort: se ignora el fallo */ }
     }
 
     async function cargar() {
@@ -176,12 +162,27 @@ export default function AlertasBell({ pollingMinutos = 5, incluirNotificaciones 
                 : []
 
             setItems(ordenar([...alertas, ...notifs]))
-        } catch { }
+        } catch { /* best-effort: se ignora el fallo */ }
     }
 
     function ordenar(lista) {
         return [...lista].sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
     }
+
+    useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- carga inicial y polling
+        cargar()
+        const ms = pollingMinutos * 60 * 1000
+        const interval = setInterval(cargar, ms)
+        return () => clearInterval(interval)
+    }, [pollingMinutos, incluirNotificaciones])
+
+    // Notificaciones de entregables se actualizan más seguido (30s)
+    useEffect(() => {
+        if (!incluirNotificaciones) return
+        const interval = setInterval(cargarNotificaciones, 30000)
+        return () => clearInterval(interval)
+    }, [incluirNotificaciones])
 
     async function marcarLeido(item) {
         if (item.leida) return
@@ -192,7 +193,7 @@ export default function AlertasBell({ pollingMinutos = 5, incluirNotificaciones 
                 await notificacionesApi.marcarLeida(item._rawId)
             }
             setItems(prev => prev.map(i => i._id === item._id ? { ...i, leida: true } : i))
-        } catch { }
+        } catch { /* best-effort: se ignora el fallo */ }
     }
 
     async function marcarTodasLeidas() {

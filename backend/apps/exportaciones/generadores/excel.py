@@ -15,6 +15,18 @@ ROJO_CLARO = 'FFFFCDD2'
 GRIS = 'FFF5F5F5'
 
 
+def _guardar(wb, ruta_destino):
+    """Guarda el libro sin fórmulas: openpyxl trata como fórmula todo texto que empieza con "=",
+    y los nombres de proyectos, equipos y personas los escribe un usuario (inyección de fórmulas).
+    Las celdas se marcan como texto antes de guardar; los reportes no usan fórmulas."""
+    for hoja in wb.worksheets:
+        for fila in hoja.iter_rows():
+            for celda in fila:
+                if celda.data_type == 'f':
+                    celda.data_type = 's'
+    wb.save(ruta_destino)
+
+
 def _estilo_encabezado(cell):
     cell.font = Font(bold=True, color='FFFFFFFF', size=10)
     cell.fill = PatternFill(fill_type='solid', fgColor=ROJO)
@@ -35,7 +47,7 @@ def _autoajustar(ws):
             try:
                 max_len = max(max_len, len(str(cell.value or '')))
             except Exception:
-                pass
+                logger.exception('Error no crítico ignorado')
         ws.column_dimensions[col_letter].width = min(max_len + 4, 40)
 
 
@@ -161,7 +173,7 @@ def generar_excel_proyecto(datos, ruta_destino):
                      for e in bajo])
     _autoajustar(ws_bajo)
 
-    wb.save(ruta_destino)
+    _guardar(wb, ruta_destino)
     return ruta_destino
 
 
@@ -219,7 +231,7 @@ def generar_excel_estudiante(datos, ruta_destino):
                     ])
     _autoajustar(ws_hist)
 
-    wb.save(ruta_destino)
+    _guardar(wb, ruta_destino)
     return ruta_destino
 
 
@@ -287,5 +299,46 @@ def generar_excel_indicadores(datos, ruta_destino):
                      for r in riesgo])
     _autoajustar(ws_riesgo)
 
-    wb.save(ruta_destino)
+    _guardar(wb, ruta_destino)
+    return ruta_destino
+
+
+def generar_excel_equipo(datos, ruta_destino):
+    wb = Workbook()
+    identidad = _identidad()
+    ws_info = _hoja_info(wb, identidad)
+
+    eq = datos.get('equipo', {})
+    ws_info['A4'] = 'Equipo:'
+    ws_info['B4'] = eq.get('nombre', '-')
+    ws_info['A5'] = 'Proyecto:'
+    ws_info['B5'] = eq.get('proyecto_nombre', '-')
+    ws_info['A6'] = 'Integrantes activos:'
+    ws_info['B6'] = datos.get('total_miembros', 0)
+
+    ws = wb.create_sheet('Integrantes')
+    filas = []
+    for m in datos.get('miembros', []):
+        est = m.get('estudiante', {})
+        filas.append([
+            f"{est.get('nombre', '')} {est.get('apellido', '')}".strip(),
+            est.get('codigo') or '-',
+            est.get('rol_interno') or '-',
+            m.get('nota_final', '-'),
+            m.get('promedio_avance_pct', 0),
+            m.get('actividades_completadas', 0),
+            m.get('actividades_vencidas', 0),
+            m.get('entregables_aprobados', 0),
+            m.get('entregables_rechazados', 0),
+        ])
+    _escribir_tabla(
+        ws, 1,
+        ['Integrante', 'Código', 'Rol', 'Nota final', 'Avance (%)', 'Actividades completadas',
+         'Actividades vencidas', 'Entregables aprobados', 'Entregables rechazados'],
+        filas,
+    )
+    _autoajustar(ws)
+    _membrete(ws, identidad)
+
+    _guardar(wb, ruta_destino)
     return ruta_destino

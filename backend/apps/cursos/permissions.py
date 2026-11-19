@@ -1,32 +1,7 @@
 from rest_framework.permissions import BasePermission
 
-
-class EsDocente(BasePermission):
-    """Permite acceso a usuarios con tipo_rol == 'docente' o 'administrador'."""
-
-    message = 'Se requiere rol de docente o administrador.'
-
-    def has_permission(self, request, view):
-        usuario = request.user
-        return (
-            usuario is not None
-            and usuario.is_authenticated
-            and getattr(usuario, 'tipo_rol', None) in ('docente', 'administrador')
-        )
-
-
-class EsAdministrador(BasePermission):
-    """Permite acceso solo a usuarios con tipo_rol == 'administrador'."""
-
-    message = 'Se requiere rol de administrador.'
-
-    def has_permission(self, request, view):
-        usuario = request.user
-        return (
-            usuario is not None
-            and usuario.is_authenticated
-            and getattr(usuario, 'tipo_rol', None) == 'administrador'
-        )
+# EsAdministrador y EsDocente (docente o administrador) viven en usuarios; se re-exportan aquí.
+from apps.usuarios.permissions import EsAdministrador, EsDocente  # noqa: F401
 
 
 class EsDocenteOAdministrador(BasePermission):

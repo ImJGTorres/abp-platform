@@ -4,7 +4,7 @@
 // (correr antes de esta suite: python manage.py seed_hu042_demo)
 // Reutiliza los 3 proyectos reales del docente demo de HU-040 (2 rojo, 1 verde).
 
-const URL_LOGIN = 'http://localhost:5173/static/login'
+const URL_LOGIN = 'http://localhost:5173/login'
 
 function login(correo, contrasena) {
   // El menú lateral usa 'hidden lg:flex' (Tailwind, breakpoint 1024px); con el

@@ -70,7 +70,7 @@ def test_cp01_editar_capacidad_menor_que_miembros(cliente_a, equipo_con_varios_m
     response = cliente_a.put(url, payload, format='json')
     
     assert response.status_code == status.HTTP_400_BAD_REQUEST
-    assert 'cupo' in response.json() or 'miembros' in response.json()
+    assert 'cupo_maximo' in response.json()
 
 
 @pytest.mark.django_db
@@ -104,7 +104,7 @@ def test_cp02_mover_estudiante_entre_equipos(cliente_a, proyecto_activo):
     # Mover estudiante al equipo destino
     url = reverse('miembro-mover', kwargs={'equipo_id': equipo_origen.id})
     payload = {
-        'estudiante_id': estudiante.id,
+        'usuario_id': estudiante.id,
         'equipo_destino_id': equipo_destino.id
     }
     
@@ -145,23 +145,24 @@ def test_cp03_disolver_equipo_con_entregables(cliente_a, proyecto_activo):
     estudiante = UsuarioFactory(tipo_rol=Usuario.TipoRol.ESTUDIANTE)
     MiembroEquipo.objects.create(equipo=equipo, usuario=estudiante)
     
-    # Crear un entregable simulado usando HitoProyecto (que sí existe)
-    # Un equipo con hitos asociados no debería poder disolverse
-    from apps.cursos.models import HitoProyecto
-    hito = HitoProyecto.objects.create(
-        id_proyecto=proyecto_activo,
-        nombre="Hito del equipo",
-        fecha_inicio=date(2026, 2, 15),
-        fecha_fin=date(2026, 3, 15),
-        tipo=HitoProyecto.Tipo.HITO
+    # Un equipo con un entregable registrado no puede disolverse
+    from apps.cursos.models import Actividad, FaseProyecto
+    from apps.entregables.models import Entregable
+    fase = FaseProyecto.objects.create(
+        id_proyecto=proyecto_activo, nombre="Fase", orden=1,
+        fecha_inicio=date(2026, 2, 15), fecha_fin=date(2026, 3, 15),
     )
-    
-    # Asumimos que el hito está asociado al equipo a través de alguna relación
-    # o que hay una validación que impide eliminar equipos con actividades
-    
-    url = reverse('equipo-detalle', kwargs={'pk': equipo.id})
+    actividad = Actividad.objects.create(
+        id_fase=fase, nombre="Actividad", fecha_limite=date(2026, 3, 1),
+        prioridad='media', estado='pendiente', id_equipo_asignado=equipo,
+    )
+    Entregable.objects.create(
+        id_actividad=actividad, id_equipo=equipo, titulo="Entrega 1", estado='borrador',
+    )
+
+    url = reverse('equipo-disolver', kwargs={'equipo_id': equipo.id})
     response = cliente_a.delete(url)
-    
-    # Si hay hitos/entregables asociados, debería retornar 409 Conflict
-    # Si no hay relación, podría retornar 204 No Content
-    assert response.status_code in [status.HTTP_409_CONFLICT, status.HTTP_204_NO_CONTENT]
+
+    assert response.status_code == status.HTTP_409_CONFLICT
+    equipo.refresh_from_db()
+    assert equipo.estado == 'activo'

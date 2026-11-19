@@ -23,10 +23,10 @@ Sistema web para centralizar y estructurar los procesos del modelo de **Aprendiz
 
 | Capa | Tecnología |
 |---|---|
-| Frontend | React 18 + Vite + Tailwind CSS |
+| Frontend | React 19 + Vite + Tailwind CSS |
 | Backend | Django 4.2 + Django REST Framework 3.15 |
 | Autenticación | JWT (SimpleJWT) con rotación de tokens y blacklist |
-| Base de datos (local) | SQLite 3 |
+| Base de datos (local) | PostgreSQL 16 (Docker) |
 | Base de datos (producción) | PostgreSQL 15 via Supabase |
 | Email | SMTP / SendGrid (django-anymail) |
 | Exportaciones | openpyxl (Excel) + ReportLab (PDF) |
@@ -50,7 +50,7 @@ Cliente (React SPA)
   │ apps.reportes │ apps.exportaciones                   │
   └─────────────────────────────────────────────────────┘
         │
-   SQLite (dev) / PostgreSQL Supabase (prod)
+   PostgreSQL (dev en Docker) / Supabase (prod)
 ```
 
 Toda la comunicación entre frontend y backend ocurre por la API REST definida en `api-contract.md`. El acceso a los endpoints está protegido por JWT; los permisos adicionales se validan por rol (administrador, docente, director, líder de equipo, estudiante).
@@ -187,7 +187,7 @@ abp-platform/
 │   │   ├── roles/               # Roles y permisos
 │   │   └── usuarios/            # Modelo de usuario, auth, recuperación de contraseña
 │   ├── config/
-│   │   ├── settings.py          # Configuración principal (SQLite/Supabase, JWT, caché, email)
+│   │   ├── settings.py          # Configuración principal (PostgreSQL/Supabase, JWT, caché, email)
 │   │   ├── urls.py              # URLs raíz
 │   │   └── wsgi.py
 │   ├── media/                   # Archivos subidos (ignorado en git)
@@ -222,7 +222,7 @@ abp-platform/
 - Node.js 20+
 - Git
 
-> Para desarrollo local se usa **SQLite** (no necesita PostgreSQL instalado). Para producción se conecta a Supabase vía variables de entorno.
+> La configuración exige **PostgreSQL** (las vistas SQL usan `::numeric` y no corren en SQLite). En local se levanta uno con Docker, por ejemplo: `docker run -d --name pg-test -e POSTGRES_PASSWORD=test -e POSTGRES_DB=app -p 5433:5432 postgres:16`, y se apunta `DB_HOST/DB_PORT/DB_USER/DB_PASSWORD/DB_NAME` del `.env` a él (la conexión pide `sslmode=require`; para una base local sin SSL use un archivo de settings propio que vacíe `DATABASES['default']['OPTIONS']`). Para producción se conecta a Supabase vía variables de entorno.
 
 ### Backend
 
@@ -234,8 +234,8 @@ python -m venv venv
 venv\Scripts\activate          # Windows
 # source venv/bin/activate     # Linux / macOS
 
-# Instalar dependencias
-pip install -r requirements.txt
+# Instalar dependencias (requirements-dev.txt incluye pytest y factory-boy)
+pip install -r requirements-dev.txt
 
 # Configurar variables de entorno
 cp .env.example .env           # Editar .env con los valores correspondientes

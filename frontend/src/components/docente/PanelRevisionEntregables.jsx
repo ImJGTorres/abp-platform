@@ -119,7 +119,7 @@ function ListaArchivos({ archivos }) {
                         <p className="text-[13px] font-semibold text-[#191c1d] truncate">{a.nombre_original}</p>
                         <p className="text-[11px] text-[#9ba7ae]">{formatBytes(a.tamaño_bytes)}</p>
                     </div>
-                    <a href={a.url_descarga} download={a.nombre_original} target="_blank" rel="noreferrer"
+                    <a href={a.url_descarga} download={a.nombre_original} target="_blank" rel="noopener noreferrer"
                         className="p-1.5 rounded-lg hover:bg-white text-[#4c616c] hover:text-[#191c1d] transition-colors flex-shrink-0"
                         title="Descargar">
                         <IconDownload />
@@ -185,7 +185,7 @@ export default function PanelRevisionEntregables() {
         try {
             const data = await entregablesApi.listarArchivos(entregableId)
             setArchivos(p => ({ ...p, [entregableId]: data }))
-        } catch { }
+        } catch { /* best-effort: se ignora el fallo */ }
     }
 
     function toggleExpand(entregable) {

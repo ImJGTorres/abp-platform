@@ -8,6 +8,7 @@ alterar los semáforos de HU-041/042. Se puede correr varias veces: deja la eval
 borrador y borra los anuncios y correos encolados de corridas anteriores.
 Los correos usan example.com para que ningún envío real llegue a una persona.
 """
+from apps.usuarios.seguridad_demo import agregar_argumento_forzar, exigir_entorno_de_desarrollo
 from datetime import date
 
 from django.contrib.auth.hashers import make_password
@@ -24,7 +25,11 @@ class Command(BaseCommand):
     help = 'Crea los datos de la prueba de aceptación de HU-043 y deja la evaluación en borrador.'
 
     @transaction.atomic
+    def add_arguments(self, parser):
+        agregar_argumento_forzar(parser)
+
     def handle(self, *args, **options):
+        exigir_entorno_de_desarrollo(options)
         from apps.alertas.models import Alerta, ColaCorreo
         from apps.anuncios.models import Anuncio
         from apps.configuracion.models import PeriodoAcademico

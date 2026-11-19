@@ -1,8 +1,7 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, Link, useLocation } from 'react-router-dom'
 import { entregablesApi } from '../../services/entregablesApi'
 import { evaluacionesApi } from '../../services/docenteApi'
-import { buildMediaUrl } from '../../services/api'
 
 // ── Iconos ────────────────────────────────────────────────────────────────────
 
@@ -116,12 +115,11 @@ function esImagen(mime) {
 
 // ── Componente de Zona Drag & Drop ────────────────────────────────────────────
 
-function ZonaArchivos({ archivos, subiendo, onArchivosNuevos, onEliminar, entregableId, puedeModificar }) {
+function ZonaArchivos({ archivos, subiendo, onArchivosNuevos, onEliminar, puedeModificar }) {
     const [dragging, setDragging] = useState(false)
     const inputRef = useRef(null)
 
     const validarArchivo = (file) => {
-        const ext = file.name.rsplit ? file.name.rsplit('.', 1)[-1] : file.name.split('.').pop()?.toLowerCase()
         const extLower = file.name.split('.').pop()?.toLowerCase()
         if (!TIPOS_PERMITIDOS.includes(extLower)) {
             return `Tipo no permitido (.${extLower}). Formatos aceptados: ${TIPOS_PERMITIDOS.join(', ')}`
@@ -234,7 +232,7 @@ function ZonaArchivos({ archivos, subiendo, onArchivosNuevos, onEliminar, entreg
                             href={a.url_descarga}
                             download={a.nombre_original}
                             target="_blank"
-                            rel="noreferrer"
+                            rel="noopener noreferrer"
                             className="p-2 rounded-lg hover:bg-[#f0f2f3] text-[#4c616c] hover:text-[#191c1d] transition-colors"
                             title="Descargar"
                         >
@@ -262,7 +260,7 @@ function ZonaArchivos({ archivos, subiendo, onArchivosNuevos, onEliminar, entreg
 
 // ── Historial de versiones ────────────────────────────────────────────────────
 
-function HistorialVersiones({ entregableId, estadoActual }) {
+function HistorialVersiones({ entregableId }) {
     const [versiones, setVersiones] = useState([])
     const [cargando, setCargando] = useState(false)
     const [abierto, setAbierto] = useState(false)
@@ -277,7 +275,7 @@ function HistorialVersiones({ entregableId, estadoActual }) {
         try {
             const data = await entregablesApi.obtenerVersiones(entregableId)
             setVersiones(data)
-        } catch { }
+        } catch { /* best-effort: se ignora el fallo */ }
         finally { setCargando(false) }
     }
 
@@ -351,7 +349,7 @@ function HistorialVersiones({ entregableId, estadoActual }) {
                                                             <div key={a.id} className="flex items-center gap-2.5 bg-white border border-[#e1e3e4] rounded-lg px-3 py-2">
                                                                 <IconFile />
                                                                 <span className="flex-1 text-[12px] text-[#4c616c] truncate">{a.nombre_original}</span>
-                                                                <a href={a.url_descarga} download={a.nombre_original} target="_blank" rel="noreferrer"
+                                                                <a href={a.url_descarga} download={a.nombre_original} target="_blank" rel="noopener noreferrer"
                                                                     className="text-[#4c616c] hover:text-[#191c1d] transition-colors">
                                                                     <IconDownload />
                                                                 </a>
@@ -492,7 +490,7 @@ export default function EntregablesActividad() {
         try {
             const data = await entregablesApi.listarArchivos(entregableId)
             setArchivos(p => ({ ...p, [entregableId]: data }))
-        } catch { }
+        } catch { /* best-effort: se ignora el fallo */ }
     }
 
     async function cargarEvaluacion(entregableId) {

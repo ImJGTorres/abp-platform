@@ -1,5 +1,40 @@
+import re
+
+from django.conf import settings
 from rest_framework import serializers
 from apps.usuarios.models import Usuario, TokenRecuperacion
+
+_NOMBRE_PERSONA_RE = re.compile(r"^[^\W\d_]+(?:[ '\-][^\W\d_]+)*$")
+
+
+def _validar_nombre_persona(value, campo):
+    """Letras (con tildes), espacios, guiones y apóstrofos; mínimo 2 caracteres."""
+    if len(value) < 2:
+        raise serializers.ValidationError(f"El {campo} debe tener al menos 2 caracteres.")
+    if not _NOMBRE_PERSONA_RE.match(value):
+        raise serializers.ValidationError(
+            f"El {campo} solo puede contener letras, espacios, guiones y apóstrofos."
+        )
+    return value
+
+
+_FOTO_LOCAL_RE = re.compile(r'^[\w.-]+\.(jpg|jpeg|png|gif|webp)$')
+
+
+def _validar_foto_perfil(value):
+    """Vacío o la ruta que devuelve la subida de foto (MEDIA_URL + fotos_perfil/<nombre>).
+
+    No se aceptan URLs externas (servirían de pixel de rastreo para quien vea el perfil) ni
+    rutas con "..": el nombre se usa luego para borrar la foto anterior.
+    """
+    if not value:
+        return value
+    prefijo = f'{settings.MEDIA_URL}fotos_perfil/'
+    nombre = value[len(prefijo):] if value.startswith(prefijo) else ''
+    if not _FOTO_LOCAL_RE.match(nombre) or '..' in nombre:
+        raise serializers.ValidationError("La foto de perfil debe subirse desde la plataforma.")
+    return value
+
 
 class UsuarioSerializer(serializers.ModelSerializer):
 
@@ -25,19 +60,14 @@ class UsuarioSerializer(serializers.ModelSerializer):
 
     # Validar longitud mínima y caracteres permitidos para nombre (ST-04)
     def validate_nombre(self, value):
-        if len(value) < 2:
-            raise serializers.ValidationError("El nombre debe tener al menos 2 caracteres.")
-        if not value.replace(' ', '').isalpha():
-            raise serializers.ValidationError("El nombre solo puede contener letras y espacios.")
-        return value
+        return _validar_nombre_persona(value, 'nombre')
 
     # Validar longitud mínima y caracteres permitidos para apellido (ST-04)
     def validate_apellido(self, value):
-        if len(value) < 2:
-            raise serializers.ValidationError("El apellido debe tener al menos 2 caracteres.")
-        if not value.replace(' ', '').isalpha():
-            raise serializers.ValidationError("El apellido solo puede contener letras y espacios.")
-        return value
+        return _validar_nombre_persona(value, 'apellido')
+
+    def validate_foto_perfil(self, value):
+        return _validar_foto_perfil(value)
 
     # Validar que el rol sea uno de los permitidos (ST-04)
     def validate_tipo_rol(self, value):
@@ -105,18 +135,13 @@ class UsuarioUpdateSerializer(serializers.ModelSerializer):
         return attrs
 
     def validate_nombre(self, value):
-        if len(value) < 2:
-            raise serializers.ValidationError("El nombre debe tener al menos 2 caracteres.")
-        if not value.replace(' ', '').isalpha():
-            raise serializers.ValidationError("El nombre solo puede contener letras y espacios.")
-        return value
+        return _validar_nombre_persona(value, 'nombre')
 
     def validate_apellido(self, value):
-        if len(value) < 2:
-            raise serializers.ValidationError("El apellido debe tener al menos 2 caracteres.")
-        if not value.replace(' ', '').isalpha():
-            raise serializers.ValidationError("El apellido solo puede contener letras y espacios.")
-        return value
+        return _validar_nombre_persona(value, 'apellido')
+
+    def validate_foto_perfil(self, value):
+        return _validar_foto_perfil(value)
 
     def validate_tipo_rol(self, value):
         roles_validos = [r[0] for r in Usuario.TipoRol.choices]

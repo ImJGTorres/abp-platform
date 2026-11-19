@@ -39,4 +39,7 @@ python manage.py collectstatic --noinput
 echo "Running migrations..."
 python manage.py migrate --noinput
 
+# Parámetros del sistema que falten (no modifica los existentes)
+python manage.py sembrar_parametros
+
 echo "=== Build complete ==="

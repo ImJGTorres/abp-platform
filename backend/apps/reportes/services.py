@@ -1,4 +1,4 @@
-from django.db.models import Avg, Q
+from django.db.models import Q
 
 from .semaforo import ROJO, clasificar_semaforo, obtener_umbrales
 
@@ -12,88 +12,142 @@ def _get_parametro(clave, default):
         return default
 
 
-def calcular_rendimiento_estudiante(estudiante_id, proyecto_id=None, curso_id=None, umbrales=None):
+def calcular_rendimientos(estudiante_ids, proyecto_id=None, curso_id=None, umbrales=None):
     """
-    Calcula indicadores de rendimiento de un estudiante.
-    Retorna dict con nota_promedio, porcentaje_actividades_incumplidas,
-    entregables_rechazados, totales, nivel_semaforo, en_riesgo y alertas.
-    en_riesgo es True exactamente cuando nivel_semaforo es 'rojo'.
-    umbrales: dict de obtener_umbrales(); pásalo al calcular muchos estudiantes.
+    Calcula los indicadores de rendimiento de varios estudiantes con un número
+    constante de consultas (no depende de cuántos estudiantes se pidan).
+
+    Retorna {estudiante_id: dict} donde cada dict trae nota_promedio,
+    porcentaje_actividades_incumplidas, entregables_rechazados, totales,
+    nivel_semaforo, en_riesgo y alertas. en_riesgo es True exactamente cuando
+    nivel_semaforo es 'rojo'.
+    umbrales: dict de obtener_umbrales(); pásalo si ya lo tienes.
     """
+    from django.db.models import Count, Sum
+
     from apps.cursos.models import Actividad, AvanceActividad
     from apps.entregables.models import Entregable
     from apps.equipos.models import MiembroEquipo
 
+    estudiante_ids = list(estudiante_ids)
     umbrales = umbrales or obtener_umbrales()
     umbral_nota = umbrales['nota_rojo']
     umbral_pct_incumplidas = umbrales['pct_rojo']
+    filtrado = bool(proyecto_id or curso_id)
 
-    equipos_qs = MiembroEquipo.objects.filter(usuario_id=estudiante_id, estado='activo')
+    # 1) Equipos activos de cada estudiante (acotados al proyecto/curso pedido)
+    membresias = MiembroEquipo.objects.filter(usuario_id__in=estudiante_ids, estado='activo')
     if proyecto_id:
-        equipos_qs = equipos_qs.filter(equipo__proyecto_id=proyecto_id)
+        membresias = membresias.filter(equipo__proyecto_id=proyecto_id)
     if curso_id:
-        equipos_qs = equipos_qs.filter(equipo__proyecto__id_curso_id=curso_id)
+        membresias = membresias.filter(equipo__proyecto__id_curso_id=curso_id)
+    equipos_de = {uid: set() for uid in estudiante_ids}
+    for uid, eid in membresias.values_list('usuario_id', 'equipo_id'):
+        equipos_de[uid].add(eid)
+    todos_equipos = set().union(*equipos_de.values()) if equipos_de else set()
 
-    equipo_ids = list(equipos_qs.values_list('equipo_id', flat=True))
+    # 2) Avances: suma y cantidad por (estudiante, equipo de la actividad)
+    grupos_avance = (
+        AvanceActividad.objects.filter(id_usuario_id__in=estudiante_ids)
+        .values('id_usuario_id', 'id_actividad__id_equipo_asignado_id')
+        .annotate(suma=Sum('porcentaje_completado'), n=Count('id'))
+    )
+    suma_n = {uid: [0, 0] for uid in estudiante_ids}
+    for g in grupos_avance:
+        uid = g['id_usuario_id']
+        eid = g['id_actividad__id_equipo_asignado_id']
+        if filtrado and eid not in equipos_de[uid]:
+            continue
+        suma_n[uid][0] += g['suma'] or 0
+        suma_n[uid][1] += g['n']
 
-    avances = AvanceActividad.objects.filter(id_usuario_id=estudiante_id)
-    if proyecto_id or curso_id:
-        avances = avances.filter(id_actividad__id_equipo_asignado_id__in=equipo_ids)
-
-    nota_raw = avances.aggregate(avg=Avg('porcentaje_completado'))['avg'] or 0
-    nota_promedio = round((nota_raw / 100) * 5, 2)
-
+    # 3) Actividades que el estudiante tiene a cargo (responsable o equipo suyo)
     actividades_qs = Actividad.objects.filter(
-        Q(id_responsable_id=estudiante_id) | Q(id_equipo_asignado_id__in=equipo_ids)
+        Q(id_responsable_id__in=estudiante_ids) | Q(id_equipo_asignado_id__in=todos_equipos)
     )
     if proyecto_id:
         actividades_qs = actividades_qs.filter(id_fase__id_proyecto_id=proyecto_id)
     if curso_id:
         actividades_qs = actividades_qs.filter(id_fase__id_proyecto__id_curso_id=curso_id)
+    actividades = list(actividades_qs.values_list('id_responsable_id', 'id_equipo_asignado_id', 'estado'))
 
-    total_actividades = actividades_qs.count()
-    actividades_incumplidas = actividades_qs.filter(~Q(estado='completada')).count()
-    pct_incumplidas = round(
-        (actividades_incumplidas / total_actividades * 100) if total_actividades > 0 else 0, 2
-    )
+    # 4) Entregables por equipo y estado
+    entregables_por_equipo = {}
+    for eid, estado, n in (
+        Entregable.objects.filter(id_equipo_id__in=todos_equipos)
+        .values_list('id_equipo_id', 'estado').annotate(n=Count('id'))
+    ):
+        entregables_por_equipo.setdefault(eid, {})[estado] = n
 
-    entregables_qs = Entregable.objects.filter(id_equipo_id__in=equipo_ids)
-    total_entregables = entregables_qs.count()
-    entregables_rechazados = entregables_qs.filter(estado='rechazado').count()
+    resultado = {}
+    for uid in estudiante_ids:
+        equipos = equipos_de[uid]
+        suma, n = suma_n[uid]
+        nota_raw = (suma / n) if n else 0
+        nota_promedio = round((nota_raw / 100) * 5, 2)
 
-    alertas = []
-    # Solo se alerta por nota si el estudiante ya tiene actividades asignadas
-    if total_actividades > 0 and nota_promedio < float(umbral_nota):
-        alertas.append(f"Nota promedio {nota_promedio} está por debajo del umbral {umbral_nota}")
-    if total_actividades > 0 and pct_incumplidas >= umbral_pct_incumplidas:
-        alertas.append(
-            f"{pct_incumplidas}% de actividades incumplidas (umbral: {umbral_pct_incumplidas}%)"
+        total_actividades = 0
+        actividades_incumplidas = 0
+        for resp, eq, estado in actividades:
+            if resp == uid or eq in equipos:
+                total_actividades += 1
+                if estado != 'completada':
+                    actividades_incumplidas += 1
+        pct_incumplidas = round(
+            (actividades_incumplidas / total_actividades * 100) if total_actividades > 0 else 0, 2
         )
 
-    nivel_semaforo = clasificar_semaforo(
-        nota_promedio, pct_incumplidas,
-        tiene_actividades=total_actividades > 0, umbrales=umbrales,
-    )
+        total_entregables = sum(sum(entregables_por_equipo.get(e, {}).values()) for e in equipos)
+        entregables_rechazados = sum(entregables_por_equipo.get(e, {}).get('rechazado', 0) for e in equipos)
 
-    return {
-        'nota_promedio': nota_promedio,
-        'porcentaje_actividades_incumplidas': pct_incumplidas,
-        'actividades_incumplidas': actividades_incumplidas,
-        'total_actividades': total_actividades,
-        'entregables_rechazados': entregables_rechazados,
-        'total_entregables': total_entregables,
-        'nivel_semaforo': nivel_semaforo,
-        'en_riesgo': nivel_semaforo == ROJO,
-        'alertas': alertas,
-    }
+        alertas = []
+        # Solo se alerta por nota si el estudiante ya tiene actividades asignadas
+        if total_actividades > 0 and nota_promedio < float(umbral_nota):
+            alertas.append(f"Nota promedio {nota_promedio} está por debajo del umbral {umbral_nota}")
+        if total_actividades > 0 and pct_incumplidas >= umbral_pct_incumplidas:
+            alertas.append(
+                f"{pct_incumplidas}% de actividades incumplidas (umbral: {umbral_pct_incumplidas}%)"
+            )
+
+        nivel_semaforo = clasificar_semaforo(
+            nota_promedio, pct_incumplidas,
+            tiene_actividades=total_actividades > 0, umbrales=umbrales,
+        )
+
+        resultado[uid] = {
+            'nota_promedio': nota_promedio,
+            'porcentaje_actividades_incumplidas': pct_incumplidas,
+            'actividades_incumplidas': actividades_incumplidas,
+            'total_actividades': total_actividades,
+            'entregables_rechazados': entregables_rechazados,
+            'total_entregables': total_entregables,
+            'nivel_semaforo': nivel_semaforo,
+            'en_riesgo': nivel_semaforo == ROJO,
+            'alertas': alertas,
+        }
+    return resultado
 
 
-def get_estudiantes_bajo_rendimiento(curso_id=None, proyecto_id=None, periodo_id=None, solo_riesgo=True):
+def calcular_rendimiento_estudiante(estudiante_id, proyecto_id=None, curso_id=None, umbrales=None):
+    """Indicadores de rendimiento de un estudiante (ver calcular_rendimientos)."""
+    return calcular_rendimientos(
+        [estudiante_id], proyecto_id=proyecto_id, curso_id=curso_id, umbrales=umbrales
+    )[estudiante_id]
+
+
+def get_estudiantes_bajo_rendimiento(curso_id=None, proyecto_id=None, periodo_id=None, solo_riesgo=True, docente_id=None):
     """Retorna lista de estudiantes con sus indicadores, filtrados o no por riesgo."""
     from apps.usuarios.models import Usuario
     from apps.equipos.models import MiembroEquipo
 
     estudiantes_qs = Usuario.objects.filter(tipo_rol='estudiante', estado='activo')
+
+    if docente_id:
+        # Un docente solo ve a los estudiantes inscritos en sus propios cursos
+        estudiantes_qs = estudiantes_qs.filter(
+            cursos_inscritos__curso__id_docente_id=docente_id,
+            cursos_inscritos__estado='activo',
+        ).distinct()
 
     if periodo_id:
         estudiantes_qs = estudiantes_qs.filter(
@@ -115,11 +169,13 @@ def get_estudiantes_bajo_rendimiento(curso_id=None, proyecto_id=None, periodo_id
         estudiantes_qs = estudiantes_qs.filter(id__in=member_ids)
 
     umbrales = obtener_umbrales()
+    estudiantes = list(estudiantes_qs)
+    rendimientos = calcular_rendimientos(
+        [e.id for e in estudiantes], proyecto_id=proyecto_id, curso_id=curso_id, umbrales=umbrales
+    )
     resultado = []
-    for est in estudiantes_qs:
-        indicadores = calcular_rendimiento_estudiante(
-            est.id, proyecto_id=proyecto_id, curso_id=curso_id, umbrales=umbrales
-        )
+    for est in estudiantes:
+        indicadores = rendimientos[est.id]
         if solo_riesgo and not indicadores['en_riesgo']:
             continue
         resultado.append({

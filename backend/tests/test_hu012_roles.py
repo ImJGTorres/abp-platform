@@ -61,59 +61,59 @@ def equipo_con_estudiantes(proyecto_activo, docente_a):
 
 @pytest.mark.django_db
 def test_cp01_estudiante_define_propio_rol(cliente_a, equipo_con_estudiantes):
-    """CP-01: PATCH miembros/:id_usuario/ — estudiante define su propio rol → 200"""
+    """CP-01: PATCH miembros/:id_usuario/rol/ — estudiante define su propio rol (no líder) → 200"""
     equipo, estudiantes, miembros = equipo_con_estudiantes
     estudiante, _ = estudiantes
-    
+
     # Autenticar como el estudiante
     from rest_framework.test import APIClient
     cliente_estudiante = APIClient()
     cliente_estudiante.force_authenticate(user=estudiante)
-    
+
     url = reverse('miembro-rol', kwargs={
         'equipo_id': equipo.id,
         'usuario_id': estudiante.id
     })
     payload = {
-        'rol_interno': 'lider'
+        'rol_interno': 'desarrollador'
     }
-    
+
     response = cliente_estudiante.patch(url, payload, format='json')
-    
+
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
-    assert data['rol_interno'] == 'lider'
+    assert data['rol_interno'] == 'desarrollador'
 
 
 @pytest.mark.django_db
-def test_cp02_dos_estudiantes_intentan_ser_lider(cliente_a, equipo_con_estudiantes):
-    """CP-02: PATCH — dos estudiantes intentan ser Líder → 400 (ya hay un Líder en el equipo)"""
+def test_cp02_estudiante_no_se_asigna_lider(cliente_a, equipo_con_estudiantes):
+    """CP-02 (NUE-02, Sprint 7): el rol de Líder solo lo asigna el docente → 403 para el estudiante.
+
+    Antes el estudiante podía ponerse Líder a sí mismo por esta ruta (HAL-S7-01). El docente lo
+    asigna con PATCH /api/miembros/<id>/ y el estudiante tampoco puede quitárselo.
+    """
     equipo, estudiantes, miembros = equipo_con_estudiantes
     estudiante1, estudiante2 = estudiantes
-    
-    # Primer estudiante se hace líder
     from rest_framework.test import APIClient
-    cliente_estudiante1 = APIClient()
-    cliente_estudiante1.force_authenticate(user=estudiante1)
-    
-    url1 = reverse('miembro-rol', kwargs={
-        'equipo_id': equipo.id,
-        'usuario_id': estudiante1.id
-    })
-    cliente_estudiante1.patch(url1, {'rol_interno': 'lider'}, format='json')
-    
-    # Segundo estudiante intenta hacerse líder - debería fallar
+
     cliente_estudiante2 = APIClient()
     cliente_estudiante2.force_authenticate(user=estudiante2)
-    
-    url2 = reverse('miembro-rol', kwargs={
-        'equipo_id': equipo.id,
-        'usuario_id': estudiante2.id
-    })
+    url2 = reverse('miembro-rol', kwargs={'equipo_id': equipo.id, 'usuario_id': estudiante2.id})
     response = cliente_estudiante2.patch(url2, {'rol_interno': 'lider'}, format='json')
-    
-    assert response.status_code == status.HTTP_400_BAD_REQUEST
-    assert 'lider' in response.json()['detail'].lower() or 'rol' in response.json()['detail'].lower()
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+    assert 'líder' in str(response.json()).lower()
+    assert MiembroEquipo.objects.get(pk=miembros[1].pk).rol_interno != 'lider'
+
+    # El docente sí lo asigna, y el líder no puede quitárselo por su cuenta
+    respuesta_docente = cliente_a.patch(
+        reverse('miembro-actualizar-rol', kwargs={'miembro_id': miembros[0].id}),
+        {'rol_interno': 'lider'}, format='json')
+    assert respuesta_docente.status_code == status.HTTP_200_OK
+    cliente_estudiante1 = APIClient()
+    cliente_estudiante1.force_authenticate(user=Usuario.objects.get(pk=estudiante1.pk))
+    url1 = reverse('miembro-rol', kwargs={'equipo_id': equipo.id, 'usuario_id': estudiante1.id})
+    assert cliente_estudiante1.patch(url1, {'rol_interno': 'tester'}, format='json').status_code == status.HTTP_403_FORBIDDEN
+    assert MiembroEquipo.objects.get(pk=miembros[0].pk).rol_interno == 'lider'
 
 
 @pytest.mark.django_db

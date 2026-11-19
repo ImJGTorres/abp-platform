@@ -1,7 +1,10 @@
+import logging
 from django.db import transaction
 from rest_framework.exceptions import ValidationError
 
 from .models import Entregable, EntregableVersion
+
+logger = logging.getLogger(__name__)
 
 
 def _obtener_original(entregable):
@@ -60,7 +63,7 @@ def crear_nueva_version(entregable_rechazado, usuario, motivo=''):
                 descripcion=f'Nueva versión {numero_version} del entregable {entregable_rechazado.id}',
             )
         except Exception:
-            pass
+            logger.exception('Error no crítico ignorado')
 
     return nuevo
 
@@ -88,4 +91,4 @@ def registrar_validacion_bitacora(entregable, usuario, accion: str):
             ),
         )
     except Exception:
-        pass
+        logger.exception('Error no crítico ignorado')

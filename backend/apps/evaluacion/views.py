@@ -1,3 +1,4 @@
+import logging
 from datetime import timedelta
 from django.db import transaction
 from django.db.models import Avg, Count, Q, ProtectedError
@@ -10,12 +11,14 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.bitacora.models import BitacoraSistema
-from apps.bitacora.utils import registrar_evento
+from apps.bitacora.utils import _get_ip, registrar_evento
 from apps.configuracion.models import PeriodoAcademico
+from apps.cursos.acceso import puede_gestionar_proyecto, puede_ver_proyecto
 from apps.cursos.models import Proyecto
 from apps.cursos.permissions import EsDocente, EsDocenteOAdministrador
 from apps.entregables.models import Entregable
 from apps.equipos.models import Equipo, MiembroEquipo
+from apps.reportes.acceso import docente_tiene_estudiante
 from apps.usuarios.authentication import UsuarioJWTAuthentication
 from apps.usuarios.models import Usuario
 from .models import Autoevaluacion, Coevaluacion, DetalleAutoevaluacion, DetalleCoevaluacion, Evaluacion, Retroalimentacion, Rubrica
@@ -38,6 +41,8 @@ from .serializers import (
     RubricaUpdateSerializer,
 )
 from .services import clonar_rubrica, validar_ponderaciones
+
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -144,10 +149,10 @@ class RubricaDetailView(generics.RetrieveUpdateDestroyAPIView):
                 accion=BitacoraSistema.Accion.UPDATE,
                 modulo='rubricas',
                 descripcion=f'Editó rúbrica id={rubrica.pk}',
-                ip_origen=request.META.get('REMOTE_ADDR'),
+                ip_origen=_get_ip(request),
             )
         except Exception:
-            pass
+            logger.exception('Error no crítico ignorado')
 
         return Response(serializer.data)
 
@@ -298,7 +303,9 @@ class ProyectoRubricaListCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, proyecto_id):
-        get_object_or_404(Proyecto, pk=proyecto_id)
+        proyecto = get_object_or_404(Proyecto.objects.select_related('id_curso'), pk=proyecto_id)
+        if not puede_ver_proyecto(request.user, proyecto):
+            raise PermissionDenied('No tienes acceso a este proyecto.')
         qs = (
             Rubrica.objects
             .filter(id_proyecto_id=proyecto_id)
@@ -315,7 +322,9 @@ class ProyectoRubricaListCreateView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        proyecto = get_object_or_404(Proyecto, pk=proyecto_id)
+        proyecto = get_object_or_404(Proyecto.objects.select_related('id_curso'), pk=proyecto_id)
+        if not puede_gestionar_proyecto(request.user, proyecto):
+            raise PermissionDenied('No eres el docente de este proyecto.')
 
         serializer = RubricaProyectoCreateSerializer(
             data=request.data,
@@ -338,10 +347,10 @@ class ProyectoRubricaListCreateView(APIView):
                 accion=BitacoraSistema.Accion.CREATE,
                 modulo='rubricas',
                 descripcion=f'Creó rúbrica id={rubrica.pk} en proyecto id={proyecto_id}',
-                ip_origen=request.META.get('REMOTE_ADDR'),
+                ip_origen=_get_ip(request),
             )
         except Exception:
-            pass
+            logger.exception('Error no crítico ignorado')
 
         return Response(
             RubricaSerializer(rubrica, context={'request': request}).data,
@@ -434,7 +443,7 @@ class EvaluacionListCreateView(APIView):
 
         serializer = EvaluacionCreateSerializer(
             data=request.data,
-            context={'request': request},
+            context={'request': request, 'entregable': entregable},
         )
         serializer.is_valid(raise_exception=True)
         evaluacion = serializer.save(
@@ -552,7 +561,7 @@ class RetroalimentacionCreateView(APIView):
 
         serializer = RetroalimentacionCreateSerializer(
             data=request.data,
-            context={'request': request},
+            context={'request': request, 'proyecto': proyecto},
         )
         serializer.is_valid(raise_exception=True)
         retro = serializer.save(
@@ -639,7 +648,8 @@ class RetroalimentacionEstudianteView(APIView):
         # Solo el propio estudiante, docentes, director o admin
         puede_ver = (
             user.pk == id_usuario or
-            tipo_rol in ('docente', 'director', 'administrador')
+            tipo_rol in ('director', 'administrador') or
+            (tipo_rol == 'docente' and docente_tiene_estudiante(user, id_usuario))
         )
         if not puede_ver:
             raise PermissionDenied(
@@ -827,10 +837,10 @@ class AutoevaluacionListCreateView(APIView):
                 accion=BitacoraSistema.Accion.CREATE,
                 modulo='autoevaluacion',
                 descripcion=f'Creó autoevaluación id={autoevaluacion.pk} en proyecto id={id_proyecto}',
-                ip_origen=request.META.get('REMOTE_ADDR'),
+                ip_origen=_get_ip(request),
             )
         except Exception:
-            pass
+            logger.exception('Error no crítico ignorado')
 
         autoevaluacion = (
             Autoevaluacion.objects
@@ -937,7 +947,10 @@ class AutoevaluacionMiaView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        get_object_or_404(Proyecto, pk=proyecto_id)
+        if tipo_rol in ('docente', 'administrador'):
+            _get_proyecto_con_acceso_docente(proyecto_id, request.user)
+        else:
+            get_object_or_404(Proyecto, pk=proyecto_id)
 
         autoevaluacion = (
             Autoevaluacion.objects
@@ -1160,10 +1173,10 @@ class CoevaluacionListCreateView(APIView):
                     f'Creó coevaluación id={coevaluacion.pk} '
                     f'en proyecto id={id_proyecto}'
                 ),
-                ip_origen=request.META.get('REMOTE_ADDR'),
+                ip_origen=_get_ip(request),
             )
         except Exception:
-            pass
+            logger.exception('Error no crítico ignorado')
 
         coevaluacion = (
             Coevaluacion.objects
@@ -1198,7 +1211,10 @@ class CoevaluacionPromedioView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        get_object_or_404(Proyecto, pk=proyecto_id)
+        if tipo_rol in ('docente', 'administrador'):
+            _get_proyecto_con_acceso_docente(proyecto_id, request.user)
+        else:
+            get_object_or_404(Proyecto, pk=proyecto_id)
 
         # Estudiante: siempre su propio promedio
         if tipo_rol == 'estudiante':

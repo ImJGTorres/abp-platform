@@ -195,12 +195,6 @@ def test_cp05_sin_autenticacion(api_client, equipo_con_capacidad, estudiante_use
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
-@pytest.mark.skip(reason=(
-    "Hueco de permisos: AsignarEstudiantesView solo exige IsAuthenticated, "
-    "así que hoy un estudiante sí puede asignarse a cualquier equipo (no hay 403). "
-    "La prueba queda lista para activarse cuando se valide que el usuario es "
-    "docente del proyecto o administrador."
-))
 @pytest.mark.django_db
 def test_cp06_rol_no_docente_intenta_asignar(cliente_b, equipo_con_capacidad, estudiante_user):
     """CP-06: Rol no-docente intenta asignar → 403"""

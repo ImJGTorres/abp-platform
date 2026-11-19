@@ -92,7 +92,7 @@ class UsuarioUpdateSerializerTests(TestCase):
         self.assertEqual(self.usuario.telefono, '3001234567')
 
     def test_foto_perfil_es_editable(self):
-        url = 'https://cdn.example.com/foto.jpg'
+        url = '/media/fotos_perfil/5_abcdef0123456789.jpg'
         s = self._serializer(self.usuario, {'foto_perfil': url}, self.usuario)
         self.assertTrue(s.is_valid(), s.errors)
         s.save()
@@ -321,10 +321,10 @@ class BitacoraActualizacionTests(APITestCase):
 
     def test_bitacora_incluye_campos_modificados(self):
         self._auth(self.usuario)
-        self.client.patch(self._url(self.usuario.pk), {'nombre': 'Nu', 'apellido': 'Vega2'})
+        self.client.patch(self._url(self.usuario.pk), {'nombre': 'Nu', 'apellido': 'Vega Ruiz'})
         # nombre debe fallar (< 2 chars), solo apellido válido
         self._auth(self.usuario)
-        self.client.patch(self._url(self.usuario.pk), {'apellido': 'Vega2', 'telefono': '3001112233'})
+        self.client.patch(self._url(self.usuario.pk), {'apellido': 'Vega Ruiz', 'telefono': '3001112233'})
         entrada = BitacoraSistema.objects.filter(
             accion=BitacoraSistema.Accion.UPDATE,
             modulo='usuarios',
