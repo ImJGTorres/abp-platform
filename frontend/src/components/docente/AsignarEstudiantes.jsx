@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useParams, useLocation } from 'react-router-dom'
 import { equiposApi } from '../../services/docenteApi'
 import MigasDePan from '../Compartidos/MigasDePan'
+import { avisarSiProhibido, mensajeDeError } from '../../utils/errorHandler'
 
 const AVATAR_COLORS = ['#d32f2f', '#1976d2', '#388e3c', '#7b1fa2', '#f57c00', '#0097a7', '#5d4037', '#37474f']
 
@@ -50,8 +51,10 @@ export default function AsignarEstudiantes() {
         try {
             await equiposApi.asignarEstudiantes(equipoId, [...seleccionados])
             await cargarDatos()
-        } catch {
-            setError('Error al asignar estudiantes. Inténtalo de nuevo.')
+        } catch (err) {
+            if (!avisarSiProhibido(err)) {
+                setError(mensajeDeError(err, 'Error al asignar estudiantes. Inténtalo de nuevo.'))
+            }
         } finally {
             setAsignando(false)
         }
