@@ -1,166 +1,119 @@
+// RUTA: frontend/cypress/e2e/parametros.cy.js
+// HU-035 — Configuración de parámetros del sistema.
+// Usa cypress.administrador@example.com (seed_cypress). Los parámetros que cambia
+// (correo de soporte y % de alerta del semáforo) se guardan antes y se restauran al terminar.
+
+const URL_CONFIGURACION = '/admin/configuracion'
+const CLAVES_MODIFICADAS = ['correo_soporte', 'umbral_porcentaje_alerta']
+
+const originales = {}
+
+// Valores actuales de los parámetros, leídos de la API: { clave: valor }
+function leerParametros() {
+  return cy.api('administrador', 'GET', '/api/configuracion/').then(({ body }) => {
+    const valores = {}
+    Object.values(body).filter(Array.isArray).flat()
+      .forEach(p => { valores[p.clave] = p.valor })
+    return valores
+  })
+}
+
+const inputDe = etiqueta => cy.contains('div', etiqueta).parent().parent().find('input')
+
+// Guarda la sección y espera a que el backend acepte sus n parámetros (un PATCH 200 por cada uno).
+function guardarSeccion(titulo, n) {
+  cy.intercept('PATCH', '**/api/configuracion/*/').as('guardarParametro')
+  cy.contains('span', titulo).parent().parent().contains('button', 'Guardar sección').click()
+  // Con una sola petición cy.wait devuelve un objeto, no una lista
+  cy.wait(Array(n).fill('@guardarParametro')).then(r => {
+    [].concat(r).forEach(({ response }) => expect(response.statusCode).to.eq(200))
+  })
+}
+
+function abrirConfiguracion() {
+  cy.intercept('GET', '**/api/configuracion/').as('cargarParametros')
+  cy.login('administrador')
+  cy.visit(URL_CONFIGURACION)
+  cy.contains('h1', 'Configuración de Parámetros').should('be.visible')
+  // En desarrollo React (StrictMode) carga los parámetros dos veces; si se escribe antes de
+  // que termine la segunda carga, esta pisa lo escrito. Se espera a que terminen todas.
+  cy.get('@cargarParametros.all').should(cargas => {
+    expect(cargas.length).to.be.greaterThan(0)
+    cargas.forEach(c => expect(c.response, 'respuesta de la carga').to.exist)
+  })
+}
+
+before(() => {
+  cy.task('seedCypress', null, { timeout: 120000 })
+  leerParametros().then(valores => {
+    CLAVES_MODIFICADAS.forEach(clave => { originales[clave] = valores[clave] })
+  })
+})
+
+after(() => {
+  CLAVES_MODIFICADAS.forEach(clave => {
+    if (originales[clave] !== undefined) {
+      cy.api('administrador', 'PATCH', `/api/configuracion/${clave}/`, { valor: originales[clave] })
+    }
+  })
+})
+
 describe('HU-035 - Configuración de Parámetros', () => {
-  
-  // Función para establecer sesión directamente (sin login real)
-  function setAdminSession() {
-    // Establecer tokens en localStorage para simular sesión activa
-    cy.window().then((win) => {
-      win.localStorage.setItem('access_token', 'fake_access_token')
-      win.localStorage.setItem('refresh_token', 'fake_refresh_token')
-      win.localStorage.setItem('user', JSON.stringify({
-        id: 1,
-        nombre: 'Admin',
-        correo: 'admin@test.com',
-        tipo_rol: 'administrador'
-      }))
-    })
-  }
 
-  beforeEach(() => {
-    // Establecer sesión y navegar directamente a configuración
-    setAdminSession()
-    cy.visit('http://localhost:5173/admin/configuracion')
+  it('CA-01: Administrador modifica un parámetro de texto y el sistema lo aplica', () => {
+    const nuevoCorreo = `soporte.cypress${Date.now()}@example.com`
+    abrirConfiguracion()
+
+    inputDe('Correo de Soporte').clear().type(nuevoCorreo)
+    guardarSeccion('Información Institucional', 1)
+
+    // Persistencia: al volver a abrir la pantalla se lee el valor guardado
+    abrirConfiguracion()
+    inputDe('Correo de Soporte').should('have.value', nuevoCorreo)
   })
 
-  it('CA-01: Administrador modifica un parámetro y el sistema lo aplica', () => {
-    cy.contains('Configuración de Parámetros').should('be.visible')
-    
-    const nuevoNombre = 'Universidad Nueva Prueba'
-    cy.contains('Nombre de la institución')
-      .parent()
-      .parent()
-      .find('input')
-      .clear()
-      .type(nuevoNombre)
-    
-    cy.contains('Información Institucional')
-      .parent()
-      .parent()
-      .find('button')
-      .contains('Guardar sección')
-      .click()
-    
-    cy.contains('Cambios guardados satisfactoriamente').should('be.visible')
-    
-    cy.contains('Nombre de la institución')
-      .parent()
-      .parent()
-      .find('input')
-      .should('have.value', nuevoNombre)
+  it('CA-01: Modificar un umbral del semáforo (entero)', () => {
+    // Un valor distinto del actual, dentro del rango 0-100
+    const nuevo = Number(originales.umbral_porcentaje_alerta) === 30 ? '31' : '30'
+    abrirConfiguracion()
+
+    inputDe('% Actividades incumplidas para Amarillo').type(`{selectAll}${nuevo}`)
+    inputDe('% Actividades incumplidas para Amarillo').should('have.value', nuevo)
+    guardarSeccion('Umbrales del Semáforo Académico', 4)
+
+    leerParametros().its('umbral_porcentaje_alerta').should('eq', nuevo)
   })
 
-  it('CA-01: Modificar parámetro académico (entero)', () => {
-    cy.contains('Máximo de estudiantes por equipo')
-      .parent()
-      .parent()
-      .find('input')
-      .focus()
-      .type('{selectAll}')
-      .type('8')
-      .should('have.value', '8')
-    
-    cy.contains('Parámetros Académicos')
-      .parent()
-      .parent()
-      .find('button')
-      .contains('Guardar sección')
-      .click()
-    
-    cy.contains('Cambios guardados satisfactoriamente').should('be.visible')
-    
-    cy.contains('Máximo de estudiantes por equipo')
-      .parent()
-      .parent()
-      .find('input')
-      .should('have.value', '8')
+  it('CA-02: Validación en frontend - un porcentaje no puede superar 100', () => {
+    abrirConfiguracion()
+
+    inputDe('% Actividades incumplidas para Amarillo').type('{selectAll}150')
+
+    inputDe('% Actividades incumplidas para Amarillo').should('have.value', '100')
   })
 
-  it('CA-01: Modificar parámetro de seguridad (booleano)', () => {
-    cy.contains('Bitácora activa')
-      .parent()
-      .parent()
-      .find('button')
-      .click()
-    
-    cy.contains('Seguridad y Sistema')
-      .parent()
-      .parent()
-      .find('button')
-      .contains('Guardar sección')
-      .click()
-    
-    cy.contains('Cambios guardados satisfactoriamente').should('be.visible')
+  it('CA-02: Validación en frontend - una nota no puede superar 5', () => {
+    abrirConfiguracion()
+
+    inputDe('Nota crítica (Riesgo Rojo').type('{selectAll}9')
+
+    inputDe('Nota crítica (Riesgo Rojo').should('have.value', '5')
   })
 
-  it('CA-02: Validación de formato en frontend - valor vacío', () => {
-    cy.contains('Nombre de la institución')
-      .parent()
-      .parent()
-      .find('input')
-      .clear()
-    
-    cy.contains('Información Institucional')
-      .parent()
-      .parent()
-      .find('button')
-      .contains('Guardar sección')
-      .click()
-    
-    cy.contains('Cambios guardados satisfactoriamente').should('be.visible')
+  it('CA-02: Validación en backend - el valor es obligatorio', () => {
+    cy.api('administrador', 'PATCH', '/api/configuracion/umbral_porcentaje_alerta/', {})
+      .its('status').should('eq', 400)
   })
 
-  it('CA-02: Validación de formato en frontend - valor numérico inválido', () => {
-    cy.contains('Nota mínima de aprobación')
-      .parent()
-      .parent()
-      .find('input')
-      .clear()
-      .type('-5')
-    
-    cy.contains('Parámetros Académicos')
-      .parent()
-      .parent()
-      .find('button')
-      .contains('Guardar sección')
-      .click()
-    
-    cy.contains('Cambios guardados satisfactoriamente').should('be.visible')
+  it('CA-03: Un usuario que no es administrador no puede cambiar parámetros', () => {
+    cy.api('docente', 'PATCH', '/api/configuracion/umbral_porcentaje_alerta/', { valor: '99' })
+      .its('status').should('eq', 403)
   })
 
-  it('Verificar que existen todas las secciones de parámetros', () => {
+  it('Verificar que existen las secciones de parámetros', () => {
+    abrirConfiguracion()
+
     cy.contains('Información Institucional').should('be.visible')
-    cy.contains('Parámetros Académicos').should('be.visible')
-    cy.contains('Seguridad y Sistema').should('be.visible')
-  })
-
-  it('Verificar valores iniciales de parámetros', () => {
-    cy.contains('Nombre de la institución')
-      .parent()
-      .parent()
-      .find('input')
-      .should('have.value', 'Universidad Francisco de Paula Santander')
-    
-    cy.contains('Correo de Soporte')
-      .parent()
-      .parent()
-      .find('input')
-      .should('have.value', 'soporte@ufps.edu.co')
-    
-    cy.contains('Máximo de estudiantes por equipo')
-      .parent()
-      .parent()
-      .find('input')
-      .should('have.value', '5')
-    
-    cy.contains('Semanas por sprint')
-      .parent()
-      .parent()
-      .find('input')
-      .should('have.value', '2')
-    
-    cy.contains('Nota mínima de aprobación')
-      .parent()
-      .parent()
-      .find('input')
-      .should('have.value', '60')
+    cy.contains('Umbrales del Semáforo Académico').should('be.visible')
   })
 })

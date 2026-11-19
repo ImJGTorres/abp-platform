@@ -1,0 +1,781 @@
+It looks like this is your first time using Cypress: 15.13.1
+
+[STARTED]  Verifying Cypress can run C:\Users\N\AppData\Local\Cypress\Cache\15.13.1\Cypress
+[TITLE]  Verified Cypress!       C:\Users\N\AppData\Local\Cypress\Cache\15.13.1\Cypress
+[SUCCESS]  Verified Cypress!       C:\Users\N\AppData\Local\Cypress\Cache\15.13.1\Cypress
+
+Opening Cypress...
+
+Warning: The allowCypressEnv configuration option is enabled. This allows any browser code to read values from Cypress.env(). This is insecure and will be removed in a future major version.
+
+1. Replace Cypress.env() calls with cy.env() (for sensitive values) or Cypress.expose() (for public configuration)
+2. Set allowCypressEnv: false in your Cypress configuration to disable Cypress.env()
+
+Learn more: https://on.cypress.io/cypress-env-migration
+
+
+====================================================================================================
+
+  (Run Starting)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Cypress:        15.13.1                                                                        │
+  │ Browser:        Electron 138 (headless)                                                        │
+  │ Node Version:   v22.19.0 (C:\software\Node\node.exe)                                           │
+  │ Specs:          9 found (hu001-registro.cy.js, hu002-login.cy.js, hu003-roles.cy.js, hu036-per │
+  │                 iodos.cy.js, hu040-calendario.cy.js, hu041-semaforo.cy.js, hu042-panel-docente │
+  │                 .cy.js, hu043-correos.cy.js, parametros.cy.js)                                 │
+  │ Searched:       cypress/e2e/**/*.cy.{js,jsx}                                                   │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+  Running:  hu001-registro.cy.js                                                            (1 of 9)
+
+
+  1) "before each" hook for "CP-01 - Registro exitoso muestra confirmación"
+
+  0 passing (646ms)
+  1 failing
+
+  1) "before each" hook for "CP-01 - Registro exitoso muestra confirmación":
+     CypressError: `cy.visit()` failed trying to load:
+
+http://localhost:5173/login
+
+The response we received from your web server was:
+
+  > 404: Not Found
+
+This was considered a failure because the status code was not `2xx`.
+
+If you do not want status codes to cause failures pass the option: `failOnStatusCode: false`
+
+Because this error occurred during a `before each` hook we are skipping all of the remaining tests.
+      at <unknown> (http://localhost:5173/__cypress/runner/cypress_runner.js:135134:76)
+      at visitFailedByErr (http://localhost:5173/__cypress/runner/cypress_runner.js:134724:12)
+      at <unknown> (http://localhost:5173/__cypress/runner/cypress_runner.js:135117:13)
+      at tryCatcher (http://localhost:5173/__cypress/runner/cypress_runner.js:1777:23)
+      at Promise._settlePromiseFromHandler (http://localhost:5173/__cypress/runner/cypress_runner.js:1489:31)
+      at Promise._settlePromise (http://localhost:5173/__cypress/runner/cypress_runner.js:1546:18)
+      at Promise._settlePromise0 (http://localhost:5173/__cypress/runner/cypress_runner.js:1591:10)
+      at Promise._settlePromises (http://localhost:5173/__cypress/runner/cypress_runner.js:1667:18)
+      at _drainQueueStep (http://localhost:5173/__cypress/runner/cypress_runner.js:2377:12)
+      at _drainQueue (http://localhost:5173/__cypress/runner/cypress_runner.js:2370:9)
+      at Async._drainQueues (http://localhost:5173/__cypress/runner/cypress_runner.js:2386:5)
+      at Async.drainQueues (http://localhost:5173/__cypress/runner/cypress_runner.js:2256:14)
+  From Your Spec Code:
+      at Context.eval (webpack://frontend/./cypress/e2e/hu001-registro.cy.js:10:5)
+
+
+
+
+  (Results)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Tests:        3                                                                                │
+  │ Passing:      0                                                                                │
+  │ Failing:      1                                                                                │
+  │ Pending:      0                                                                                │
+  │ Skipped:      2                                                                                │
+  │ Screenshots:  1                                                                                │
+  │ Video:        false                                                                            │
+  │ Duration:     0 seconds                                                                        │
+  │ Spec Ran:     hu001-registro.cy.js                                                             │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+  (Screenshots)
+
+  -  C:\Users\N\Proyectos\ABP\abp-platform\frontend\cypress\screenshots\hu001-registr     (1280x720)
+     o.cy.js\CP-01 - Registro exitoso muestra confirmación -- before each hook (faile               
+     d).png                                                                                         
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+  Running:  hu002-login.cy.js                                                               (2 of 9)
+
+
+  1) "before each" hook for "CP-08a - Administrador redirige a /admin"
+
+  0 passing (445ms)
+  1 failing
+
+  1) "before each" hook for "CP-08a - Administrador redirige a /admin":
+     CypressError: `cy.visit()` failed trying to load:
+
+http://localhost:5173/login
+
+The response we received from your web server was:
+
+  > 404: Not Found
+
+This was considered a failure because the status code was not `2xx`.
+
+If you do not want status codes to cause failures pass the option: `failOnStatusCode: false`
+
+Because this error occurred during a `before each` hook we are skipping all of the remaining tests.
+      at <unknown> (http://localhost:5173/__cypress/runner/cypress_runner.js:135134:76)
+      at visitFailedByErr (http://localhost:5173/__cypress/runner/cypress_runner.js:134724:12)
+      at <unknown> (http://localhost:5173/__cypress/runner/cypress_runner.js:135117:13)
+      at tryCatcher (http://localhost:5173/__cypress/runner/cypress_runner.js:1777:23)
+      at Promise._settlePromiseFromHandler (http://localhost:5173/__cypress/runner/cypress_runner.js:1489:31)
+      at Promise._settlePromise (http://localhost:5173/__cypress/runner/cypress_runner.js:1546:18)
+      at Promise._settlePromise0 (http://localhost:5173/__cypress/runner/cypress_runner.js:1591:10)
+      at Promise._settlePromises (http://localhost:5173/__cypress/runner/cypress_runner.js:1667:18)
+      at _drainQueueStep (http://localhost:5173/__cypress/runner/cypress_runner.js:2377:12)
+      at _drainQueue (http://localhost:5173/__cypress/runner/cypress_runner.js:2370:9)
+      at Async._drainQueues (http://localhost:5173/__cypress/runner/cypress_runner.js:2386:5)
+      at Async.drainQueues (http://localhost:5173/__cypress/runner/cypress_runner.js:2256:14)
+  From Your Spec Code:
+      at Context.eval (webpack://frontend/./cypress/e2e/hu002-login.cy.js:7:5)
+
+
+
+
+  (Results)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Tests:        7                                                                                │
+  │ Passing:      0                                                                                │
+  │ Failing:      1                                                                                │
+  │ Pending:      0                                                                                │
+  │ Skipped:      6                                                                                │
+  │ Screenshots:  1                                                                                │
+  │ Video:        false                                                                            │
+  │ Duration:     0 seconds                                                                        │
+  │ Spec Ran:     hu002-login.cy.js                                                                │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+  (Screenshots)
+
+  -  C:\Users\N\Proyectos\ABP\abp-platform\frontend\cypress\screenshots\hu002-login.c     (1280x720)
+     y.js\CP-08a - Administrador redirige a admin -- before each hook (failed).png                  
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+  Running:  hu003-roles.cy.js                                                               (3 of 9)
+
+
+  1) CP-01 - Administrador puede crear un rol correctamente
+  2) CP-02 - Administrador puede editar un rol correctamente
+  3) CP-03 - Los permisos se asignan correctamente por rol
+  4) CP-04 - No se puede eliminar un rol con usuarios activos
+  5) CP-05 - Se puede eliminar un rol sin usuarios asignados
+  6) CP-06 - Docente no puede acceder a /admin/roles
+  7) CP-07 - Estudiante no puede acceder a /docente
+  8) CP-08 - Backend retorna 403 a docente
+
+  0 passing (2s)
+  8 failing
+
+  1) CP-01 - Administrador puede crear un rol correctamente:
+     CypressError: `cy.visit()` failed trying to load:
+
+http://localhost:5173/login
+
+The response we received from your web server was:
+
+  > 404: Not Found
+
+This was considered a failure because the status code was not `2xx`.
+
+If you do not want status codes to cause failures pass the option: `failOnStatusCode: false`
+      at <unknown> (http://localhost:5173/__cypress/runner/cypress_runner.js:135134:76)
+      at visitFailedByErr (http://localhost:5173/__cypress/runner/cypress_runner.js:134724:12)
+      at <unknown> (http://localhost:5173/__cypress/runner/cypress_runner.js:135117:13)
+      at tryCatcher (http://localhost:5173/__cypress/runner/cypress_runner.js:1777:23)
+      at Promise._settlePromiseFromHandler (http://localhost:5173/__cypress/runner/cypress_runner.js:1489:31)
+      at Promise._settlePromise (http://localhost:5173/__cypress/runner/cypress_runner.js:1546:18)
+      at Promise._settlePromise0 (http://localhost:5173/__cypress/runner/cypress_runner.js:1591:10)
+      at Promise._settlePromises (http://localhost:5173/__cypress/runner/cypress_runner.js:1667:18)
+      at _drainQueueStep (http://localhost:5173/__cypress/runner/cypress_runner.js:2377:12)
+      at _drainQueue (http://localhost:5173/__cypress/runner/cypress_runner.js:2370:9)
+      at Async._drainQueues (http://localhost:5173/__cypress/runner/cypress_runner.js:2386:5)
+      at Async.drainQueues (http://localhost:5173/__cypress/runner/cypress_runner.js:2256:14)
+  From Your Spec Code:
+      at loginComo (webpack://frontend/./cypress/e2e/hu003-roles.cy.js:7:5)
+      at Context.eval (webpack://frontend/./cypress/e2e/hu003-roles.cy.js:43:2)
+
+  2) CP-02 - Administrador puede editar un rol correctamente:
+     CypressError: `cy.visit()` failed trying to load:
+
+http://localhost:5173/login
+
+The response we received from your web server was:
+
+  > 404: Not Found
+
+This was considered a failure because the status code was not `2xx`.
+
+If you do not want status codes to cause failures pass the option: `failOnStatusCode: false`
+      at <unknown> (http://localhost:5173/__cypress/runner/cypress_runner.js:135134:76)
+      at visitFailedByErr (http://localhost:5173/__cypress/runner/cypress_runner.js:134724:12)
+      at <unknown> (http://localhost:5173/__cypress/runner/cypress_runner.js:135117:13)
+      at tryCatcher (http://localhost:5173/__cypress/runner/cypress_runner.js:1777:23)
+      at Promise._settlePromiseFromHandler (http://localhost:5173/__cypress/runner/cypress_runner.js:1489:31)
+      at Promise._settlePromise (http://localhost:5173/__cypress/runner/cypress_runner.js:1546:18)
+      at Promise._settlePromise0 (http://localhost:5173/__cypress/runner/cypress_runner.js:1591:10)
+      at Promise._settlePromises (http://localhost:5173/__cypress/runner/cypress_runner.js:1667:18)
+      at _drainQueueStep (http://localhost:5173/__cypress/runner/cypress_runner.js:2377:12)
+      at _drainQueue (http://localhost:5173/__cypress/runner/cypress_runner.js:2370:9)
+      at Async._drainQueues (http://localhost:5173/__cypress/runner/cypress_runner.js:2386:5)
+      at Async.drainQueues (http://localhost:5173/__cypress/runner/cypress_runner.js:2256:14)
+  From Your Spec Code:
+      at loginComo (webpack://frontend/./cypress/e2e/hu003-roles.cy.js:7:5)
+      at Context.eval (webpack://frontend/./cypress/e2e/hu003-roles.cy.js:65:2)
+
+  3) CP-03 - Los permisos se asignan correctamente por rol:
+     CypressError: `cy.visit()` failed trying to load:
+
+http://localhost:5173/login
+
+The response we received from your web server was:
+
+  > 404: Not Found
+
+This was considered a failure because the status code was not `2xx`.
+
+If you do not want status codes to cause failures pass the option: `failOnStatusCode: false`
+      at <unknown> (http://localhost:5173/__cypress/runner/cypress_runner.js:135134:76)
+      at visitFailedByErr (http://localhost:5173/__cypress/runner/cypress_runner.js:134724:12)
+      at <unknown> (http://localhost:5173/__cypress/runner/cypress_runner.js:135117:13)
+      at tryCatcher (http://localhost:5173/__cypress/runner/cypress_runner.js:1777:23)
+      at Promise._settlePromiseFromHandler (http://localhost:5173/__cypress/runner/cypress_runner.js:1489:31)
+      at Promise._settlePromise (http://localhost:5173/__cypress/runner/cypress_runner.js:1546:18)
+      at Promise._settlePromise0 (http://localhost:5173/__cypress/runner/cypress_runner.js:1591:10)
+      at Promise._settlePromises (http://localhost:5173/__cypress/runner/cypress_runner.js:1667:18)
+      at _drainQueueStep (http://localhost:5173/__cypress/runner/cypress_runner.js:2377:12)
+      at _drainQueue (http://localhost:5173/__cypress/runner/cypress_runner.js:2370:9)
+      at Async._drainQueues (http://localhost:5173/__cypress/runner/cypress_runner.js:2386:5)
+      at Async.drainQueues (http://localhost:5173/__cypress/runner/cypress_runner.js:2256:14)
+  From Your Spec Code:
+      at loginComo (webpack://frontend/./cypress/e2e/hu003-roles.cy.js:7:5)
+      at Context.eval (webpack://frontend/./cypress/e2e/hu003-roles.cy.js:112:2)
+
+  4) CP-04 - No se puede eliminar un rol con usuarios activos:
+     CypressError: `cy.visit()` failed trying to load:
+
+http://localhost:5173/login
+
+The response we received from your web server was:
+
+  > 404: Not Found
+
+This was considered a failure because the status code was not `2xx`.
+
+If you do not want status codes to cause failures pass the option: `failOnStatusCode: false`
+      at <unknown> (http://localhost:5173/__cypress/runner/cypress_runner.js:135134:76)
+      at visitFailedByErr (http://localhost:5173/__cypress/runner/cypress_runner.js:134724:12)
+      at <unknown> (http://localhost:5173/__cypress/runner/cypress_runner.js:135117:13)
+      at tryCatcher (http://localhost:5173/__cypress/runner/cypress_runner.js:1777:23)
+      at Promise._settlePromiseFromHandler (http://localhost:5173/__cypress/runner/cypress_runner.js:1489:31)
+      at Promise._settlePromise (http://localhost:5173/__cypress/runner/cypress_runner.js:1546:18)
+      at Promise._settlePromise0 (http://localhost:5173/__cypress/runner/cypress_runner.js:1591:10)
+      at Promise._settlePromises (http://localhost:5173/__cypress/runner/cypress_runner.js:1667:18)
+      at _drainQueueStep (http://localhost:5173/__cypress/runner/cypress_runner.js:2377:12)
+      at _drainQueue (http://localhost:5173/__cypress/runner/cypress_runner.js:2370:9)
+      at Async._drainQueues (http://localhost:5173/__cypress/runner/cypress_runner.js:2386:5)
+      at Async.drainQueues (http://localhost:5173/__cypress/runner/cypress_runner.js:2256:14)
+  From Your Spec Code:
+      at loginComo (webpack://frontend/./cypress/e2e/hu003-roles.cy.js:7:5)
+      at Context.eval (webpack://frontend/./cypress/e2e/hu003-roles.cy.js:153:2)
+
+  5) CP-05 - Se puede eliminar un rol sin usuarios asignados:
+     CypressError: `cy.visit()` failed trying to load:
+
+http://localhost:5173/login
+
+The response we received from your web server was:
+
+  > 404: Not Found
+
+This was considered a failure because the status code was not `2xx`.
+
+If you do not want status codes to cause failures pass the option: `failOnStatusCode: false`
+      at <unknown> (http://localhost:5173/__cypress/runner/cypress_runner.js:135134:76)
+      at visitFailedByErr (http://localhost:5173/__cypress/runner/cypress_runner.js:134724:12)
+      at <unknown> (http://localhost:5173/__cypress/runner/cypress_runner.js:135117:13)
+      at tryCatcher (http://localhost:5173/__cypress/runner/cypress_runner.js:1777:23)
+      at Promise._settlePromiseFromHandler (http://localhost:5173/__cypress/runner/cypress_runner.js:1489:31)
+      at Promise._settlePromise (http://localhost:5173/__cypress/runner/cypress_runner.js:1546:18)
+      at Promise._settlePromise0 (http://localhost:5173/__cypress/runner/cypress_runner.js:1591:10)
+      at Promise._settlePromises (http://localhost:5173/__cypress/runner/cypress_runner.js:1667:18)
+      at _drainQueueStep (http://localhost:5173/__cypress/runner/cypress_runner.js:2377:12)
+      at _drainQueue (http://localhost:5173/__cypress/runner/cypress_runner.js:2370:9)
+      at Async._drainQueues (http://localhost:5173/__cypress/runner/cypress_runner.js:2386:5)
+      at Async.drainQueues (http://localhost:5173/__cypress/runner/cypress_runner.js:2256:14)
+  From Your Spec Code:
+      at loginComo (webpack://frontend/./cypress/e2e/hu003-roles.cy.js:7:5)
+      at Context.eval (webpack://frontend/./cypress/e2e/hu003-roles.cy.js:172:2)
+
+  6) CP-06 - Docente no puede acceder a /admin/roles:
+     CypressError: `cy.visit()` failed trying to load:
+
+http://localhost:5173/login
+
+The response we received from your web server was:
+
+  > 404: Not Found
+
+This was considered a failure because the status code was not `2xx`.
+
+If you do not want status codes to cause failures pass the option: `failOnStatusCode: false`
+      at <unknown> (http://localhost:5173/__cypress/runner/cypress_runner.js:135134:76)
+      at visitFailedByErr (http://localhost:5173/__cypress/runner/cypress_runner.js:134724:12)
+      at <unknown> (http://localhost:5173/__cypress/runner/cypress_runner.js:135117:13)
+      at tryCatcher (http://localhost:5173/__cypress/runner/cypress_runner.js:1777:23)
+      at Promise._settlePromiseFromHandler (http://localhost:5173/__cypress/runner/cypress_runner.js:1489:31)
+      at Promise._settlePromise (http://localhost:5173/__cypress/runner/cypress_runner.js:1546:18)
+      at Promise._settlePromise0 (http://localhost:5173/__cypress/runner/cypress_runner.js:1591:10)
+      at Promise._settlePromises (http://localhost:5173/__cypress/runner/cypress_runner.js:1667:18)
+      at _drainQueueStep (http://localhost:5173/__cypress/runner/cypress_runner.js:2377:12)
+      at _drainQueue (http://localhost:5173/__cypress/runner/cypress_runner.js:2370:9)
+      at Async._drainQueues (http://localhost:5173/__cypress/runner/cypress_runner.js:2386:5)
+      at Async.drainQueues (http://localhost:5173/__cypress/runner/cypress_runner.js:2256:14)
+  From Your Spec Code:
+      at loginComo (webpack://frontend/./cypress/e2e/hu003-roles.cy.js:7:5)
+      at Context.eval (webpack://frontend/./cypress/e2e/hu003-roles.cy.js:225:2)
+
+  7) CP-07 - Estudiante no puede acceder a /docente:
+     CypressError: `cy.visit()` failed trying to load:
+
+http://localhost:5173/login
+
+The response we received from your web server was:
+
+  > 404: Not Found
+
+This was considered a failure because the status code was not `2xx`.
+
+If you do not want status codes to cause failures pass the option: `failOnStatusCode: false`
+      at <unknown> (http://localhost:5173/__cypress/runner/cypress_runner.js:135134:76)
+      at visitFailedByErr (http://localhost:5173/__cypress/runner/cypress_runner.js:134724:12)
+      at <unknown> (http://localhost:5173/__cypress/runner/cypress_runner.js:135117:13)
+      at tryCatcher (http://localhost:5173/__cypress/runner/cypress_runner.js:1777:23)
+      at Promise._settlePromiseFromHandler (http://localhost:5173/__cypress/runner/cypress_runner.js:1489:31)
+      at Promise._settlePromise (http://localhost:5173/__cypress/runner/cypress_runner.js:1546:18)
+      at Promise._settlePromise0 (http://localhost:5173/__cypress/runner/cypress_runner.js:1591:10)
+      at Promise._settlePromises (http://localhost:5173/__cypress/runner/cypress_runner.js:1667:18)
+      at _drainQueueStep (http://localhost:5173/__cypress/runner/cypress_runner.js:2377:12)
+      at _drainQueue (http://localhost:5173/__cypress/runner/cypress_runner.js:2370:9)
+      at Async._drainQueues (http://localhost:5173/__cypress/runner/cypress_runner.js:2386:5)
+      at Async.drainQueues (http://localhost:5173/__cypress/runner/cypress_runner.js:2256:14)
+  From Your Spec Code:
+      at loginComo (webpack://frontend/./cypress/e2e/hu003-roles.cy.js:7:5)
+      at Context.eval (webpack://frontend/./cypress/e2e/hu003-roles.cy.js:238:2)
+
+  8) CP-08 - Backend retorna 403 a docente:
+     CypressError: `cy.visit()` failed trying to load:
+
+http://localhost:5173/login
+
+The response we received from your web server was:
+
+  > 404: Not Found
+
+This was considered a failure because the status code was not `2xx`.
+
+If you do not want status codes to cause failures pass the option: `failOnStatusCode: false`
+      at <unknown> (http://localhost:5173/__cypress/runner/cypress_runner.js:135134:76)
+      at visitFailedByErr (http://localhost:5173/__cypress/runner/cypress_runner.js:134724:12)
+      at <unknown> (http://localhost:5173/__cypress/runner/cypress_runner.js:135117:13)
+      at tryCatcher (http://localhost:5173/__cypress/runner/cypress_runner.js:1777:23)
+      at Promise._settlePromiseFromHandler (http://localhost:5173/__cypress/runner/cypress_runner.js:1489:31)
+      at Promise._settlePromise (http://localhost:5173/__cypress/runner/cypress_runner.js:1546:18)
+      at Promise._settlePromise0 (http://localhost:5173/__cypress/runner/cypress_runner.js:1591:10)
+      at Promise._settlePromises (http://localhost:5173/__cypress/runner/cypress_runner.js:1667:18)
+      at _drainQueueStep (http://localhost:5173/__cypress/runner/cypress_runner.js:2377:12)
+      at _drainQueue (http://localhost:5173/__cypress/runner/cypress_runner.js:2370:9)
+      at Async._drainQueues (http://localhost:5173/__cypress/runner/cypress_runner.js:2386:5)
+      at Async.drainQueues (http://localhost:5173/__cypress/runner/cypress_runner.js:2256:14)
+  From Your Spec Code:
+      at loginComo (webpack://frontend/./cypress/e2e/hu003-roles.cy.js:7:5)
+      at Context.eval (webpack://frontend/./cypress/e2e/hu003-roles.cy.js:251:2)
+
+
+
+
+  (Results)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Tests:        8                                                                                │
+  │ Passing:      0                                                                                │
+  │ Failing:      8                                                                                │
+  │ Pending:      0                                                                                │
+  │ Skipped:      0                                                                                │
+  │ Screenshots:  8                                                                                │
+  │ Video:        false                                                                            │
+  │ Duration:     1 second                                                                         │
+  │ Spec Ran:     hu003-roles.cy.js                                                                │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+  (Screenshots)
+
+  -  C:\Users\N\Proyectos\ABP\abp-platform\frontend\cypress\screenshots\hu003-roles.c     (1280x720)
+     y.js\CP-01 - Administrador puede crear un rol correctamente (failed).png                       
+  -  C:\Users\N\Proyectos\ABP\abp-platform\frontend\cypress\screenshots\hu003-roles.c     (1280x720)
+     y.js\CP-02 - Administrador puede editar un rol correctamente (failed).png                      
+  -  C:\Users\N\Proyectos\ABP\abp-platform\frontend\cypress\screenshots\hu003-roles.c     (1280x720)
+     y.js\CP-03 - Los permisos se asignan correctamente por rol (failed).png                        
+  -  C:\Users\N\Proyectos\ABP\abp-platform\frontend\cypress\screenshots\hu003-roles.c     (1280x720)
+     y.js\CP-04 - No se puede eliminar un rol con usuarios activos (failed).png                     
+  -  C:\Users\N\Proyectos\ABP\abp-platform\frontend\cypress\screenshots\hu003-roles.c     (1280x720)
+     y.js\CP-05 - Se puede eliminar un rol sin usuarios asignados (failed).png                      
+  -  C:\Users\N\Proyectos\ABP\abp-platform\frontend\cypress\screenshots\hu003-roles.c     (1280x720)
+     y.js\CP-06 - Docente no puede acceder a adminroles (failed).png                                
+  -  C:\Users\N\Proyectos\ABP\abp-platform\frontend\cypress\screenshots\hu003-roles.c     (1280x720)
+     y.js\CP-07 - Estudiante no puede acceder a docente (failed).png                                
+  -  C:\Users\N\Proyectos\ABP\abp-platform\frontend\cypress\screenshots\hu003-roles.c     (1280x720)
+     y.js\CP-08 - Backend retorna 403 a docente (failed).png                                        
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+  Running:  hu036-periodos.cy.js                                                            (4 of 9)
+
+
+  HU-036 - Gestión de Períodos Académicos
+    1) "before each" hook for "CA-01: Crear nuevo periodo académico"
+
+
+  0 passing (284ms)
+  1 failing
+
+  1) HU-036 - Gestión de Períodos Académicos
+       "before each" hook for "CA-01: Crear nuevo periodo académico":
+     CypressError: `cy.visit()` failed trying to load:
+
+http://localhost:5173/admin/periodos
+
+The response we received from your web server was:
+
+  > 404: Not Found
+
+This was considered a failure because the status code was not `2xx`.
+
+If you do not want status codes to cause failures pass the option: `failOnStatusCode: false`
+
+Because this error occurred during a `before each` hook we are skipping the remaining tests in the current suite: `HU-036 - Gestión de Período...`
+      at <unknown> (http://localhost:5173/__cypress/runner/cypress_runner.js:135134:76)
+      at visitFailedByErr (http://localhost:5173/__cypress/runner/cypress_runner.js:134724:12)
+      at <unknown> (http://localhost:5173/__cypress/runner/cypress_runner.js:135117:13)
+      at tryCatcher (http://localhost:5173/__cypress/runner/cypress_runner.js:1777:23)
+      at Promise._settlePromiseFromHandler (http://localhost:5173/__cypress/runner/cypress_runner.js:1489:31)
+      at Promise._settlePromise (http://localhost:5173/__cypress/runner/cypress_runner.js:1546:18)
+      at Promise._settlePromise0 (http://localhost:5173/__cypress/runner/cypress_runner.js:1591:10)
+      at Promise._settlePromises (http://localhost:5173/__cypress/runner/cypress_runner.js:1667:18)
+      at _drainQueueStep (http://localhost:5173/__cypress/runner/cypress_runner.js:2377:12)
+      at _drainQueue (http://localhost:5173/__cypress/runner/cypress_runner.js:2370:9)
+      at Async._drainQueues (http://localhost:5173/__cypress/runner/cypress_runner.js:2386:5)
+      at Async.drainQueues (http://localhost:5173/__cypress/runner/cypress_runner.js:2256:14)
+  From Your Spec Code:
+      at Context.eval (webpack://frontend/./cypress/e2e/hu036-periodos.cy.js:25:7)
+
+
+
+
+  (Results)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Tests:        8                                                                                │
+  │ Passing:      0                                                                                │
+  │ Failing:      1                                                                                │
+  │ Pending:      0                                                                                │
+  │ Skipped:      7                                                                                │
+  │ Screenshots:  1                                                                                │
+  │ Video:        false                                                                            │
+  │ Duration:     0 seconds                                                                        │
+  │ Spec Ran:     hu036-periodos.cy.js                                                             │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+  (Screenshots)
+
+  -  C:\Users\N\Proyectos\ABP\abp-platform\frontend\cypress\screenshots\hu036-periodo     (1280x720)
+     s.cy.js\HU-036 - Gestión de Períodos Académicos -- CA-01 Crear nuevo periodo aca               
+     démico -- before each hook (failed).png                                                        
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+  Running:  hu040-calendario.cy.js                                                          (5 of 9)
+
+
+  1) CA-01 - El calendario muestra fechas de 2 cursos con código de colores por urgencia
+  √ CA-03 - El detalle de un evento muestra avance, equipo y enlace directo (7497ms)
+  2) CA-02 - La notificación de recordatorio llega sin que el usuario la busque
+
+  1 passing (22s)
+  2 failing
+
+  1) CA-01 - El calendario muestra fechas de 2 cursos con código de colores por urgencia:
+     AssertionError: Timed out retrying after 4000ms: expected 'http://localhost:5173/login' to include '/estudiante'
+      at loginYClicCalendario (webpack://frontend/./cypress/e2e/hu040-calendario.cy.js:25:11)
+      at Context.eval (webpack://frontend/./cypress/e2e/hu040-calendario.cy.js:33:2)
+
+  2) CA-02 - La notificación de recordatorio llega sin que el usuario la busque:
+     AssertionError: Timed out retrying after 4000ms: expected 'http://localhost:5173/login' to include '/estudiante'
+      at Context.eval (webpack://frontend/./cypress/e2e/hu040-calendario.cy.js:77:11)
+
+
+
+
+  (Results)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Tests:        3                                                                                │
+  │ Passing:      1                                                                                │
+  │ Failing:      2                                                                                │
+  │ Pending:      0                                                                                │
+  │ Skipped:      0                                                                                │
+  │ Screenshots:  3                                                                                │
+  │ Video:        false                                                                            │
+  │ Duration:     21 seconds                                                                       │
+  │ Spec Ran:     hu040-calendario.cy.js                                                           │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+  (Screenshots)
+
+  -  C:\Users\N\Proyectos\ABP\abp-platform\frontend\cypress\screenshots\hu040-calenda     (1280x720)
+     rio.cy.js\CA-01 - El calendario muestra fechas de 2 cursos con código de colores               
+      por urgencia (failed).png                                                                     
+  -  C:\Users\N\Proyectos\ABP\abp-platform\frontend\cypress\screenshots\hu040-calenda     (1280x720)
+     rio.cy.js\hu040-ca03-detalle-evento.png                                                        
+  -  C:\Users\N\Proyectos\ABP\abp-platform\frontend\cypress\screenshots\hu040-calenda     (1280x720)
+     rio.cy.js\CA-02 - La notificación de recordatorio llega sin que el usuario la bu               
+     sque (failed).png                                                                              
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+  Running:  hu041-semaforo.cy.js                                                            (6 of 9)
+
+
+  1) CA-01 - Estudiante al día ve el semáforo en Verde con resumen óptimo
+  2) CA-02 - Estudiante con atrasos ve Amarillo/Rojo con críticos y recomendaciones reales
+  3) CA-03 - El color del semáforo coincide con el que ve el director para el mismo estudiante
+
+  0 passing (24s)
+  3 failing
+
+  1) CA-01 - Estudiante al día ve el semáforo en Verde con resumen óptimo:
+     AssertionError: Timed out retrying after 4000ms: expected 'http://localhost:5173/login' to include '/estudiante'
+      at Context.eval (webpack://frontend/./cypress/e2e/hu041-semaforo.cy.js:23:11)
+
+  2) CA-02 - Estudiante con atrasos ve Amarillo/Rojo con críticos y recomendaciones reales:
+     AssertionError: Timed out retrying after 4000ms: expected 'http://localhost:5173/login' to include '/estudiante'
+      at Context.eval (webpack://frontend/./cypress/e2e/hu041-semaforo.cy.js:40:11)
+
+  3) CA-03 - El color del semáforo coincide con el que ve el director para el mismo estudiante:
+     AssertionError: Timed out retrying after 4000ms: Expected to find content: 'Riesgo crítico' within the element: <tr#fila-estudiante-38.transition-colors.hover:bg-[#fafafa]> but never did.
+      at Context.eval (webpack://frontend/./cypress/e2e/hu041-semaforo.cy.js:67:34)
+      at withinFn (http://localhost:5173/__cypress/runner/cypress_runner.js:135978:8)
+      at <unknown> (http://localhost:5173/__cypress/runner/cypress_runner.js:136059:16)
+      at __WEBPACK_DEFAULT_EXPORT__ (http://localhost:5173/__cypress/runner/cypress_runner.js:133906:10)
+      at Context.within (http://localhost:5173/__cypress/runner/cypress_runner.js:136045:67)
+      at wrapped (http://localhost:5173/__cypress/runner/cypress_runner.js:146308:19)
+
+
+
+
+  (Results)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Tests:        3                                                                                │
+  │ Passing:      0                                                                                │
+  │ Failing:      3                                                                                │
+  │ Pending:      0                                                                                │
+  │ Skipped:      0                                                                                │
+  │ Screenshots:  3                                                                                │
+  │ Video:        false                                                                            │
+  │ Duration:     24 seconds                                                                       │
+  │ Spec Ran:     hu041-semaforo.cy.js                                                             │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+  (Screenshots)
+
+  -  C:\Users\N\Proyectos\ABP\abp-platform\frontend\cypress\screenshots\hu041-semafor     (1280x720)
+     o.cy.js\CA-01 - Estudiante al día ve el semáforo en Verde con resumen óptimo (fa               
+     iled).png                                                                                      
+  -  C:\Users\N\Proyectos\ABP\abp-platform\frontend\cypress\screenshots\hu041-semafor     (1280x720)
+     o.cy.js\CA-02 - Estudiante con atrasos ve AmarilloRojo con críticos y recomendac               
+     iones reales (failed).png                                                                      
+  -  C:\Users\N\Proyectos\ABP\abp-platform\frontend\cypress\screenshots\hu041-semafor     (1280x720)
+     o.cy.js\CA-03 - El color del semáforo coincide con el que ve el director para el               
+      mismo estudiante (failed).png                                                                 
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+  Running:  hu042-panel-docente.cy.js                                                       (7 of 9)
+
+
+  √ CA-01 - El docente ve una tarjeta por proyecto con su color y % de avance (14775ms)
+  √ CA-02 - El filtro Rojo lista únicamente los proyectos con retrasos críticos (8409ms)
+  √ CA-03 - El clic en una tarjeta navega directamente al detalle del proyecto (9322ms)
+
+  3 passing (33s)
+
+
+  (Results)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Tests:        3                                                                                │
+  │ Passing:      3                                                                                │
+  │ Failing:      0                                                                                │
+  │ Pending:      0                                                                                │
+  │ Skipped:      0                                                                                │
+  │ Screenshots:  3                                                                                │
+  │ Video:        false                                                                            │
+  │ Duration:     32 seconds                                                                       │
+  │ Spec Ran:     hu042-panel-docente.cy.js                                                        │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+  (Screenshots)
+
+  -  C:\Users\N\Proyectos\ABP\abp-platform\frontend\cypress\screenshots\hu042-panel-d     (1280x720)
+     ocente.cy.js\hu042-ca01-panel-tarjetas-por-proyecto.png                                        
+  -  C:\Users\N\Proyectos\ABP\abp-platform\frontend\cypress\screenshots\hu042-panel-d     (1280x720)
+     ocente.cy.js\hu042-ca02-filtro-rojo.png                                                        
+  -  C:\Users\N\Proyectos\ABP\abp-platform\frontend\cypress\screenshots\hu042-panel-d     (1280x720)
+     ocente.cy.js\hu042-ca03-navega-al-detalle.png                                                  
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+  Running:  hu043-correos.cy.js                                                             (8 of 9)
+
+
+  √ CA-01 - Al publicar un anuncio, cada integrante recibe en cola un correo con membrete a tiempo (56622ms)
+  √ CA-02 - Al publicar una calificación, cada integrante recibe en cola un correo con membrete y la nota (15396ms)
+  √ CA-03 - La campanita no repite el aviso que ya se envió por correo (14389ms)
+
+  3 passing (1m)
+
+
+  (Results)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Tests:        3                                                                                │
+  │ Passing:      3                                                                                │
+  │ Failing:      0                                                                                │
+  │ Pending:      0                                                                                │
+  │ Skipped:      0                                                                                │
+  │ Screenshots:  2                                                                                │
+  │ Video:        false                                                                            │
+  │ Duration:     1 minute, 26 seconds                                                             │
+  │ Spec Ran:     hu043-correos.cy.js                                                              │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+  (Screenshots)
+
+  -  C:\Users\N\Proyectos\ABP\abp-platform\frontend\cypress\screenshots\hu043-correos     (1280x720)
+     .cy.js\hu043-ca01-anuncio-publicado.png                                                        
+  -  C:\Users\N\Proyectos\ABP\abp-platform\frontend\cypress\screenshots\hu043-correos     (1280x720)
+     .cy.js\hu043-ca03-campanita-sin-duplicados.png                                                 
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+  Running:  parametros.cy.js                                                                (9 of 9)
+
+
+  HU-035 - Configuración de Parámetros
+    1) "before each" hook for "CA-01: Administrador modifica un parámetro y el sistema lo aplica"
+
+
+  0 passing (350ms)
+  1 failing
+
+  1) HU-035 - Configuración de Parámetros
+       "before each" hook for "CA-01: Administrador modifica un parámetro y el sistema lo aplica":
+     CypressError: `cy.visit()` failed trying to load:
+
+http://localhost:5173/admin/configuracion
+
+The response we received from your web server was:
+
+  > 404: Not Found
+
+This was considered a failure because the status code was not `2xx`.
+
+If you do not want status codes to cause failures pass the option: `failOnStatusCode: false`
+
+Because this error occurred during a `before each` hook we are skipping the remaining tests in the current suite: `HU-035 - Configuración de P...`
+      at <unknown> (http://localhost:5173/__cypress/runner/cypress_runner.js:135134:76)
+      at visitFailedByErr (http://localhost:5173/__cypress/runner/cypress_runner.js:134724:12)
+      at <unknown> (http://localhost:5173/__cypress/runner/cypress_runner.js:135117:13)
+      at tryCatcher (http://localhost:5173/__cypress/runner/cypress_runner.js:1777:23)
+      at Promise._settlePromiseFromHandler (http://localhost:5173/__cypress/runner/cypress_runner.js:1489:31)
+      at Promise._settlePromise (http://localhost:5173/__cypress/runner/cypress_runner.js:1546:18)
+      at Promise._settlePromise0 (http://localhost:5173/__cypress/runner/cypress_runner.js:1591:10)
+      at Promise._settlePromises (http://localhost:5173/__cypress/runner/cypress_runner.js:1667:18)
+      at _drainQueueStep (http://localhost:5173/__cypress/runner/cypress_runner.js:2377:12)
+      at _drainQueue (http://localhost:5173/__cypress/runner/cypress_runner.js:2370:9)
+      at Async._drainQueues (http://localhost:5173/__cypress/runner/cypress_runner.js:2386:5)
+      at Async.drainQueues (http://localhost:5173/__cypress/runner/cypress_runner.js:2256:14)
+  From Your Spec Code:
+      at Context.eval (webpack://frontend/./cypress/e2e/parametros.cy.js:21:7)
+
+
+
+
+  (Results)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Tests:        7                                                                                │
+  │ Passing:      0                                                                                │
+  │ Failing:      1                                                                                │
+  │ Pending:      0                                                                                │
+  │ Skipped:      6                                                                                │
+  │ Screenshots:  1                                                                                │
+  │ Video:        false                                                                            │
+  │ Duration:     0 seconds                                                                        │
+  │ Spec Ran:     parametros.cy.js                                                                 │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+  (Screenshots)
+
+  -  C:\Users\N\Proyectos\ABP\abp-platform\frontend\cypress\screenshots\parametros.cy     (1280x720)
+     .js\HU-035 - Configuración de Parámetros -- CA-01 Administrador modifica un pará               
+     metro y el sistema lo aplica -- before each hook (failed).png                                  
+
+
+====================================================================================================
+
+  (Run Finished)
+
+
+       Spec                                              Tests  Passing  Failing  Pending  Skipped  
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ ✖  hu001-registro.cy.js                     650ms        3        -        1        -        2 │
+  ├────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ ✖  hu002-login.cy.js                        453ms        7        -        1        -        6 │
+  ├────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ ✖  hu003-roles.cy.js                        00:01        8        -        8        -        - │
+  ├────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ ✖  hu036-periodos.cy.js                     289ms        8        -        1        -        7 │
+  ├────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ ✖  hu040-calendario.cy.js                   00:21        3        1        2        -        - │
+  ├────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ ✖  hu041-semaforo.cy.js                     00:24        3        -        3        -        - │
+  ├────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ ✔  hu042-panel-docente.cy.js                00:32        3        3        -        -        - │
+  ├────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ ✔  hu043-correos.cy.js                      01:26        3        3        -        -        - │
+  ├────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ ✖  parametros.cy.js                         354ms        7        -        1        -        6 │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+    ✖  7 of 9 failed (78%)                      02:49       45        7       17        -       21  
+
