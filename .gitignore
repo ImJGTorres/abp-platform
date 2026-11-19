@@ -57,3 +57,6 @@ docs/
 
 # Contexto local de Claude Code
 CLAUDE.md
+
+# Build del frontend (lo regenera build.sh)
+backend/static/assets/
