@@ -217,7 +217,16 @@ STATICFILES_DIRS = [
     os.path.join(BASE_DIR, 'static'),                  # ← aquí viven los assets copiados
 ]
 
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+# STORAGES reemplaza a DEFAULT_FILE_STORAGE / STATICFILES_STORAGE (eliminados en Django 5.1).
+# "default" conserva el almacenamiento por defecto (FileSystemStorage sobre MEDIA_ROOT).
+STORAGES = {
+    'default': {
+        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+    },
+    'staticfiles': {
+        'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+    },
+}
 
 # CORS
 CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', default='http://localhost:5173').split(',')

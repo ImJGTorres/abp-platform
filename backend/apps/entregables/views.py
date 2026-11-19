@@ -17,6 +17,7 @@ from rest_framework.views import APIView
 from apps.cursos.acceso import puede_gestionar_proyecto
 from apps.cursos.models import Actividad, Proyecto
 from apps.bitacora.models import BitacoraSistema
+from apps.bitacora.utils import _get_ip
 from apps.equipos.models import MiembroEquipo
 from apps.usuarios.authentication import UsuarioJWTAuthentication
 
@@ -104,7 +105,7 @@ class EntregableListCreateView(generics.ListCreateAPIView):
                     accion='CREATE',
                     modulo='Entregables',
                     descripcion=f'Entregable "{entregable.titulo}" creado para actividad {actividad_id}',
-                    ip_origen=self.request.META.get('REMOTE_ADDR'),
+                    ip_origen=_get_ip(self.request),
                 )
             except Exception:
                 logger.exception('Error no crítico ignorado')
@@ -153,7 +154,7 @@ class EnviarEntregableView(generics.UpdateAPIView):
                     accion='UPDATE',
                     modulo='Entregables',
                     descripcion=f'Entregable {entregable.id} enviado para revisión',
-                    ip_origen=request.META.get('REMOTE_ADDR'),
+                    ip_origen=_get_ip(request),
                 )
             except Exception:
                 logger.exception('Error no crítico ignorado')
@@ -262,7 +263,7 @@ class ArchivoListCreateView(generics.GenericAPIView):
                     accion='CREATE',
                     modulo='Archivos',
                     descripcion=f'Archivo "{archivo.name}" subido al entregable {id_entregable}',
-                    ip_origen=request.META.get('REMOTE_ADDR'),
+                    ip_origen=_get_ip(request),
                 )
             except Exception:
                 logger.exception('Error no crítico ignorado')
@@ -314,7 +315,7 @@ class ArchivoAdjuntoEliminarView(generics.DestroyAPIView):
                     accion='DELETE',
                     modulo='Archivos',
                     descripcion=f'Archivo "{nombre_original}" eliminado del entregable {entregable_id}',
-                    ip_origen=request.META.get('REMOTE_ADDR'),
+                    ip_origen=_get_ip(request),
                 )
             except Exception:
                 logger.exception('Error no crítico ignorado')
